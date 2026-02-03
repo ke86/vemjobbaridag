@@ -1,0 +1,1700 @@
+/* ==========================================
+   VEM JOBBAR IDAG? - STYLES
+   ========================================== */
+
+/* Light mode (default) */
+:root {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --accent-red: #ff4466;
+  --accent-green: #22c55e;
+  --accent-blue: #3b82f6;
+  --border-color: #d2d2d7;
+}
+
+/* Dark mode */
+html.dark {
+  --bg-primary: #0d0d1a;
+  --bg-secondary: #1a1a2e;
+  --bg-card: #16162a;
+  --text-primary: #ffffff;
+  --text-secondary: #8888aa;
+  --accent-red: #ff4466;
+  --accent-green: #22c55e;
+  --accent-blue: #3b82f6;
+  --border-color: #2a2a4a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+html {
+  height: -webkit-fill-available;
+}
+
+/* ==========================================
+   HEADER - iOS Style
+   ========================================== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+html.dark .header {
+  background: rgba(26, 26, 46, 0.72);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.menu-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+html.dark .menu-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.header-status {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0.85;
+}
+
+.status-dot.green { background: var(--accent-green); }
+.status-dot.blue { background: var(--accent-blue); }
+
+/* ==========================================
+   MAIN CONTENT
+   ========================================== */
+.main-content {
+  padding: 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ==========================================
+   DATE PICKER
+   ========================================== */
+.date-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.date-nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.date-nav-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+}
+
+.date-nav-btn:active {
+  transform: scale(0.95);
+}
+
+.date-display {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+  justify-content: center;
+}
+
+/* ==========================================
+   STATS BAR
+   ========================================== */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.working-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.working-count .count {
+  color: var(--accent-blue);
+  font-weight: 600;
+}
+
+.working-count .icon {
+  font-size: 18px;
+}
+
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-toggle input {
+  display: none;
+}
+
+.toggle-switch {
+  width: 44px;
+  height: 26px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 13px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  transition: all 0.3s ease;
+}
+
+.filter-toggle input:checked + .toggle-switch {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.filter-toggle input:checked + .toggle-switch::after {
+  background: white;
+  left: 20px;
+}
+
+.filter-toggle .toggle-label {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+/* ==========================================
+   EMPLOYEE LIST
+   ========================================== */
+.employee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.employee-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  animation: slideIn 0.3s ease-out;
+  animation-fill-mode: both;
+  cursor: pointer;
+}
+
+.employee-card:hover {
+  border-color: var(--text-secondary);
+  transform: translateX(4px);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  color: white;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.avatar.green { background: linear-gradient(135deg, #10b981, #059669); }
+.avatar.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.avatar.purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.avatar.orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.avatar.pink { background: linear-gradient(135deg, #ec4899, #db2777); }
+.avatar.teal { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+
+.employee-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.employee-name {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.employee-time {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.5px;
+}
+
+.employee-badge {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  min-width: 50px;
+}
+
+.badge.reserv {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.badge.dag {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.badge.ledig {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.badge.semester-badge {
+  background: rgba(234, 179, 8, 0.15);
+  border-color: rgba(234, 179, 8, 0.3);
+  color: #facc15;
+}
+
+.badge.franvarande-badge {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.badge.foraldraledighet-badge {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.3);
+  color: #f472b6;
+}
+
+.badge.afd-badge {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+}
+
+/* ==========================================
+   TURN ICONS
+   ========================================== */
+.turn-icons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+.turn-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.turn-icon.flag-icon {
+  font-size: 22px;
+}
+
+.turn-icon.reserv-icon {
+  font-size: 14px;
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.turn-icon.day-indicator {
+  position: relative;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-primary);
+}
+
+.turn-icon.day-1 {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 85% 100%, 70% 70%, 55% 100%, 40% 70%, 25% 100%, 10% 70%, 0% 100%);
+  padding-bottom: 8px;
+}
+
+.turn-icon.day-2 {
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  clip-path: polygon(0% 30%, 15% 0%, 30% 30%, 45% 0%, 60% 30%, 75% 0%, 90% 30%, 100% 0%, 100% 100%, 0% 100%);
+  padding-top: 8px;
+}
+
+/* ==========================================
+   SIDEBAR MENU
+   ========================================== */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 200;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--bg-secondary);
+  z-index: 300;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  padding: 24px;
+}
+
+.sidebar.active {
+  transform: translateX(0);
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-red);
+}
+
+.sidebar-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 28px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.sidebar-menu {
+  list-style: none;
+}
+
+.sidebar-menu li {
+  margin-bottom: 8px;
+}
+
+.sidebar-menu a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.sidebar-menu a:hover {
+  background: var(--bg-card);
+}
+
+.sidebar-menu .icon {
+  font-size: 20px;
+  width: 28px;
+  text-align: center;
+}
+
+/* ==========================================
+   EMPTY STATE
+   ========================================== */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state .icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  font-size: 16px;
+}
+
+/* ==========================================
+   PAGE VIEWS
+   ========================================== */
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+/* ==========================================
+   UPLOAD PAGE
+   ========================================== */
+.upload-page {
+  padding: 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  background: var(--bg-card);
+  transition: all 0.3s;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+  border-color: var(--accent-blue);
+  background: var(--bg-secondary);
+}
+
+.upload-zone .upload-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.upload-zone h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.upload-zone p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.upload-zone .file-formats {
+  display: inline-block;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg-secondary);
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+}
+
+.upload-zone .browse-btn {
+  display: inline-block;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-zone .browse-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+  transform: scale(1.02);
+}
+
+.upload-zone input[type="file"] {
+  display: none;
+}
+
+/* File Preview */
+.file-preview {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: none;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.file-preview.active {
+  display: flex;
+}
+
+.file-preview .file-icon {
+  width: 48px;
+  height: 48px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.file-preview .file-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-preview .file-name {
+  font-weight: 600;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.file-preview .file-size {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.file-preview .remove-file {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.file-preview .remove-file:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+/* Process Button */
+.process-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--accent-green);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.process-btn.active {
+  display: flex;
+}
+
+.process-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+.process-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+}
+
+/* Processing State */
+.processing-state {
+  text-align: center;
+  padding: 40px 20px;
+  display: none;
+}
+
+.processing-state.active {
+  display: block;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.processing-state p {
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+/* ==========================================
+   SETTINGS PAGE
+   ========================================== */
+.settings-page {
+  padding: 20px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.settings-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.settings-item:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.settings-icon {
+  font-size: 20px;
+}
+
+/* iOS Toggle Switch for Settings */
+.settings-item .toggle-switch {
+  position: relative;
+  width: 51px;
+  height: 31px;
+  background: transparent;
+  border: none;
+}
+
+.settings-item .toggle-switch::after {
+  display: none;
+}
+
+.settings-item .toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 31px;
+  transition: all 0.3s;
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 27px;
+  width: 27px;
+  left: 1px;
+  bottom: 1px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.3s;
+}
+
+.settings-item .toggle-switch input:checked + .toggle-slider {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.settings-item .toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+.settings-footer {
+  background: transparent;
+  border: none;
+  text-align: center;
+  padding: 20px;
+}
+
+.version-text {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ==========================================
+   LOGIN SCREEN - iOS Style
+   ========================================== */
+.login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+html.dark .login-screen {
+  background: linear-gradient(145deg, #0a0a14 0%, #12122a 100%);
+}
+
+.login-screen.hidden {
+  display: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 40px 28px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+}
+
+html.dark .login-card {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.login-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.login-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-group {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  opacity: 0.6;
+}
+
+.password-input {
+  width: 100%;
+  height: 54px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 16px;
+  padding: 0 16px 0 48px;
+  transition: all 0.2s ease;
+}
+
+.password-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.password-input.error {
+  border-color: var(--accent-red);
+  animation: shake 0.4s ease-in-out;
+}
+
+.password-input::placeholder {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.login-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--accent-blue);
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+}
+
+.login-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.login-btn:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-error {
+  color: var(--accent-red);
+  font-size: 14px;
+  text-align: center;
+  min-height: 20px;
+  font-weight: 500;
+}
+
+.login-loading {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 16px 0;
+}
+
+.login-loading.active {
+  display: flex;
+}
+
+.login-loading .spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* ==========================================
+   MONTHLY SCHEDULE PAGE
+   ========================================== */
+.monthly-page {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.month-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.month-display {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 150px;
+  text-align: center;
+}
+
+/* Export to Calendar Button */
+.export-calendar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.export-calendar-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+}
+
+.export-calendar-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.export-calendar-btn .export-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+html.dark .export-calendar-btn .export-icon {
+  filter: invert(1);
+}
+
+/* Schedule Grid */
+.schedule-grid {
+  display: grid;
+  grid-template-columns: 24px repeat(7, 1fr);
+  gap: 3px;
+  padding: 8px;
+}
+
+.schedule-grid-header {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 1px;
+}
+
+.week-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.schedule-day {
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--bg-secondary);
+  position: relative;
+  min-height: 42px;
+  padding: 3px;
+  overflow: hidden;
+}
+
+.schedule-day .day-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.schedule-day .day-times {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.schedule-day .day-num {
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.schedule-day .day-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.schedule-day .day-icon.flag {
+  font-size: 12px;
+}
+
+.schedule-day .day-start,
+.schedule-day .day-end {
+  font-size: 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.schedule-day.empty {
+  background: transparent;
+}
+
+.schedule-day.working {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.schedule-day.off {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--text-secondary);
+}
+
+.schedule-day.fp {
+  background: rgba(34, 197, 94, 0.25);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.schedule-day.fpv {
+  background: rgba(34, 197, 94, 0.15);
+  border: 2px dashed rgba(34, 197, 94, 0.5);
+}
+
+.schedule-day.semester {
+  background: rgba(234, 179, 8, 0.25);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.schedule-day.franvarande {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.schedule-day.foraldraledighet {
+  background: rgba(236, 72, 153, 0.2);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.schedule-day.afd {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.schedule-day.reserv {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.schedule-day.today {
+  box-shadow: inset 0 0 0 2px var(--accent-red);
+}
+
+/* ==========================================
+   LIST VIEW (Almanac)
+   ========================================== */
+.schedule-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.schedule-list-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 10px;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.schedule-list-item.working {
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #3b82f6;
+}
+
+.schedule-list-item.fp {
+  background: rgba(34, 197, 94, 0.1);
+  border-left: 3px solid #22c55e;
+}
+
+.schedule-list-item.fpv {
+  background: rgba(34, 197, 94, 0.08);
+  border-left: 3px dashed #22c55e;
+}
+
+.schedule-list-item.semester {
+  background: rgba(234, 179, 8, 0.1);
+  border-left: 3px solid #eab308;
+}
+
+.schedule-list-item.franvarande {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid #ef4444;
+}
+
+.schedule-list-item.foraldraledighet {
+  background: rgba(236, 72, 153, 0.1);
+  border-left: 3px solid #ec4899;
+}
+
+.schedule-list-item.afd {
+  background: rgba(139, 92, 246, 0.1);
+  border-left: 3px solid #8b5cf6;
+}
+
+.schedule-list-item.reserv {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid #f59e0b;
+}
+
+.schedule-list-item.today {
+  box-shadow: inset 0 0 0 2px var(--accent-red);
+}
+
+.schedule-list-item .list-date {
+  min-width: 60px;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.schedule-list-item .list-time {
+  min-width: 75px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.schedule-list-item .list-service {
+  flex: 1;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-list-item .list-icons {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 40px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Week block in list view */
+.week-block {
+  display: flex;
+  margin-bottom: 8px;
+}
+
+.week-block .week-num-vertical {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  background: var(--bg-secondary);
+  border-radius: 8px 0 0 8px;
+  border: 1px solid var(--border-color);
+  border-right: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.week-block .week-days {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ==========================================
+   PERSON LIST
+   ========================================== */
+.person-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.person-list-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  animation: slideIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.person-list-card:hover {
+  border-color: var(--accent-blue);
+  background: var(--bg-secondary);
+  transform: translateX(4px);
+}
+
+.person-list-card .person-name {
+  font-weight: 600;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.person-list-card .person-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.person-list-card .arrow {
+  color: var(--text-secondary);
+  font-size: 20px;
+}
+
+/* Person Schedule Header */
+.person-schedule-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
+}
+
+.person-schedule-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.person-schedule-header .name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 15px;
+  min-width: 80px;
+}
+
+/* View Toggle */
+.view-toggle-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.view-toggle-inline .view-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: color 0.2s;
+}
+
+.view-toggle-inline .view-label.active {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.view-toggle-inline .view-switch {
+  width: 44px;
+  height: 24px;
+  background: var(--accent-blue);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.view-toggle-inline .view-switch::after {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: white;
+  border-radius: 50%;
+  top: 3px;
+  left: 3px;
+  transition: all 0.3s ease;
+}
+
+.view-toggle-inline .view-switch.list-active {
+  background: var(--accent-green);
+}
+
+.view-toggle-inline .view-switch.list-active::after {
+  left: 23px;
+}
+
+/* ==========================================
+   NO SCHEDULES STATE
+   ========================================== */
+.no-schedules {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.no-schedules .icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-schedules p {
+  margin-bottom: 20px;
+}
+
+.no-schedules .upload-link {
+  color: var(--accent-blue);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ==========================================
+   SUCCESS POPUP
+   ========================================== */
+.success-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fadeIn 0.2s ease;
+}
+
+.success-popup {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 32px 40px;
+  text-align: center;
+  animation: popIn 0.3s ease;
+  max-width: 300px;
+  width: 90%;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.success-popup .success-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.success-popup .success-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ==========================================
+   SCROLLBAR
+   ========================================== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+/* ==========================================
+   RESPONSIVE - Mobile
+   ========================================== */
+@media (max-width: 400px) {
+  .schedule-grid {
+    grid-template-columns: 20px repeat(7, 1fr);
+    gap: 2px;
+    padding: 6px;
+  }
+
+  .schedule-day {
+    min-height: 36px;
+    border-radius: 5px;
+    padding: 2px;
+  }
+
+  .schedule-day .day-num {
+    font-size: 9px;
+  }
+
+  .schedule-day .day-start,
+  .schedule-day .day-end {
+    font-size: 7px;
+  }
+}
+
+@media (max-width: 380px) {
+  .schedule-list-item {
+    padding: 8px 8px;
+    gap: 6px;
+  }
+
+  .schedule-list-item .list-date {
+    min-width: 50px;
+    font-size: 12px;
+  }
+
+  .schedule-list-item .list-time {
+    min-width: 65px;
+    font-size: 11px;
+  }
+
+  .week-block .week-num-vertical {
+    width: 22px;
+    min-width: 22px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 360px) {
+  .month-picker {
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  .month-display {
+    padding: 8px 10px;
+    font-size: 13px;
+    min-width: 100px;
+  }
+
+  .date-nav-btn {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+
+  .export-calendar-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .person-schedule-header {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .person-schedule-header .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
+  }
+
+  .person-schedule-header .name {
+    font-size: 14px;
+  }
+}

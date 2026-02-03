@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Vem jobbar idag?</title>
+
+  <!-- Fullscreen / PWA meta tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vem jobbar?">
+  <meta name="theme-color" content="#0d0d1a">
+
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-app-compat.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.7.1/firebase-firestore-compat.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Application Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Login Screen -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-card">
+      <div class="login-header">
+        <h1 class="login-title">Vem jobbar idag?</h1>
+        <p class="login-subtitle">Logga in för att fortsätta</p>
+      </div>
+
+      <div class="login-form">
+        <div class="input-group">
+          <span class="input-icon">🔒</span>
+          <input type="password" class="password-input" id="passwordInput" placeholder="Ange lösenord" autocomplete="current-password">
+        </div>
+
+        <button class="login-btn" id="loginBtn">Logga in</button>
+
+        <div class="login-loading" id="loginLoading">
+          <div class="spinner"></div>
+          <span>Ansluter...</span>
+        </div>
+
+        <p class="login-error" id="loginError"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar Overlay -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar Menu -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">Meny</span>
+      <button class="sidebar-close" id="closeSidebar">×</button>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="#" data-page="schedule"><span class="icon">📅</span> Dagens schema</a></li>
+      <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
+      <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
+      <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
+    </ul>
+  </nav>
+
+  <!-- Header -->
+  <header class="header">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <h1 class="header-title">Vem jobbar idag?</h1>
+    <div class="header-status">
+      <span class="status-dot green"></span>
+      <span class="status-dot blue"></span>
+    </div>
+  </header>
+
+  <!-- Main Content - Schedule Page -->
+  <main class="main-content page active" id="schedulePage">
+    <!-- Date Picker -->
+    <div class="date-picker">
+      <button class="date-nav-btn" id="prevDay">←</button>
+      <div class="date-display">
+        <span id="currentDate">Tis 3 feb 2026</span>
+      </div>
+      <button class="date-nav-btn" id="nextDay">→</button>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="working-count">
+        <span class="icon">👥</span>
+        <span class="count" id="workingCount">0</span>
+        <span>arbetar</span>
+      </div>
+      <label class="filter-toggle">
+        <input type="checkbox" id="showLediga">
+        <span class="toggle-switch"></span>
+        <span class="toggle-label">Lediga</span>
+      </label>
+    </div>
+
+    <!-- Employee List -->
+    <div class="employee-list" id="employeeList">
+      <!-- Cards will be rendered here -->
+    </div>
+  </main>
+
+  <!-- Monthly Schedule Page -->
+  <main class="monthly-page page" id="monthlyPage">
+    <!-- Person List View -->
+    <div id="personListView">
+      <div class="person-list" id="personList">
+        <!-- Person name cards will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Person Schedule View (hidden by default) -->
+    <div id="personScheduleView" style="display: none;">
+      <!-- Month Picker -->
+      <div class="month-picker">
+        <button class="date-nav-btn" id="prevMonth">←</button>
+        <div class="month-display" id="monthDisplay">Januari 2026</div>
+        <button class="date-nav-btn" id="nextMonth">→</button>
+      </div>
+
+      <!-- Export Button -->
+      <button class="export-calendar-btn" id="exportCalBtn">
+        <img src="https://pfst.cf2.poecdn.net/base/image/7e32cd6dbe37a1833692c5ec8ed62b3a45812a216a3de7cd897ee63e18640571?w=200&h=200" alt="" class="export-icon">
+        <span>Exportera till kalender</span>
+      </button>
+
+      <!-- Person Schedule -->
+      <div id="monthlyScheduleList">
+        <!-- Person schedule calendar/list will be rendered here -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Upload Page -->
+  <main class="upload-page page" id="uploadPage">
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="uploadZone">
+      <span class="upload-icon">📄</span>
+      <h3>Ladda upp ditt schema</h3>
+      <p>Dra och släpp din fil här, eller klicka för att välja</p>
+      <span class="file-formats">PDF, CSV eller JSON</span>
+      <span class="browse-btn">Välj fil</span>
+      <input type="file" id="fileInput" accept=".pdf,.csv,.json,application/pdf,text/csv,application/json">
+    </div>
+
+    <!-- File Preview -->
+    <div class="file-preview" id="filePreview">
+      <div class="file-icon">📄</div>
+      <div class="file-info">
+        <div class="file-name" id="fileName">schema.pdf</div>
+        <div class="file-size" id="fileSize">2.4 MB</div>
+      </div>
+      <button class="remove-file" id="removeFile">×</button>
+    </div>
+
+    <!-- Upload Button -->
+    <button class="process-btn" id="processBtn">
+      <span>📤</span>
+      <span>Ladda upp</span>
+    </button>
+
+    <!-- Processing State -->
+    <div class="processing-state" id="processingState">
+      <div class="spinner"></div>
+      <p id="processingText">Läser in PDF...</p>
+    </div>
+  </main>
+
+  <!-- Settings Page -->
+  <main class="settings-page page" id="settingsPage">
+    <div class="settings-container">
+      <div class="settings-section">
+        <h3 class="settings-title">Utseende</h3>
+        <div class="settings-item">
+          <div class="settings-label">
+            <span class="settings-icon">🌓</span>
+            <span>Ljust/Mörkt</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section settings-footer">
+        <p class="version-text">Vem jobbar idag? v1.0</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Application Scripts (order matters!) -->
+  <script src="js/config.js"></script>
+  <script src="js/firebase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/schedule.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
