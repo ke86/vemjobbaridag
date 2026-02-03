@@ -369,10 +369,27 @@ function getEmployeeMonthSchedule(employeeId, year, month) {
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const dayShifts = employeesData[dateKey] || [];
-    const employeeShift = dayShifts.find(s => s.employeeId === employeeId);
 
-    if (employeeShift) {
-      schedule[day] = employeeShift;
+    // Find all shifts for this employee on this day
+    const employeeShifts = dayShifts.filter(s => s.employeeId === employeeId);
+
+    if (employeeShifts.length > 0) {
+      // Check if there's both FP/FPV and a working shift
+      const fpShift = employeeShifts.find(s => s.badge === 'fp' || s.badge === 'fpv');
+      const workShift = employeeShifts.find(s => s.badge !== 'fp' && s.badge !== 'fpv' && s.time && s.time !== '-');
+
+      if (fpShift && workShift) {
+        // Combined: FP/FPV background with work overlay
+        schedule[day] = {
+          ...fpShift,
+          hasOverlay: true,
+          overlayTime: workShift.time,
+          overlayBadgeText: workShift.badgeText
+        };
+      } else {
+        // Single shift
+        schedule[day] = employeeShifts[0];
+      }
     }
   }
 
@@ -496,10 +513,19 @@ function renderCalendarView(emp) {
     const shift = monthSchedule[currentDay];
     const typeClass = shift ? getShiftTypeClass(shift.badgeText) : 'off';
     const todayClass = isToday(viewYear, viewMonth, currentDay) ? 'today' : '';
-    const iconHtml = shift ? getCalendarDayIcon(shift.badgeText) : '';
+    const iconHtml = shift ? getCalendarDayIcon(shift.hasOverlay ? shift.overlayBadgeText : shift.badgeText) : '';
 
     let timesHtml = '';
-    if (shift && shift.time && shift.time !== '-') {
+    if (shift && shift.hasOverlay) {
+      // FP/FPV with work overlay - show times in small box
+      const { start, end } = parseTime(shift.overlayTime);
+      timesHtml = `
+        <div class="day-overlay-box">
+          <span class="overlay-start">${start}</span>
+          <span class="overlay-end">${end}</span>
+        </div>
+      `;
+    } else if (shift && shift.time && shift.time !== '-') {
       const { start, end } = parseTime(shift.time);
       timesHtml = `
         <div class="day-times">
@@ -603,9 +629,23 @@ function renderListView(emp) {
     for (const d of week.days) {
       const typeClass = d.shift ? getShiftTypeClass(d.shift.badgeText) : 'off';
       const todayClass = d.isToday ? 'today' : '';
-      const timeText = d.shift ? (d.shift.time && d.shift.time !== '-' ? d.shift.time : '-') : '-';
-      const serviceText = d.shift ? d.shift.badgeText : '-';
-      const iconsHtml = d.shift ? renderListIcons(d.shift.badgeText) : '<div class="list-icons"></div>';
+
+      let timeText = '-';
+      let serviceText = '-';
+      let iconsHtml = '<div class="list-icons"></div>';
+
+      if (d.shift) {
+        if (d.shift.hasOverlay) {
+          // FP/FPV + work: show work time with (FP) label
+          timeText = d.shift.overlayTime || '-';
+          serviceText = `${d.shift.overlayBadgeText} <span class="fp-label">(${d.shift.badgeText})</span>`;
+          iconsHtml = renderListIcons(d.shift.overlayBadgeText);
+        } else {
+          timeText = d.shift.time && d.shift.time !== '-' ? d.shift.time : '-';
+          serviceText = d.shift.badgeText;
+          iconsHtml = renderListIcons(d.shift.badgeText);
+        }
+      }
 
       daysHTML += `
         <div class="schedule-list-item ${typeClass} ${todayClass}">

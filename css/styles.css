@@ -1273,6 +1273,7 @@ html.dark .export-calendar-btn .export-icon {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  overflow: hidden;
 }
 
 .schedule-list-item {
@@ -1347,6 +1348,7 @@ html.dark .export-calendar-btn .export-icon {
 
 .schedule-list-item .list-service {
   flex: 1;
+  min-width: 0;
   text-align: right;
   font-size: 12px;
   font-weight: 500;
@@ -1391,6 +1393,8 @@ html.dark .export-calendar-btn .export-icon {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* ==========================================
@@ -1609,6 +1613,52 @@ html.dark .export-calendar-btn .export-icon {
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 3px;
+}
+
+/* ==========================================
+   FP/FPV + WORK OVERLAY
+   ========================================== */
+
+/* Overlay box in calendar day (for FP/FPV + work) */
+.day-overlay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.85);
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 2px;
+  gap: 0;
+}
+
+.day-overlay-box .overlay-start,
+.day-overlay-box .overlay-end {
+  font-size: 7px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: white;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* FP label in list view */
+.fp-label {
+  font-size: 10px;
+  color: #4ade80;
+  font-weight: 600;
+  margin-left: 4px;
+}
+
+@media (max-width: 400px) {
+  .day-overlay-box {
+    padding: 1px 2px;
+    margin: 1px;
+  }
+
+  .day-overlay-box .overlay-start,
+  .day-overlay-box .overlay-end {
+    font-size: 6px;
+  }
 }
 
 /* ==========================================

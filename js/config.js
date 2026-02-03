@@ -37,3 +37,8 @@ const dayNamesFull = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lörd
 
 // Non-working shift types
 const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd'];
+
+// IndexedDB Configuration
+const DB_NAME = 'VemJobbarIdagDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'auth';
