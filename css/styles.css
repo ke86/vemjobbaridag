@@ -600,7 +600,8 @@ html.dark .menu-btn:hover {
   z-index: 300;
   transform: translateX(-100%);
   transition: transform 0.3s ease;
-  padding: 24px;
+  padding: 20px;
+  padding-top: env(safe-area-inset-top, 50px);
 }
 
 .sidebar.active {
@@ -611,53 +612,82 @@ html.dark .menu-btn:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
+  margin-top: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--accent-red);
+  color: var(--text-primary);
 }
 
 .sidebar-close {
-  background: none;
-  border: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  font-size: 28px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  font-size: 20px;
   cursor: pointer;
-  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.sidebar-close:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
 }
 
 .sidebar-menu {
   list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .sidebar-menu li {
-  margin-bottom: 8px;
+  margin: 0;
 }
 
 .sidebar-menu a {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 12px;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
   color: var(--text-primary);
   text-decoration: none;
   font-weight: 500;
+  font-size: 15px;
   transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+html.dark .sidebar-menu a {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .sidebar-menu a:hover {
-  background: var(--bg-card);
+  border-color: var(--accent-blue);
+  transform: translateX(4px);
+}
+
+.sidebar-menu a:active {
+  transform: scale(0.98);
+  background: var(--bg-secondary);
 }
 
 .sidebar-menu .icon {
-  font-size: 20px;
-  width: 28px;
+  font-size: 22px;
+  width: 30px;
   text-align: center;
 }
 
