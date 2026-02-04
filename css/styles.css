@@ -2233,6 +2233,8 @@ html.dark .export-calendar-btn .export-icon {
 
 .fridag-select-row select {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -2246,6 +2248,9 @@ html.dark .export-calendar-btn .export-icon {
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 html.dark .fridag-select-row select {
