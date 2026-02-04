@@ -506,7 +506,8 @@ function getSwedishHolidays2026() {
     { date: '2026-12-24', name: 'Julafton' },
     { date: '2026-12-25', name: 'Juldagen' },
     { date: '2026-12-26', name: 'Annandag jul' },
-    { date: '2026-12-31', name: 'Nyårsafton' }
+    { date: '2026-12-31', name: 'Nyårsafton' },
+    { date: '2027-01-01', name: 'Nyårsdagen 2027' }
   ];
 }
 
@@ -550,23 +551,54 @@ function toggleHolidaysModal() {
   const holidays = getSwedishHolidays2026();
   const employeeId = selectedEmployeeId;
 
-  holidaysList.innerHTML = holidays.map(holiday => {
-    const badge = getHolidayBadge(employeeId, holiday.date);
-    const badgeHtml = badge
-      ? `<span class="holiday-badge ${badge === 'FPV' ? 'fpv' : ''}">${badge}</span>`
-      : '';
+  // Group holidays by quarter
+  const quarters = {
+    'Q1 · Jan–Mar 2026': [],
+    'Q2 · Apr–Jun': [],
+    'Q3 · Jul–Sep': [],
+    'Q4 · Okt–Dec': [],
+    '2027': []
+  };
 
-    return `
-      <div class="holiday-item">
-        <div class="holiday-info">
-          <span class="holiday-name">${holiday.name}</span>
-          <span class="holiday-date">${formatSwedishDate(holiday.date)}</span>
+  holidays.forEach(holiday => {
+    const year = parseInt(holiday.date.split('-')[0]);
+    const month = parseInt(holiday.date.split('-')[1]);
+    if (year === 2027) quarters['2027'].push(holiday);
+    else if (month <= 3) quarters['Q1 · Jan–Mar 2026'].push(holiday);
+    else if (month <= 6) quarters['Q2 · Apr–Jun'].push(holiday);
+    else if (month <= 9) quarters['Q3 · Jul–Sep'].push(holiday);
+    else quarters['Q4 · Okt–Dec'].push(holiday);
+  });
+
+  // Render grouped list
+  let html = '';
+  for (const [quarter, items] of Object.entries(quarters)) {
+    if (items.length === 0) continue;
+
+    html += `<div class="holiday-group">`;
+    html += `<div class="holiday-group-title">${quarter}</div>`;
+
+    items.forEach(holiday => {
+      const badge = getHolidayBadge(employeeId, holiday.date);
+      const badgeHtml = badge
+        ? `<span class="holiday-badge ${badge === 'FPV' ? 'fpv' : ''}">${badge}</span>`
+        : '';
+
+      html += `
+        <div class="holiday-item">
+          <div class="holiday-info">
+            <span class="holiday-name">${holiday.name}</span>
+            <span class="holiday-date">${formatSwedishDate(holiday.date)}</span>
+          </div>
+          ${badgeHtml}
         </div>
-        ${badgeHtml}
-      </div>
-    `;
-  }).join('');
+      `;
+    });
 
+    html += `</div>`;
+  }
+
+  holidaysList.innerHTML = html;
   holidaysModal.classList.add('active');
 }
 
