@@ -246,7 +246,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.3</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.4</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -268,6 +268,52 @@
         <button class="modal-btn cancel" id="deleteModalCancel">Avbryt</button>
         <button class="modal-btn danger" id="deleteModalConfirm">Radera</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Day Editor Bottom Sheet -->
+  <div class="day-editor-overlay" id="dayEditorOverlay"></div>
+  <div class="day-editor-sheet" id="dayEditorSheet">
+    <div class="day-editor-handle"></div>
+    <div class="day-editor-header">
+      <h3 id="dayEditorTitle">Redigera dag</h3>
+      <button class="day-editor-close" id="dayEditorClose">×</button>
+    </div>
+    <div class="day-editor-content">
+      <!-- Time Section -->
+      <div class="day-editor-section">
+        <label class="day-editor-label">Tid</label>
+        <div class="day-editor-time-row">
+          <input type="time" class="day-editor-time-input" id="dayEditorStartTime" placeholder="06:00">
+          <span class="day-editor-time-sep">–</span>
+          <input type="time" class="day-editor-time-input" id="dayEditorEndTime" placeholder="14:30">
+        </div>
+      </div>
+
+      <!-- Turn Section -->
+      <div class="day-editor-section">
+        <label class="day-editor-label">Turn</label>
+        <input type="text" class="day-editor-turn-input" id="dayEditorTurn" placeholder="T.ex. M104">
+      </div>
+
+      <!-- Type Section -->
+      <div class="day-editor-section">
+        <label class="day-editor-label">Typ</label>
+        <div class="day-editor-chips">
+          <button class="day-editor-chip chip-fp" data-type="fp">FP</button>
+          <button class="day-editor-chip chip-fpv" data-type="fpv">FPV</button>
+          <button class="day-editor-chip chip-sem" data-type="semester">Sem</button>
+          <button class="day-editor-chip chip-fl" data-type="foraldraledighet">FL</button>
+          <button class="day-editor-chip chip-sjuk" data-type="sjuk">Sjuk</button>
+          <button class="day-editor-chip chip-ffu" data-type="ffu">FFU</button>
+          <button class="day-editor-chip chip-vab" data-type="vab">VAB</button>
+          <button class="day-editor-chip chip-clear" data-type="">Rensa</button>
+        </div>
+      </div>
+    </div>
+    <div class="day-editor-footer">
+      <button class="day-editor-btn cancel" id="dayEditorCancel">Avbryt</button>
+      <button class="day-editor-btn save" id="dayEditorSave">💾 Spara</button>
     </div>
   </div>
 

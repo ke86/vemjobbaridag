@@ -13,6 +13,9 @@ function initApp() {
   // Initialize Fridagsnyckel UI
   initFridagsUI();
 
+  // Initialize Day Editor
+  initDayEditor();
+
   // Initialize authentication
   initAuth();
 

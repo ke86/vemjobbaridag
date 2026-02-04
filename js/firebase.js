@@ -573,3 +573,44 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
 
   console.log(`Removed ${removedCount} fridag shifts from Firebase`);
 }
+
+/**
+ * Save a single day edit to Firebase
+ * @param {string} dateKey - Date in format 'YYYY-MM-DD'
+ * @param {string} employeeId - Employee ID
+ * @param {Object|null} newShift - New shift data, or null to remove shift
+ */
+async function saveDayEditToFirebase(dateKey, employeeId, newShift) {
+  console.log(`Saving day edit for ${employeeId} on ${dateKey}:`, newShift);
+
+  const docRef = db.collection('schedules').doc(dateKey);
+
+  try {
+    // Get existing shifts for this date
+    const doc = await docRef.get();
+    let shifts = doc.exists ? (doc.data().shifts || []) : [];
+
+    // Remove existing shift for this employee on this date
+    shifts = shifts.filter(s => s.employeeId !== employeeId);
+
+    // Add new shift if provided
+    if (newShift) {
+      shifts.push(newShift);
+    }
+
+    // If no shifts left, delete the document
+    if (shifts.length === 0) {
+      if (doc.exists) {
+        await docRef.delete();
+      }
+    } else {
+      // Save updated shifts
+      await docRef.set({ shifts });
+    }
+
+    console.log(`Day edit saved to Firebase for ${dateKey}`);
+  } catch (error) {
+    console.error('Error saving day edit to Firebase:', error);
+    throw error;
+  }
+}

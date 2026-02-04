@@ -890,7 +890,9 @@ function renderListView(emp) {
       let serviceText = '-';
       let iconsHtml = '<div class="list-icons"></div>';
 
+      let isEdited = false;
       if (d.shift) {
+        isEdited = d.shift.edited === true;
         if (d.shift.hasOverlay) {
           // FP/FPV + work: show work time with (FP) label
           timeText = d.shift.overlayTime || '-';
@@ -903,8 +905,13 @@ function renderListView(emp) {
         }
       }
 
+      // Build date key for this day
+      const dayDateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+      const editedClass = isEdited ? 'edited' : '';
+
       daysHTML += `
-        <div class="schedule-list-item ${typeClass} ${todayClass}">
+        <div class="schedule-list-item ${typeClass} ${todayClass} ${editedClass} clickable"
+             onclick="openDayEditor('${dayDateKey}', '${selectedEmployeeId}')">
           <div class="list-date">
             <span>${d.weekdayName} ${d.day}</span>
           </div>
@@ -1643,4 +1650,241 @@ function generateFridagShifts(employeeId, keyId, startRow) {
   }
 
   return shifts;
+}
+
+// ==========================================
+// DAY EDITOR - Bottom Sheet
+// ==========================================
+
+let dayEditorOverlay, dayEditorSheet, dayEditorTitle;
+let dayEditorStartTime, dayEditorEndTime, dayEditorTurn;
+let dayEditorClose, dayEditorCancel, dayEditorSave;
+let currentEditingDay = null; // { dateKey, employeeId, shift }
+
+/**
+ * Initialize Day Editor UI elements
+ */
+function initDayEditor() {
+  dayEditorOverlay = document.getElementById('dayEditorOverlay');
+  dayEditorSheet = document.getElementById('dayEditorSheet');
+  dayEditorTitle = document.getElementById('dayEditorTitle');
+  dayEditorStartTime = document.getElementById('dayEditorStartTime');
+  dayEditorEndTime = document.getElementById('dayEditorEndTime');
+  dayEditorTurn = document.getElementById('dayEditorTurn');
+  dayEditorClose = document.getElementById('dayEditorClose');
+  dayEditorCancel = document.getElementById('dayEditorCancel');
+  dayEditorSave = document.getElementById('dayEditorSave');
+
+  // Event listeners
+  if (dayEditorOverlay) {
+    dayEditorOverlay.addEventListener('click', closeDayEditor);
+  }
+  if (dayEditorClose) {
+    dayEditorClose.addEventListener('click', closeDayEditor);
+  }
+  if (dayEditorCancel) {
+    dayEditorCancel.addEventListener('click', closeDayEditor);
+  }
+  if (dayEditorSave) {
+    dayEditorSave.addEventListener('click', saveDayEdit);
+  }
+
+  // Type chip click handlers
+  document.querySelectorAll('.day-editor-chip').forEach(chip => {
+    chip.addEventListener('click', () => selectDayType(chip));
+  });
+}
+
+/**
+ * Open the day editor for a specific day
+ */
+function openDayEditor(dateKey, employeeId) {
+  if (!dayEditorSheet || !dayEditorOverlay) return;
+
+  // Find existing shift for this day
+  const dayShifts = employeesData[dateKey] || [];
+  const shift = dayShifts.find(s => s.employeeId === employeeId);
+
+  // Parse date for title
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+  const months = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
+  const dayName = weekdays[date.getDay()];
+
+  // Set title
+  dayEditorTitle.textContent = `${dayName} ${day} ${months[month - 1]} ${year}`;
+
+  // Store current editing state
+  currentEditingDay = { dateKey, employeeId, shift };
+
+  // Populate fields with existing data
+  if (shift && shift.time && shift.time !== '-') {
+    const timeParts = shift.time.split('-');
+    if (timeParts.length === 2) {
+      dayEditorStartTime.value = timeParts[0].trim();
+      dayEditorEndTime.value = timeParts[1].trim();
+    } else {
+      dayEditorStartTime.value = shift.time;
+      dayEditorEndTime.value = '';
+    }
+  } else {
+    dayEditorStartTime.value = '';
+    dayEditorEndTime.value = '';
+  }
+
+  // Set turn number
+  dayEditorTurn.value = shift?.badgeText || '';
+
+  // Clear chip selection
+  document.querySelectorAll('.day-editor-chip').forEach(c => c.classList.remove('selected'));
+
+  // Select current type chip if applicable
+  if (shift?.badge) {
+    const chipType = shift.badge;
+    const chip = document.querySelector(`.day-editor-chip[data-type="${chipType}"]`);
+    if (chip) {
+      chip.classList.add('selected');
+      // Clear time fields for special types
+      if (['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab'].includes(chipType)) {
+        dayEditorStartTime.value = '';
+        dayEditorEndTime.value = '';
+      }
+    }
+  }
+
+  // Show the editor
+  dayEditorOverlay.classList.add('active');
+  dayEditorSheet.classList.add('active');
+}
+
+/**
+ * Close the day editor
+ */
+function closeDayEditor() {
+  if (dayEditorOverlay) dayEditorOverlay.classList.remove('active');
+  if (dayEditorSheet) dayEditorSheet.classList.remove('active');
+  currentEditingDay = null;
+}
+
+/**
+ * Select a day type (FP, FPV, Sem, etc.)
+ */
+function selectDayType(chip) {
+  const type = chip.dataset.type;
+
+  // Toggle selection
+  if (chip.classList.contains('selected')) {
+    chip.classList.remove('selected');
+  } else {
+    // Remove selection from all chips
+    document.querySelectorAll('.day-editor-chip').forEach(c => c.classList.remove('selected'));
+    // Select this chip (unless it's "clear")
+    if (type !== '') {
+      chip.classList.add('selected');
+      // Clear time and turn for special types
+      if (['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab'].includes(type)) {
+        dayEditorStartTime.value = '';
+        dayEditorEndTime.value = '';
+        dayEditorTurn.value = '';
+      }
+    }
+  }
+}
+
+/**
+ * Get display badge text from type
+ */
+function getTypeBadgeText(type) {
+  const typeMap = {
+    'fp': 'FP',
+    'fpv': 'FPV',
+    'semester': 'Semester',
+    'foraldraledighet': 'Föräldraledighet',
+    'sjuk': 'Sjuk',
+    'ffu': 'FFU',
+    'vab': 'VAB'
+  };
+  return typeMap[type] || type.toUpperCase();
+}
+
+/**
+ * Save the day edit
+ */
+async function saveDayEdit() {
+  if (!currentEditingDay) return;
+
+  const { dateKey, employeeId, shift: originalShift } = currentEditingDay;
+  const btn = dayEditorSave;
+
+  // Get values
+  const startTime = dayEditorStartTime.value.trim();
+  const endTime = dayEditorEndTime.value.trim();
+  const turn = dayEditorTurn.value.trim();
+
+  // Get selected type
+  const selectedChip = document.querySelector('.day-editor-chip.selected');
+  const selectedType = selectedChip?.dataset.type || '';
+
+  // Build the new shift data
+  let newShift = null;
+
+  if (selectedType) {
+    // Special type (FP, FPV, Sem, etc.)
+    newShift = {
+      employeeId,
+      badge: selectedType,
+      badgeText: getTypeBadgeText(selectedType),
+      time: '-',
+      edited: true
+    };
+  } else if (startTime || turn) {
+    // Regular working shift
+    const timeStr = (startTime && endTime) ? `${startTime}-${endTime}` : (startTime || '-');
+    newShift = {
+      employeeId,
+      badge: 'dag',
+      badgeText: turn || '',
+      time: timeStr,
+      edited: true
+    };
+  }
+  // If all empty, we remove the shift
+
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Sparar...';
+
+  try {
+    // Save to Firebase
+    await saveDayEditToFirebase(dateKey, employeeId, newShift);
+
+    // Update local data
+    if (!employeesData[dateKey]) {
+      employeesData[dateKey] = [];
+    }
+
+    // Remove existing shift for this employee on this date
+    employeesData[dateKey] = employeesData[dateKey].filter(s => s.employeeId !== employeeId);
+
+    // Add new shift if we have one
+    if (newShift) {
+      employeesData[dateKey].push(newShift);
+    }
+
+    // Refresh UI
+    renderPersonSchedule();
+    renderEmployees();
+
+    // Close editor
+    closeDayEditor();
+    showToast('Dagen uppdaterad', 'success');
+
+  } catch (error) {
+    console.error('Error saving day edit:', error);
+    showToast('Kunde inte spara: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Spara';
+  }
 }
