@@ -14,6 +14,41 @@ const employeesData = {};
 // Color index for assigning colors to new employees
 let colorIndex = 0;
 
+// Sync icon element reference
+let syncIconEl = null;
+let syncTimeout = null;
+
+/**
+ * Update sync icon status
+ * @param {'connected'|'syncing'|'offline'} status
+ */
+function updateSyncStatus(status) {
+  if (!syncIconEl) {
+    syncIconEl = document.getElementById('syncIcon');
+  }
+  if (!syncIconEl) return;
+
+  // Clear any pending timeout
+  if (syncTimeout) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
+
+  // Remove all status classes
+  syncIconEl.classList.remove('connected', 'syncing', 'offline');
+
+  // Add the new status class
+  syncIconEl.classList.add(status);
+
+  // If syncing, revert to connected after 1.5 seconds
+  if (status === 'syncing') {
+    syncTimeout = setTimeout(() => {
+      syncIconEl.classList.remove('syncing');
+      syncIconEl.classList.add('connected');
+    }, 1500);
+  }
+}
+
 /**
  * Get next available color for new employee
  */
@@ -46,8 +81,14 @@ async function loadDataFromFirebase() {
  * Setup realtime listeners for automatic updates
  */
 function setupRealtimeListeners() {
+  // Track if initial load is done
+  let employeesInitialLoad = true;
+  let schedulesInitialLoad = true;
+
   // Listen for employee changes
   db.collection('employees').onSnapshot((snapshot) => {
+    const hasChanges = snapshot.docChanges().length > 0;
+
     snapshot.docChanges().forEach((change) => {
       if (change.type === 'added' || change.type === 'modified') {
         registeredEmployees[change.doc.id] = change.doc.data();
@@ -56,6 +97,12 @@ function setupRealtimeListeners() {
       }
     });
 
+    // Show syncing animation (but not on initial load)
+    if (hasChanges && !employeesInitialLoad && isLoggedIn) {
+      updateSyncStatus('syncing');
+    }
+    employeesInitialLoad = false;
+
     // Re-render if logged in
     if (isLoggedIn) {
       renderEmployees();
@@ -63,10 +110,13 @@ function setupRealtimeListeners() {
     }
   }, (error) => {
     console.error('Employee listener error:', error);
+    updateSyncStatus('offline');
   });
 
   // Listen for schedule changes
   db.collection('schedules').onSnapshot((snapshot) => {
+    const hasChanges = snapshot.docChanges().length > 0;
+
     snapshot.docChanges().forEach((change) => {
       if (change.type === 'added' || change.type === 'modified') {
         employeesData[change.doc.id] = change.doc.data().shifts || [];
@@ -74,6 +124,12 @@ function setupRealtimeListeners() {
         delete employeesData[change.doc.id];
       }
     });
+
+    // Show syncing animation (but not on initial load)
+    if (hasChanges && !schedulesInitialLoad && isLoggedIn) {
+      updateSyncStatus('syncing');
+    }
+    schedulesInitialLoad = false;
 
     // Re-render if logged in
     if (isLoggedIn) {
@@ -85,9 +141,36 @@ function setupRealtimeListeners() {
     }
   }, (error) => {
     console.error('Schedule listener error:', error);
+    updateSyncStatus('offline');
   });
 
+  // Monitor Firebase connection state
+  setupConnectionMonitor();
+
   console.log('Realtime listeners active - auto-sync enabled');
+}
+
+/**
+ * Monitor Firebase connection status
+ */
+function setupConnectionMonitor() {
+  // Use Firestore's offline/online detection
+  db.enableNetwork().then(() => {
+    updateSyncStatus('connected');
+  }).catch(() => {
+    updateSyncStatus('offline');
+  });
+
+  // Also listen to browser online/offline events
+  window.addEventListener('online', () => {
+    db.enableNetwork().then(() => {
+      updateSyncStatus('connected');
+    });
+  });
+
+  window.addEventListener('offline', () => {
+    updateSyncStatus('offline');
+  });
 }
 
 /**

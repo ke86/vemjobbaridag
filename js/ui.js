@@ -22,6 +22,7 @@ let uploadZone, fileInput, filePreview, fileNameEl, fileSizeEl, removeFileBtn, p
 let processingState, processingText;
 let exportCalBtn;
 let darkModeToggle;
+let nativeDatePicker, dateDisplayBtn, menuTodayLink;
 
 let selectedFile = null;
 
@@ -75,6 +76,11 @@ function initUI() {
 
   // Settings
   darkModeToggle = document.getElementById('darkModeToggle');
+
+  // Date picker
+  nativeDatePicker = document.getElementById('nativeDatePicker');
+  dateDisplayBtn = document.getElementById('dateDisplayBtn');
+  menuTodayLink = document.getElementById('menuTodayLink');
 }
 
 // ==========================================
@@ -220,23 +226,39 @@ function renderEmployees() {
 
     const turnIconsHtml = renderTurnIcons(shift.badgeText);
 
+    // Determine time display: "Ledig" for non-working types, actual time otherwise
+    let timeDisplay = shift.time || '-';
+    if (nonWorkingTypes.includes(shift.badge)) {
+      timeDisplay = 'Ledig';
+    }
+
+    // Build badge HTML
+    let badgeHtml = '';
+    switch (shift.badge) {
+      case 'fp': badgeHtml = '<span class="badge ledig">FP</span>'; break;
+      case 'fpv': badgeHtml = '<span class="badge ledig">FPV</span>'; break;
+      case 'semester': badgeHtml = '<span class="badge semester-badge">Semester</span>'; break;
+      case 'franvarande': badgeHtml = '<span class="badge franvarande-badge">Frånv.</span>'; break;
+      case 'foraldraledighet': badgeHtml = '<span class="badge foraldraledighet-badge">Föräldr.</span>'; break;
+      case 'afd': badgeHtml = '<span class="badge afd-badge">AFD</span>'; break;
+      case 'vab': badgeHtml = '<span class="badge vab-badge">VAB</span>'; break;
+      case 'ffu': badgeHtml = '<span class="badge ffu-badge">FFU</span>'; break;
+      case 'sjuk': badgeHtml = '<span class="badge sjuk-badge">Sjuk</span>'; break;
+      case 'reserv': badgeHtml = `<span class="badge reserv">${shift.badgeText}</span>`; break;
+      case 'dag': badgeHtml = `<span class="badge dag">${shift.badgeText}</span>`; break;
+      case 'flag': badgeHtml = `<span class="flag">${shift.flag}</span>`; break;
+      default: break;
+    }
+
     return `
       <div class="employee-card" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
         <div class="employee-info">
           <div class="employee-name">${emp.name}</div>
-          <div class="employee-time">${shift.time}</div>
+          <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
           ${turnIconsHtml}
-          ${shift.badge === 'flag' ? `<span class="flag">${shift.flag}</span>` : ''}
-          ${shift.badge === 'reserv' ? `<span class="badge reserv">${shift.badgeText}</span>` : ''}
-          ${shift.badge === 'dag' ? `<span class="badge dag">${shift.badgeText}</span>` : ''}
-          ${shift.badge === 'fp' ? `<span class="badge ledig">FP</span>` : ''}
-          ${shift.badge === 'fpv' ? `<span class="badge ledig">FPV</span>` : ''}
-          ${shift.badge === 'semester' ? `<span class="badge semester-badge">Semester</span>` : ''}
-          ${shift.badge === 'franvarande' ? `<span class="badge franvarande-badge">Frånv.</span>` : ''}
-          ${shift.badge === 'foraldraledighet' ? `<span class="badge foraldraledighet-badge">Föräldr.</span>` : ''}
-          ${shift.badge === 'afd' ? `<span class="badge afd-badge">AFD</span>` : ''}
+          ${badgeHtml}
         </div>
       </div>
     `;
@@ -250,11 +272,49 @@ function renderEmployees() {
 function goToPrevDay() {
   currentDate.setDate(currentDate.getDate() - 1);
   renderEmployees();
+  updateNativeDatePicker();
 }
 
 function goToNextDay() {
   currentDate.setDate(currentDate.getDate() + 1);
   renderEmployees();
+  updateNativeDatePicker();
+}
+
+/**
+ * Go to today's date
+ */
+function goToToday() {
+  currentDate = new Date();
+  renderEmployees();
+  updateNativeDatePicker();
+
+  // Visual feedback - briefly highlight the date
+  if (currentDateEl) {
+    currentDateEl.style.transition = 'color 0.2s';
+    currentDateEl.style.color = 'var(--accent-blue)';
+    setTimeout(() => {
+      currentDateEl.style.color = '';
+    }, 500);
+  }
+}
+
+/**
+ * Go to specific date from date picker
+ */
+function goToDate(dateString) {
+  const [year, month, day] = dateString.split('-').map(Number);
+  currentDate = new Date(year, month - 1, day);
+  renderEmployees();
+}
+
+/**
+ * Update native date picker value to match current date
+ */
+function updateNativeDatePicker() {
+  if (nativeDatePicker) {
+    nativeDatePicker.value = getDateKey(currentDate);
+  }
 }
 
 function openSidebar() {

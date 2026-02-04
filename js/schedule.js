@@ -8,10 +8,18 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 
 /**
  * Extract text content from a PDF file
+ * Note: File name encoding (Norwegian/Danish chars like ø, æ, å) doesn't affect
+ * PDF reading - we only use the file's binary content, not its name.
  */
 async function extractTextFromPDF(file) {
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  // Configure pdf.js to handle various encodings properly
+  const pdf = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+    cMapPacked: true
+  }).promise;
 
   let fullText = '';
 
@@ -27,10 +35,19 @@ async function extractTextFromPDF(file) {
 
 /**
  * Extract person name and employee ID from PDF text
+ * Supports Swedish, Norwegian, and Danish characters (å, ä, ö, æ, ø, etc.)
  */
 function extractPersonInfo(text) {
+  // Extended character class for Nordic names (Swedish, Norwegian, Danish)
+  const nordicChars = 'A-ZÅÄÖÆØa-zåäöæø';
+
   // Try to find "Anställningsnr XXXXXX - Förnamn Efternamn"
-  const nameMatch = text.match(/Anställningsnr\s+(\d+)\s*[-–]\s*([A-ZÅÄÖ][a-zåäö]+)\s+([A-ZÅÄÖ][a-zåäö]+)(?:\s+([A-ZÅÄÖ][a-zåäö]+))?/i);
+  const nameRegex = new RegExp(
+    `Anställningsnr\\s+(\\d+)\\s*[-–]\\s*([${nordicChars}]+)\\s+([${nordicChars}]+)(?:\\s+([${nordicChars}]+))?`,
+    'i'
+  );
+  const nameMatch = text.match(nameRegex);
+
   if (nameMatch) {
     let employeeName = nameMatch[2] + ' ' + nameMatch[3];
     if (nameMatch[4] && nameMatch[4].length > 2 && !/^(Datum|Tjänst|Tid|Pass|Arbets)/.test(nameMatch[4])) {
@@ -42,8 +59,10 @@ function extractPersonInfo(text) {
     };
   }
 
-  // Fallback pattern
-  const altMatch = text.match(/(\d{6})\s*[-–]\s*([A-ZÅÄÖ][a-zåäö]+)\s+([A-ZÅÄÖ][a-zåäö]+)/);
+  // Fallback pattern with Nordic support
+  const altRegex = new RegExp(`(\\d{6})\\s*[-–]\\s*([${nordicChars}]+)\\s+([${nordicChars}]+)`);
+  const altMatch = text.match(altRegex);
+
   if (altMatch) {
     return {
       employeeId: altMatch[1].trim(),
@@ -66,6 +85,9 @@ function normalizeService(service) {
   if (serviceUpper === 'FRÅNVARANDE') return 'Frånvarande';
   if (serviceUpper.startsWith('FÖRÄLDRALEDIGHET')) return 'Föräldraledighet';
   if (serviceUpper === 'AFD') return 'AFD';
+  if (serviceUpper.includes('VÅRD AV SJUKT BARN') || serviceUpper === 'VAB') return 'VAB';
+  if (serviceUpper === 'FACKLIGT') return 'Fackligt';
+  if (serviceUpper === 'SJUK') return 'Sjuk';
 
   return service;
 }
@@ -316,6 +338,16 @@ function importScheduleData(data) {
     } else if (serviceUpper === 'AFD') {
       shiftEntry.badge = 'afd';
       shiftEntry.badgeText = 'AFD';
+    } else if (serviceUpper === 'VAB' || serviceUpper.includes('VÅRD AV SJUKT BARN')) {
+      shiftEntry.badge = 'vab';
+      shiftEntry.badgeText = 'VAB';
+    } else if (serviceUpper === 'FACKLIGT') {
+      shiftEntry.badge = 'ffu';
+      shiftEntry.badgeText = 'FFU';
+      workingDays++; // FFU shows time, counts as working
+    } else if (serviceUpper === 'SJUK') {
+      shiftEntry.badge = 'sjuk';
+      shiftEntry.badgeText = 'Sjuk';
     } else if (serviceUpper === 'RESERV' || serviceUpper === 'RESERVSTAM') {
       shiftEntry.badge = 'reserv';
       shiftEntry.badgeText = service;

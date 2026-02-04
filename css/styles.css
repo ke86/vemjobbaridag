@@ -100,21 +100,42 @@ html.dark .menu-btn:hover {
   letter-spacing: -0.3px;
 }
 
-.header-status {
+/* Sync Icon - iOS Style */
+.sync-icon {
+  width: 28px;
+  height: 28px;
   display: flex;
-  gap: 5px;
   align-items: center;
+  justify-content: center;
+  color: var(--accent-green);
+  transition: color 0.3s ease;
 }
 
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  opacity: 0.85;
+.sync-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
-.status-dot.green { background: var(--accent-green); }
-.status-dot.blue { background: var(--accent-blue); }
+/* Connected state - Green (default) */
+.sync-icon.connected {
+  color: var(--accent-green);
+}
+
+/* Syncing state - Blue with spin animation */
+.sync-icon.syncing {
+  color: var(--accent-blue);
+  animation: syncSpin 1s ease-in-out;
+}
+
+/* Offline state - Red */
+.sync-icon.offline {
+  color: var(--accent-red);
+}
+
+@keyframes syncSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 /* ==========================================
    MAIN CONTENT
@@ -172,6 +193,30 @@ html.dark .menu-btn:hover {
   gap: 10px;
   min-width: 200px;
   justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.date-display:hover {
+  border-color: var(--accent-blue);
+  background: var(--bg-card);
+}
+
+.date-display:active {
+  transform: scale(0.98);
+}
+
+/* Hidden native date picker (overlays the display) */
+.native-date-picker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 16px; /* Prevent iOS zoom */
 }
 
 /* ==========================================
@@ -393,6 +438,27 @@ html.dark .menu-btn:hover {
   color: #a78bfa;
 }
 
+/* VAB - Korall */
+.badge.vab-badge {
+  background: rgba(251, 146, 60, 0.15);
+  border-color: rgba(251, 146, 60, 0.3);
+  color: #fb923c;
+}
+
+/* FFU (Fackligt) - Cyan */
+.badge.ffu-badge {
+  background: rgba(34, 211, 216, 0.15);
+  border-color: rgba(34, 211, 216, 0.3);
+  color: #22d3d8;
+}
+
+/* Sjuk - Mörk orange */
+.badge.sjuk-badge {
+  background: rgba(249, 115, 22, 0.15);
+  border-color: rgba(249, 115, 22, 0.3);
+  color: #f97316;
+}
+
 /* ==========================================
    TURN ICONS
    ========================================== */
@@ -400,8 +466,10 @@ html.dark .menu-btn:hover {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-end;
   gap: 4px;
   margin-right: 8px;
+  min-width: 60px;
 }
 
 .turn-icon {

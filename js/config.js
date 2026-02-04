@@ -35,8 +35,11 @@ const dayNamesShort = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
 // Swedish day names (full)
 const dayNamesFull = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'];
 
-// Non-working shift types
-const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd'];
+// Non-working shift types - these show "Ledig" in time field
+const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'sjuk'];
+
+// Working types that show actual time (not "Ledig")
+const workingSpecialTypes = ['ffu'];
 
 // IndexedDB Configuration
 const DB_NAME = 'VemJobbarIdagDB';

@@ -76,9 +76,27 @@ function setupEventListeners() {
     link.addEventListener('click', (e) => {
       e.preventDefault();
       const page = link.dataset.page;
-      if (page) showPage(page);
+      if (page) {
+        showPage(page);
+        // If clicking "Dagens schema" - always go to today
+        if (page === 'schedule') {
+          goToToday();
+        }
+      }
     });
   });
+
+  // Native date picker
+  if (nativeDatePicker) {
+    nativeDatePicker.addEventListener('change', (e) => {
+      if (e.target.value) {
+        goToDate(e.target.value);
+      }
+    });
+
+    // Initialize with current date
+    updateNativeDatePicker();
+  }
 
   // Month navigation
   prevMonthBtn.addEventListener('click', () => {
