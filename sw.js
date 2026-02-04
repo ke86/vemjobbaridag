@@ -3,28 +3,28 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v2.3';
+const CACHE_VERSION = 'v2.4';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
-// Files to cache
+// Files to cache (relative paths for GitHub Pages compatibility)
 const FILES_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/css/styles.css',
-  '/js/config.js',
-  '/js/firebase.js',
-  '/js/auth.js',
-  '/js/schedule.js',
-  '/js/ui.js',
-  '/js/app.js',
-  '/icon.png',
-  '/manifest.json',
-  '/icons/SE.png',
-  '/icons/DK.png',
-  '/icons/A1.png',
-  '/icons/B2.png',
-  '/icons/RES.png',
-  '/icons/XRES.png'
+  './',
+  './index.html',
+  './css/styles.css',
+  './js/config.js',
+  './js/firebase.js',
+  './js/auth.js',
+  './js/schedule.js',
+  './js/ui.js',
+  './js/app.js',
+  './icon.png',
+  './manifest.json',
+  './icons/SE.png',
+  './icons/DK.png',
+  './icons/A1.png',
+  './icons/B2.png',
+  './icons/RES.png',
+  './icons/XRES.png'
 ];
 
 // Install event - cache files
