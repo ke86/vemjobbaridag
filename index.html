@@ -134,11 +134,28 @@
         <button class="date-nav-btn" id="nextMonth">→</button>
       </div>
 
-      <!-- Export Button -->
-      <button class="export-calendar-btn" id="exportCalBtn">
-        <img src="https://pfst.cf2.poecdn.net/base/image/7e32cd6dbe37a1833692c5ec8ed62b3a45812a216a3de7cd897ee63e18640571?w=200&h=200" alt="" class="export-icon">
-        <span>Exportera till kalender</span>
-      </button>
+      <!-- Action Buttons -->
+      <div class="schedule-action-btns">
+        <button class="export-calendar-btn" id="exportCalBtn">
+          <img src="https://pfst.cf2.poecdn.net/base/image/7e32cd6dbe37a1833692c5ec8ed62b3a45812a216a3de7cd897ee63e18640571?w=200&h=200" alt="" class="export-icon">
+          <span>Exportera</span>
+        </button>
+        <button class="holidays-btn" id="holidaysBtn">
+          <span class="holidays-icon">🎄</span>
+          <span>Helgdagar</span>
+        </button>
+      </div>
+
+      <!-- Holidays Modal -->
+      <div class="holidays-modal" id="holidaysModal">
+        <div class="holidays-header">
+          <h3>Helgdagar 2026</h3>
+          <button class="holidays-close" id="holidaysClose">×</button>
+        </div>
+        <div class="holidays-list" id="holidaysList">
+          <!-- Holidays will be rendered here -->
+        </div>
+      </div>
 
       <!-- Person Schedule -->
       <div id="monthlyScheduleList">
@@ -230,7 +247,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v3.4</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v3.5</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

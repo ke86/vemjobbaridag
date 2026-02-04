@@ -160,6 +160,14 @@ function setupEventListeners() {
   // Export calendar button
   exportCalBtn.addEventListener('click', exportToCalendar);
 
+  // Holidays button
+  if (holidaysBtn) {
+    holidaysBtn.addEventListener('click', toggleHolidaysModal);
+  }
+  if (holidaysClose) {
+    holidaysClose.addEventListener('click', () => holidaysModal.classList.remove('active'));
+  }
+
   // Delete data section (collapsible)
   if (deleteDataHeader) {
     deleteDataHeader.addEventListener('click', toggleDeleteDataSection);

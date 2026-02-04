@@ -20,7 +20,7 @@ let personListView, personScheduleView, personList;
 let monthDisplay, prevMonthBtn, nextMonthBtn, monthlyScheduleList;
 let uploadZone, fileInput, filePreview, fileNameEl, fileSizeEl, removeFileBtn, processBtn;
 let processingState, processingText;
-let exportCalBtn;
+let exportCalBtn, holidaysBtn, holidaysModal, holidaysClose, holidaysList;
 let darkModeToggle;
 let nativeDatePicker, dateDisplayBtn, menuTodayLink;
 let deleteDataSection, deleteDataHeader, deleteEmployeeList;
@@ -74,8 +74,12 @@ function initUI() {
   processingState = document.getElementById('processingState');
   processingText = document.getElementById('processingText');
 
-  // Export
+  // Export & Holidays
   exportCalBtn = document.getElementById('exportCalBtn');
+  holidaysBtn = document.getElementById('holidaysBtn');
+  holidaysModal = document.getElementById('holidaysModal');
+  holidaysClose = document.getElementById('holidaysClose');
+  holidaysList = document.getElementById('holidaysList');
 
   // Settings
   darkModeToggle = document.getElementById('darkModeToggle');
@@ -480,6 +484,90 @@ function countFridagBadges(employeeId) {
   });
 
   return { fp: fpCount, fpv: fpvCount };
+}
+
+// Swedish holidays for 2026
+function getSwedishHolidays2026() {
+  return [
+    { date: '2026-01-01', name: 'Nyårsdagen' },
+    { date: '2026-01-06', name: 'Trettondedag jul' },
+    { date: '2026-04-03', name: 'Långfredagen' },
+    { date: '2026-04-04', name: 'Påskafton' },
+    { date: '2026-04-05', name: 'Påskdagen' },
+    { date: '2026-04-06', name: 'Annandag påsk' },
+    { date: '2026-05-01', name: 'Första maj' },
+    { date: '2026-05-14', name: 'Kristi himmelsfärdsdag' },
+    { date: '2026-05-23', name: 'Pingstafton' },
+    { date: '2026-05-24', name: 'Pingstdagen' },
+    { date: '2026-06-06', name: 'Sveriges nationaldag' },
+    { date: '2026-06-19', name: 'Midsommarafton' },
+    { date: '2026-06-20', name: 'Midsommardagen' },
+    { date: '2026-10-31', name: 'Alla helgons dag' },
+    { date: '2026-12-24', name: 'Julafton' },
+    { date: '2026-12-25', name: 'Juldagen' },
+    { date: '2026-12-26', name: 'Annandag jul' },
+    { date: '2026-12-31', name: 'Nyårsafton' }
+  ];
+}
+
+// Check if employee has FP or FPV on a specific date
+function getHolidayBadge(employeeId, dateKey) {
+  const dayShifts = employeesData[dateKey] || [];
+  for (const shift of dayShifts) {
+    if (shift.employeeId === employeeId) {
+      const badge = (shift.badge || '').toLowerCase();
+      const badgeText = (shift.badgeText || '').toUpperCase();
+      const service = (shift.service || '').toUpperCase();
+
+      if (badge === 'fpv' || badgeText === 'FPV' || service === 'FPV' ||
+          service.includes('FP-V') || service.includes('FP2')) {
+        return 'FPV';
+      }
+      if (badge === 'fp' || badgeText === 'FP' || service === 'FP' || service === 'FRIDAG') {
+        return 'FP';
+      }
+    }
+  }
+  return null;
+}
+
+// Format date in Swedish
+function formatSwedishDate(dateKey) {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+  const months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  return `${weekdays[date.getDay()]} ${day} ${months[month - 1]}`;
+}
+
+// Toggle holidays modal
+function toggleHolidaysModal() {
+  if (holidaysModal.classList.contains('active')) {
+    holidaysModal.classList.remove('active');
+    return;
+  }
+
+  const holidays = getSwedishHolidays2026();
+  const employeeId = currentPersonId;
+
+  holidaysList.innerHTML = holidays.map(holiday => {
+    const badge = getHolidayBadge(employeeId, holiday.date);
+    const badgeHtml = badge
+      ? `<span class="holiday-badge ${badge === 'FPV' ? 'fpv' : ''}">${badge}</span>`
+      : '';
+
+    return `
+      <div class="holiday-item">
+        <div class="holiday-info">
+          <span class="holiday-name">${holiday.name}</span>
+          <span class="holiday-date">${formatSwedishDate(holiday.date)}</span>
+        </div>
+        ${badgeHtml}
+      </div>
+    `;
+  }).join('');
+
+  holidaysModal.classList.add('active');
 }
 
 function renderPersonList() {

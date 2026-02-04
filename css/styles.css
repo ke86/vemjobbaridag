@@ -1476,20 +1476,26 @@ html.dark .login-card {
   text-align: center;
 }
 
+/* Action Buttons Container */
+.schedule-action-btns {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
 /* Export to Calendar Button */
 .export-calendar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 16px;
-  margin-bottom: 16px;
+  gap: 6px;
+  flex: 1;
+  padding: 10px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 10px;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1506,13 +1512,142 @@ html.dark .login-card {
 }
 
 .export-calendar-btn .export-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   object-fit: contain;
 }
 
 html.dark .export-calendar-btn .export-icon {
   filter: invert(1);
+}
+
+/* Holidays Button */
+.holidays-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.holidays-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+}
+
+.holidays-btn:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.holidays-icon {
+  font-size: 16px;
+}
+
+/* Holidays Modal */
+.holidays-modal {
+  display: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  animation: slideIn 0.25s ease-out;
+}
+
+.holidays-modal.active {
+  display: block;
+}
+
+.holidays-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.holidays-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.holidays-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.holidays-close:hover {
+  color: var(--text-primary);
+}
+
+.holidays-list {
+  padding: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.holiday-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  background: var(--bg-secondary);
+  transition: background 0.15s;
+}
+
+.holiday-item:last-child {
+  margin-bottom: 0;
+}
+
+.holiday-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.holiday-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.holiday-date {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.holiday-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(76, 217, 100, 0.15);
+  color: #4cd964;
+}
+
+.holiday-badge.fpv {
+  background: rgba(90, 200, 250, 0.15);
+  color: #5ac8fa;
 }
 
 /* Schedule Grid */
