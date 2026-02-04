@@ -2184,9 +2184,126 @@ html.dark .export-calendar-btn .export-icon {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 14px;
+  overflow: hidden;
 }
 
+/* Compact design */
+.fridag-employee-item.compact {
+  padding: 0;
+}
+
+.fridag-employee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fridag-employee-row:hover {
+  background: var(--bg-primary);
+}
+
+.fridag-employee-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fridag-employee-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fridag-employee-info .name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.fridag-key-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fridag-key-status.has-key {
+  color: var(--accent-blue);
+  font-weight: 500;
+}
+
+.fridag-key-status.no-key {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.fridag-key-status .expand-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.fridag-employee-item.expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+.fridag-remove-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.fridag-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+html.dark .fridag-remove-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+html.dark .fridag-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* Expandable content */
+.fridag-expand-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out;
+  padding: 0 14px;
+  background: var(--bg-primary);
+  border-top: 1px solid transparent;
+}
+
+.fridag-employee-item.expanded .fridag-expand-content {
+  max-height: 300px;
+  padding: 14px;
+  border-top-color: var(--border-color);
+}
+
+.fridag-employee-item.removing {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Legacy header style (fallback) */
 .fridag-employee-header {
   display: flex;
   align-items: center;
@@ -2194,16 +2311,17 @@ html.dark .export-calendar-btn .export-icon {
   margin-bottom: 12px;
 }
 
-.fridag-employee-header .avatar {
-  width: 36px;
-  height: 36px;
+.fridag-employee-header .avatar,
+.fridag-employee-row .avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 
@@ -2365,4 +2483,116 @@ html.dark .fridag-status.error {
   padding: 24px;
   color: var(--text-secondary);
   font-size: 14px;
+}
+
+/* Fridagsnyckel removal modal */
+.fridag-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.fridag-modal {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fridag-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fridag-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fridag-modal-body {
+  padding: 20px;
+}
+
+.fridag-modal-body p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.fridag-modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.fridag-modal-note {
+  font-size: 12px !important;
+  color: var(--text-secondary) !important;
+  padding: 10px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+}
+
+.fridag-modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.fridag-modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fridag-modal-btn.cancel {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.fridag-modal-btn.cancel:hover {
+  background: var(--border-color);
+}
+
+.fridag-modal-btn.confirm {
+  background: #dc2626;
+  color: white;
+}
+
+.fridag-modal-btn.confirm:hover {
+  background: #b91c1c;
 }

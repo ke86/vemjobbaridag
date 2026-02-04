@@ -1093,7 +1093,7 @@ function onFridagKeyChange(employeeId, selectElement) {
 }
 
 /**
- * Render the list of employees with fridagsnyckel controls
+ * Render the list of employees with fridagsnyckel controls (compact design)
  */
 function renderFridagEmployeeList() {
   if (!fridagEmployeeList) return;
@@ -1118,47 +1118,147 @@ function renderFridagEmployeeList() {
     const savedRow = emp.fridagsrad || '';
     const keyData = savedKey ? FRIDAG_KEYS[savedKey] : null;
     const rowOptions = keyData ? buildRowOptions(keyData.cycle) : '<option value="">-- Välj nyckel först --</option>';
+    const hasKey = savedKey && savedRow;
 
-    // Current status text
-    let currentHtml = '';
-    if (savedKey && savedRow) {
-      currentHtml = `
-        <div class="fridag-current">
-          Nuvarande: <strong>${savedKey}</strong>, rad <strong>${savedRow}</strong>
-        </div>
-      `;
-    }
+    // Status text - either "Välj fridagsnyckel" or "LFMC12 Rad 4"
+    const statusText = hasKey
+      ? `${savedKey} Rad ${savedRow}`
+      : 'Välj fridagsnyckel';
 
     return `
-      <div class="fridag-employee-item" id="fridag-item-${emp.employeeId}">
-        <div class="fridag-employee-header">
-          <div class="avatar ${emp.color}">${emp.initials}</div>
-          <span class="name">${emp.name}</span>
-        </div>
-        <div class="fridag-selects">
-          <div class="fridag-select-row">
-            <label>Nyckel:</label>
-            <select id="fridag-key-${emp.employeeId}" onchange="onFridagKeyChange('${emp.employeeId}', this)">
-              ${keyOptions.replace(`value="${savedKey}"`, `value="${savedKey}" selected`)}
-            </select>
+      <div class="fridag-employee-item compact" id="fridag-item-${emp.employeeId}">
+        <div class="fridag-employee-row" onclick="toggleFridagExpand('${emp.employeeId}')">
+          <div class="fridag-employee-left">
+            <div class="avatar ${emp.color}">${emp.initials}</div>
+            <div class="fridag-employee-info">
+              <span class="name">${emp.name}</span>
+              <span class="fridag-key-status ${hasKey ? 'has-key' : 'no-key'}">
+                ${statusText}
+                <span class="expand-icon">▼</span>
+              </span>
+            </div>
           </div>
-          <div class="fridag-select-row">
-            <label>Rad:</label>
-            <select id="fridag-row-${emp.employeeId}" ${!savedKey ? 'disabled' : ''}>
-              ${savedRow ? rowOptions.replace(`value="${savedRow}"`, `value="${savedRow}" selected`) : rowOptions}
-            </select>
+          ${hasKey ? `
+            <button class="fridag-remove-btn" onclick="event.stopPropagation(); confirmRemoveFridagsnyckel('${emp.employeeId}', '${emp.name}')" title="Ta bort fridagsnyckel">
+              ✕
+            </button>
+          ` : ''}
+        </div>
+        <div class="fridag-expand-content" id="fridag-expand-${emp.employeeId}">
+          <div class="fridag-selects">
+            <div class="fridag-select-row">
+              <label>Nyckel:</label>
+              <select id="fridag-key-${emp.employeeId}" onchange="onFridagKeyChange('${emp.employeeId}', this)">
+                ${keyOptions.replace(`value="${savedKey}"`, `value="${savedKey}" selected`)}
+              </select>
+            </div>
+            <div class="fridag-select-row">
+              <label>Rad:</label>
+              <select id="fridag-row-${emp.employeeId}" ${!savedKey ? 'disabled' : ''}>
+                ${savedRow ? rowOptions.replace(`value="${savedRow}"`, `value="${savedRow}" selected`) : rowOptions}
+              </select>
+            </div>
           </div>
+          <div class="fridag-actions">
+            <button class="fridag-apply-btn" id="fridag-btn-${emp.employeeId}" onclick="applyFridagsnyckel('${emp.employeeId}')">
+              Applicera
+            </button>
+          </div>
+          <div class="fridag-status" id="fridag-status-${emp.employeeId}"></div>
         </div>
-        <div class="fridag-actions">
-          <button class="fridag-apply-btn" id="fridag-btn-${emp.employeeId}" onclick="applyFridagsnyckel('${emp.employeeId}')">
-            Applicera
-          </button>
-        </div>
-        ${currentHtml}
-        <div class="fridag-status" id="fridag-status-${emp.employeeId}"></div>
       </div>
     `;
   }).join('');
+}
+
+/**
+ * Toggle expand/collapse for a fridagsnyckel item
+ */
+function toggleFridagExpand(employeeId) {
+  const item = document.getElementById(`fridag-item-${employeeId}`);
+  if (item) {
+    item.classList.toggle('expanded');
+  }
+}
+
+/**
+ * Show confirmation modal to remove fridagsnyckel
+ */
+function confirmRemoveFridagsnyckel(employeeId, employeeName) {
+  // Create modal
+  const modal = document.createElement('div');
+  modal.className = 'fridag-modal-overlay';
+  modal.id = 'fridagRemoveModal';
+  modal.innerHTML = `
+    <div class="fridag-modal">
+      <div class="fridag-modal-header">
+        <h3>Ta bort fridagsnyckel</h3>
+      </div>
+      <div class="fridag-modal-body">
+        <p>Är du säker på att du vill ta bort <strong>${employeeName}s</strong> fridagsnyckel?</p>
+        <p class="fridag-modal-note">FP/FPV-dagar från fridagsnyckeln tas bort. Uppladdade scheman bevaras.</p>
+      </div>
+      <div class="fridag-modal-footer">
+        <button class="fridag-modal-btn cancel" onclick="closeFridagModal()">Avbryt</button>
+        <button class="fridag-modal-btn confirm" onclick="removeFridagsnyckel('${employeeId}')">Ta bort</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeFridagModal();
+  });
+}
+
+/**
+ * Close the fridagsnyckel removal modal
+ */
+function closeFridagModal() {
+  const modal = document.getElementById('fridagRemoveModal');
+  if (modal) modal.remove();
+}
+
+/**
+ * Remove fridagsnyckel from an employee
+ */
+async function removeFridagsnyckel(employeeId) {
+  closeFridagModal();
+
+  const item = document.getElementById(`fridag-item-${employeeId}`);
+  const statusEl = document.getElementById(`fridag-status-${employeeId}`);
+
+  try {
+    // Show loading state
+    if (item) item.classList.add('removing');
+
+    // Get the employee's current fridagsnyckel to know which shifts to remove
+    const employee = registeredEmployees[employeeId];
+    if (!employee || !employee.fridagsnyckel) {
+      throw new Error('Ingen fridagsnyckel att ta bort');
+    }
+
+    // Remove from Firebase and local data
+    await removeFridagShiftsFromFirebase(employeeId);
+
+    // Update local employee record
+    delete registeredEmployees[employeeId].fridagsnyckel;
+    delete registeredEmployees[employeeId].fridagsrad;
+
+    // Refresh UI
+    renderEmployees();
+    renderFridagEmployeeList();
+
+    console.log(`Fridagsnyckel removed for ${employeeId}`);
+  } catch (error) {
+    console.error('Error removing fridagsnyckel:', error);
+    if (statusEl) {
+      showFridagStatus(statusEl, `Fel: ${error.message}`, 'error');
+    }
+  } finally {
+    if (item) item.classList.remove('removing');
+  }
 }
 
 /**
