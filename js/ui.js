@@ -23,8 +23,11 @@ let processingState, processingText;
 let exportCalBtn;
 let darkModeToggle;
 let nativeDatePicker, dateDisplayBtn, menuTodayLink;
+let deleteDataSection, deleteDataHeader, deleteEmployeeList;
+let deleteConfirmModal, deleteModalText, deleteModalCancel, deleteModalConfirm;
 
 let selectedFile = null;
+let pendingDeleteEmployeeId = null;
 
 /**
  * Initialize UI elements
@@ -81,6 +84,17 @@ function initUI() {
   nativeDatePicker = document.getElementById('nativeDatePicker');
   dateDisplayBtn = document.getElementById('dateDisplayBtn');
   menuTodayLink = document.getElementById('menuTodayLink');
+
+  // Delete data section
+  deleteDataSection = document.getElementById('deleteDataSection');
+  deleteDataHeader = document.getElementById('deleteDataHeader');
+  deleteEmployeeList = document.getElementById('deleteEmployeeList');
+
+  // Delete confirmation modal
+  deleteConfirmModal = document.getElementById('deleteConfirmModal');
+  deleteModalText = document.getElementById('deleteModalText');
+  deleteModalCancel = document.getElementById('deleteModalCancel');
+  deleteModalConfirm = document.getElementById('deleteModalConfirm');
 }
 
 // ==========================================
@@ -826,4 +840,92 @@ function removeFile() {
   uploadZone.style.display = 'block';
   filePreview.classList.remove('active');
   processBtn.classList.remove('active');
+}
+
+// ==========================================
+// DELETE DATA FUNCTIONS
+// ==========================================
+
+/**
+ * Toggle the collapsible delete data section
+ */
+function toggleDeleteDataSection() {
+  if (deleteDataSection) {
+    deleteDataSection.classList.toggle('expanded');
+    if (deleteDataSection.classList.contains('expanded')) {
+      renderDeleteEmployeeList();
+    }
+  }
+}
+
+/**
+ * Render the list of employees that can be deleted
+ */
+function renderDeleteEmployeeList() {
+  if (!deleteEmployeeList) return;
+
+  const employees = getSortedEmployees();
+
+  if (employees.length === 0) {
+    deleteEmployeeList.innerHTML = `
+      <div class="delete-list-empty">
+        <p>Ingen data att radera</p>
+      </div>
+    `;
+    return;
+  }
+
+  deleteEmployeeList.innerHTML = employees.map(emp => `
+    <div class="delete-list-item">
+      <div class="employee-info">
+        <div class="avatar ${emp.color}">${emp.initials}</div>
+        <span class="employee-name">${emp.name}</span>
+      </div>
+      <button class="delete-btn" onclick="showDeleteConfirmModal('${emp.employeeId}', '${emp.name.replace(/'/g, "\\'")}')">🗑️</button>
+    </div>
+  `).join('');
+}
+
+/**
+ * Show the delete confirmation modal
+ */
+function showDeleteConfirmModal(employeeId, employeeName) {
+  pendingDeleteEmployeeId = employeeId;
+  if (deleteModalText) {
+    deleteModalText.textContent = `Vill du radera all data för ${employeeName}?`;
+  }
+  if (deleteConfirmModal) {
+    deleteConfirmModal.classList.add('active');
+  }
+}
+
+/**
+ * Hide the delete confirmation modal
+ */
+function hideDeleteConfirmModal() {
+  pendingDeleteEmployeeId = null;
+  if (deleteConfirmModal) {
+    deleteConfirmModal.classList.remove('active');
+  }
+}
+
+/**
+ * Confirm and execute the deletion
+ */
+async function confirmDeleteEmployee() {
+  if (!pendingDeleteEmployeeId) return;
+
+  const employeeId = pendingDeleteEmployeeId;
+  hideDeleteConfirmModal();
+
+  try {
+    await deleteEmployeeData(employeeId);
+    showToast('Data raderad', 'success');
+    renderDeleteEmployeeList();
+    renderEmployees();
+    renderPersonList();
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    showToast('Kunde inte radera data', 'error');
+  }
 }

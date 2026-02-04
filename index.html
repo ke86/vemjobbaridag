@@ -199,11 +199,38 @@
         </div>
       </div>
 
+      <!-- Radera data (collapsible) -->
+      <div class="settings-section collapsible" id="deleteDataSection">
+        <div class="collapsible-header" id="deleteDataHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">Radera data</h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="deleteDataContent">
+          <div class="delete-list" id="deleteEmployeeList">
+            <!-- Employees will be rendered here -->
+          </div>
+        </div>
+      </div>
+
       <div class="settings-section settings-footer">
-        <p class="version-text">Vem jobbar idag? v1.1</p>
+        <p class="version-text">Vem jobbar idag? v1.2</p>
       </div>
     </div>
   </main>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="deleteConfirmModal">
+    <div class="modal-card">
+      <div class="modal-icon">⚠️</div>
+      <h3 class="modal-title">Radera data?</h3>
+      <p class="modal-text" id="deleteModalText">Vill du radera all data för denna person?</p>
+      <p class="modal-warning">Detta går inte att ångra.</p>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" id="deleteModalCancel">Avbryt</button>
+        <button class="modal-btn danger" id="deleteModalConfirm">Radera</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Application Scripts (order matters!) -->
   <script src="js/config.js"></script>

@@ -156,6 +156,29 @@ function setupEventListeners() {
 
   // Export calendar button
   exportCalBtn.addEventListener('click', exportToCalendar);
+
+  // Delete data section (collapsible)
+  if (deleteDataHeader) {
+    deleteDataHeader.addEventListener('click', toggleDeleteDataSection);
+  }
+
+  // Delete confirmation modal
+  if (deleteModalCancel) {
+    deleteModalCancel.addEventListener('click', hideDeleteConfirmModal);
+  }
+
+  if (deleteModalConfirm) {
+    deleteModalConfirm.addEventListener('click', confirmDeleteEmployee);
+  }
+
+  // Close modal on overlay click
+  if (deleteConfirmModal) {
+    deleteConfirmModal.addEventListener('click', (e) => {
+      if (e.target === deleteConfirmModal) {
+        hideDeleteConfirmModal();
+      }
+    });
+  }
 }
 
 /**
