@@ -114,6 +114,65 @@ async function clearLoginState() {
 }
 
 // ==========================================
+// SETTINGS FUNCTIONS (IndexedDB)
+// ==========================================
+
+/**
+ * Save a setting to IndexedDB
+ */
+async function saveSetting(key, value) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+
+    store.put({
+      id: `setting_${key}`,
+      value: value,
+      timestamp: new Date().toISOString()
+    });
+
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+
+    db.close();
+  } catch (error) {
+    console.error('Error saving setting:', error);
+  }
+}
+
+/**
+ * Load a setting from IndexedDB
+ */
+async function loadSetting(key) {
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+
+    return new Promise((resolve, reject) => {
+      const request = store.get(`setting_${key}`);
+
+      request.onsuccess = () => {
+        db.close();
+        const data = request.result;
+        resolve(data ? data.value : null);
+      };
+
+      request.onerror = () => {
+        db.close();
+        reject(request.error);
+      };
+    });
+  } catch (error) {
+    console.error('Error loading setting:', error);
+    return null;
+  }
+}
+
+// ==========================================
 // AUTH FUNCTIONS
 // ==========================================
 

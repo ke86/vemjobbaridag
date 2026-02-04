@@ -295,32 +295,53 @@ function exportToCalendar() {
 /**
  * Setup dark mode toggle and detection
  */
-function setupDarkMode() {
-  // Check system preference on load
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    document.documentElement.classList.add('dark');
-    if (darkModeToggle) darkModeToggle.checked = true;
-  }
+async function setupDarkMode() {
+  // Load saved preference from IndexedDB
+  const savedDarkMode = await loadSetting('darkMode');
 
-  // Listen for system theme changes
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-    if (event.matches) {
+  if (savedDarkMode !== null) {
+    // Use saved preference
+    if (savedDarkMode) {
       document.documentElement.classList.add('dark');
       if (darkModeToggle) darkModeToggle.checked = true;
     } else {
       document.documentElement.classList.remove('dark');
       if (darkModeToggle) darkModeToggle.checked = false;
     }
+  } else {
+    // No saved preference - use system preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+      if (darkModeToggle) darkModeToggle.checked = true;
+    }
+  }
+
+  // Listen for system theme changes (only if no saved preference)
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', async event => {
+    const saved = await loadSetting('darkMode');
+    if (saved === null) {
+      // Only follow system if user hasn't manually set preference
+      if (event.matches) {
+        document.documentElement.classList.add('dark');
+        if (darkModeToggle) darkModeToggle.checked = true;
+      } else {
+        document.documentElement.classList.remove('dark');
+        if (darkModeToggle) darkModeToggle.checked = false;
+      }
+    }
   });
 
-  // Toggle dark mode manually
+  // Toggle dark mode manually and save preference
   if (darkModeToggle) {
-    darkModeToggle.addEventListener('change', () => {
-      if (darkModeToggle.checked) {
+    darkModeToggle.addEventListener('change', async () => {
+      const isDark = darkModeToggle.checked;
+      if (isDark) {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
       }
+      // Save preference to IndexedDB
+      await saveSetting('darkMode', isDark);
     });
   }
 }
