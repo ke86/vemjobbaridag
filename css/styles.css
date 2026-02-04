@@ -467,73 +467,78 @@ html.dark .menu-btn:hover {
 }
 
 /* ==========================================
-   TURN ICONS & TOGGLE (Custom PNG images)
+   BADGE TOGGLE (Icon ↔ Turn Number)
    ========================================== */
 
-/* Static turn display (no icons, just text) */
-.turn-display {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-right: 8px;
-  min-width: 60px;
-}
-
-.turn-number-text {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
-}
-
-/* Toggle container */
-.turn-toggle {
+/* Badge toggle container */
+.badge-toggle {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  margin-right: 8px;
-  min-width: 60px;
-  min-height: 16px;
+  justify-content: center;
+  min-width: 50px;
+  min-height: 36px;
   cursor: pointer;
 }
 
-/* Icons view (default visible) */
-.turn-icons-view {
+/* Icon view (default visible) */
+.badge-icon-view {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 4px;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-/* Number view (default hidden) */
-.turn-number-view {
+/* Number badge view (default hidden) */
+.badge-toggle .badge-number-view {
   position: absolute;
-  right: 0;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-family: 'SF Mono', 'Fira Code', monospace;
   opacity: 0;
   transform: scale(0.8);
   transition: opacity 0.2s ease, transform 0.2s ease;
-  white-space: nowrap;
+  pointer-events: none;
 }
 
-/* Toggle state: show number, hide icons */
-.turn-toggle.show-number .turn-icons-view {
+/* Toggle state: show number badge, hide icons */
+.badge-toggle.show-number .badge-icon-view {
   opacity: 0;
   transform: scale(0.8);
   pointer-events: none;
 }
 
-.turn-toggle.show-number .turn-number-view {
+.badge-toggle.show-number .badge-number-view {
   opacity: 1;
   transform: scale(1);
+  pointer-events: auto;
 }
 
-/* Legacy turn-icons class (for calendar/list views) */
+/* Badge icon sizing - bigger to match badge height */
+.badge-icon {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+/* Flag icons */
+.badge-icon-flag {
+  height: 28px;
+}
+
+/* Reserve icons */
+.badge-icon-reserv,
+.badge-icon-x-reserv {
+  height: 26px;
+}
+
+/* Day indicators */
+.badge-icon-day-1,
+.badge-icon-day-2 {
+  height: 30px;
+}
+
+/* ==========================================
+   TURN ICONS (for calendar/list views)
+   ========================================== */
 .turn-icons {
   display: flex;
   flex-direction: row;
@@ -544,25 +549,22 @@ html.dark .menu-btn:hover {
   min-width: 60px;
 }
 
-/* Icon sizing - match turn number height (~16px) */
+/* Icon sizing for calendar/list views */
 .turn-icon {
   height: 16px;
   width: auto;
   object-fit: contain;
 }
 
-/* Flag icons */
 .turn-icon-flag {
   height: 16px;
 }
 
-/* Reserve icons */
 .turn-icon-reserv,
 .turn-icon-x-reserv {
   height: 16px;
 }
 
-/* Day indicators */
 .turn-icon-day-1,
 .turn-icon-day-2 {
   height: 18px;

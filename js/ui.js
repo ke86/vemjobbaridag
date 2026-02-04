@@ -200,36 +200,58 @@ function renderTurnIcons(turnNumber) {
 }
 
 /**
- * Render toggle container with icons and turn number
- * Icons shown by default, tap to reveal turn number
+ * Render badge with icon/turn number toggle
+ * For regular shifts: icon shown by default, tap to show turn number badge
+ * Returns: { badgeHtml, hasToggle }
  */
-function renderTurnToggle(turnNumber) {
-  const icons = getTurnIcons(turnNumber);
-  const turnStr = (turnNumber || '').toString().trim();
+function renderBadgeWithToggle(shift) {
+  const turnStr = (shift.badgeText || '').toString().trim();
+  const icons = getTurnIcons(turnStr);
 
-  // No icons - just show turn number
-  if (icons.length === 0) {
-    if (!turnStr) return '';
-    return `<div class="turn-display"><span class="turn-number-text">${turnStr}</span></div>`;
+  // Special badge types - no toggle, just return the badge
+  const specialBadges = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'ffu', 'seko', 'sjuk'];
+
+  if (specialBadges.includes(shift.badge)) {
+    let badgeHtml = '';
+    switch (shift.badge) {
+      case 'fp': badgeHtml = '<span class="badge ledig">FP</span>'; break;
+      case 'fpv': badgeHtml = '<span class="badge ledig">FPV</span>'; break;
+      case 'semester': badgeHtml = '<span class="badge semester-badge">Semester</span>'; break;
+      case 'franvarande': badgeHtml = '<span class="badge franvarande-badge">Frånv.</span>'; break;
+      case 'foraldraledighet': badgeHtml = '<span class="badge foraldraledighet-badge">Föräldr.</span>'; break;
+      case 'afd': badgeHtml = '<span class="badge afd-badge">AFD</span>'; break;
+      case 'vab': badgeHtml = '<span class="badge vab-badge">VAB</span>'; break;
+      case 'ffu': badgeHtml = '<span class="badge ffu-badge">FFU</span>'; break;
+      case 'seko': badgeHtml = `<span class="badge seko-badge">${shift.badgeText}</span>`; break;
+      case 'sjuk': badgeHtml = '<span class="badge sjuk-badge">Sjuk</span>'; break;
+    }
+    return badgeHtml;
   }
 
-  // Has icons - create toggle container
+  // Regular turn - check if we have icons
+  if (icons.length === 0) {
+    // No icons, just show turn number badge
+    if (!turnStr) return '';
+    return `<span class="badge dag">${turnStr}</span>`;
+  }
+
+  // Has icons - create toggle: icon (default) ↔ badge
   const iconsHtml = icons.map(icon => {
-    return `<img class="turn-icon turn-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
+    return `<img class="badge-icon badge-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
   }).join('');
 
   return `
-    <div class="turn-toggle" onclick="toggleTurnDisplay(event, this)">
-      <div class="turn-icons-view">${iconsHtml}</div>
-      <div class="turn-number-view">${turnStr}</div>
+    <div class="badge-toggle" onclick="toggleBadgeDisplay(event, this)">
+      <div class="badge-icon-view">${iconsHtml}</div>
+      <span class="badge dag badge-number-view">${turnStr}</span>
     </div>
   `;
 }
 
 /**
- * Toggle between icons and turn number
+ * Toggle between icon and turn number badge
  */
-function toggleTurnDisplay(event, element) {
+function toggleBadgeDisplay(event, element) {
   event.stopPropagation(); // Don't trigger card click
   element.classList.toggle('show-number');
 }
@@ -275,33 +297,14 @@ function renderEmployees() {
       color: 'blue'
     };
 
-    // Use toggle for icons/turn number
-    const turnToggleHtml = renderTurnToggle(shift.badgeText);
-
     // Determine time display: "Ledig" for non-working types, actual time otherwise
     let timeDisplay = shift.time || '-';
     if (nonWorkingTypes.includes(shift.badge)) {
       timeDisplay = 'Ledig';
     }
 
-    // Build badge HTML
-    let badgeHtml = '';
-    switch (shift.badge) {
-      case 'fp': badgeHtml = '<span class="badge ledig">FP</span>'; break;
-      case 'fpv': badgeHtml = '<span class="badge ledig">FPV</span>'; break;
-      case 'semester': badgeHtml = '<span class="badge semester-badge">Semester</span>'; break;
-      case 'franvarande': badgeHtml = '<span class="badge franvarande-badge">Frånv.</span>'; break;
-      case 'foraldraledighet': badgeHtml = '<span class="badge foraldraledighet-badge">Föräldr.</span>'; break;
-      case 'afd': badgeHtml = '<span class="badge afd-badge">AFD</span>'; break;
-      case 'vab': badgeHtml = '<span class="badge vab-badge">VAB</span>'; break;
-      case 'ffu': badgeHtml = '<span class="badge ffu-badge">FFU</span>'; break;
-      case 'seko': badgeHtml = `<span class="badge seko-badge">${shift.badgeText}</span>`; break;
-      case 'sjuk': badgeHtml = '<span class="badge sjuk-badge">Sjuk</span>'; break;
-      case 'reserv': badgeHtml = `<span class="badge reserv">${shift.badgeText}</span>`; break;
-      case 'dag': badgeHtml = `<span class="badge dag">${shift.badgeText}</span>`; break;
-      case 'flag': badgeHtml = `<span class="flag">${shift.flag}</span>`; break;
-      default: break;
-    }
+    // Build badge HTML with icon toggle support
+    const badgeHtml = renderBadgeWithToggle(shift);
 
     return `
       <div class="employee-card" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
@@ -310,7 +313,6 @@ function renderEmployees() {
           <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
-          ${turnToggleHtml}
           ${badgeHtml}
         </div>
       </div>
@@ -906,15 +908,29 @@ function renderDeleteEmployeeList() {
     return;
   }
 
-  deleteEmployeeList.innerHTML = employees.map(emp => `
-    <div class="delete-list-item">
-      <div class="employee-info">
-        <div class="avatar ${emp.color}">${emp.initials}</div>
-        <span class="employee-name">${emp.name}</span>
+  deleteEmployeeList.innerHTML = employees.map(emp => {
+    // Escape name for safe use in data attribute
+    const safeName = emp.name.replace(/"/g, '&quot;');
+    return `
+      <div class="delete-list-item">
+        <div class="employee-info">
+          <div class="avatar ${emp.color}">${emp.initials}</div>
+          <span class="employee-name">${emp.name}</span>
+        </div>
+        <button class="delete-btn" data-employee-id="${emp.employeeId}" data-employee-name="${safeName}">🗑️</button>
       </div>
-      <button class="delete-btn" onclick="showDeleteConfirmModal('${emp.employeeId}', '${emp.name.replace(/'/g, "\\'")}')">🗑️</button>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+
+  // Add click handlers for delete buttons
+  deleteEmployeeList.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const employeeId = btn.dataset.employeeId;
+      const employeeName = btn.dataset.employeeName;
+      showDeleteConfirmModal(employeeId, employeeName);
+    });
+  });
 }
 
 /**
