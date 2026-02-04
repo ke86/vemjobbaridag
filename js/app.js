@@ -10,6 +10,9 @@ function initApp() {
   // Initialize UI elements
   initUI();
 
+  // Initialize Fridagsnyckel UI
+  initFridagsUI();
+
   // Initialize authentication
   initAuth();
 
@@ -160,6 +163,11 @@ function setupEventListeners() {
   // Delete data section (collapsible)
   if (deleteDataHeader) {
     deleteDataHeader.addEventListener('click', toggleDeleteDataSection);
+  }
+
+  // Fridagsnyckel section (collapsible)
+  if (fridagsHeader) {
+    fridagsHeader.addEventListener('click', toggleFridagsSection);
   }
 
   // Delete confirmation modal

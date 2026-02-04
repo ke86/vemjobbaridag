@@ -995,3 +995,328 @@ async function confirmDeleteEmployee() {
     showToast('Kunde inte radera data', 'error');
   }
 }
+
+// ==========================================
+// FRIDAGSNYCKEL FUNCTIONS
+// ==========================================
+
+let fridagsSection, fridagsHeader, fridagEmployeeList;
+
+/**
+ * Initialize Fridagsnyckel UI elements
+ */
+function initFridagsUI() {
+  fridagsSection = document.getElementById('fridagsSection');
+  fridagsHeader = document.getElementById('fridagsHeader');
+  fridagEmployeeList = document.getElementById('fridagEmployeeList');
+}
+
+/**
+ * Toggle the collapsible fridagsnyckel section
+ */
+function toggleFridagsSection() {
+  if (fridagsSection) {
+    fridagsSection.classList.toggle('expanded');
+    if (fridagsSection.classList.contains('expanded')) {
+      renderFridagEmployeeList();
+    }
+  }
+}
+
+/**
+ * Build dropdown options for fridagsnycklar
+ * Grouped by type (TV/LF) and sorted
+ */
+function buildFridagKeyOptions() {
+  const tvKeys = [];
+  const lfKeys = [];
+
+  for (const [key, data] of Object.entries(FRIDAG_KEYS)) {
+    const option = { key, name: data.name, cycle: data.cycle };
+    if (key.startsWith('TV')) {
+      tvKeys.push(option);
+    } else {
+      lfKeys.push(option);
+    }
+  }
+
+  // Sort by key name
+  tvKeys.sort((a, b) => a.key.localeCompare(b.key));
+  lfKeys.sort((a, b) => a.key.localeCompare(b.key));
+
+  let options = '<option value="">-- Välj nyckel --</option>';
+  options += '<optgroup label="Tågvärdar (TV)">';
+  for (const opt of tvKeys) {
+    options += `<option value="${opt.key}">${opt.key} - ${opt.name} (${opt.cycle}v)</option>`;
+  }
+  options += '</optgroup>';
+  options += '<optgroup label="Lokförare (LF)">';
+  for (const opt of lfKeys) {
+    options += `<option value="${opt.key}">${opt.key} - ${opt.name} (${opt.cycle}v)</option>`;
+  }
+  options += '</optgroup>';
+
+  return options;
+}
+
+/**
+ * Build dropdown options for row numbers based on selected key
+ */
+function buildRowOptions(cycleSize) {
+  let options = '<option value="">-- Välj rad --</option>';
+  for (let i = 1; i <= cycleSize; i++) {
+    options += `<option value="${i}">Rad ${i}</option>`;
+  }
+  return options;
+}
+
+/**
+ * Handle fridagnyckel selection change - update row dropdown
+ */
+function onFridagKeyChange(employeeId, selectElement) {
+  const selectedKey = selectElement.value;
+  const rowSelect = document.getElementById(`fridag-row-${employeeId}`);
+
+  if (!rowSelect) return;
+
+  if (!selectedKey) {
+    rowSelect.innerHTML = '<option value="">-- Välj nyckel först --</option>';
+    rowSelect.disabled = true;
+    return;
+  }
+
+  const keyData = FRIDAG_KEYS[selectedKey];
+  if (keyData) {
+    rowSelect.innerHTML = buildRowOptions(keyData.cycle);
+    rowSelect.disabled = false;
+  }
+}
+
+/**
+ * Render the list of employees with fridagsnyckel controls
+ */
+function renderFridagEmployeeList() {
+  if (!fridagEmployeeList) return;
+
+  const employees = getSortedEmployees();
+
+  if (employees.length === 0) {
+    fridagEmployeeList.innerHTML = `
+      <div class="fridag-empty">
+        <p>Inga anställda registrerade ännu.</p>
+        <p>Ladda upp ett schema först.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const keyOptions = buildFridagKeyOptions();
+
+  fridagEmployeeList.innerHTML = employees.map(emp => {
+    // Get saved fridagsnyckel if any
+    const savedKey = emp.fridagsnyckel || '';
+    const savedRow = emp.fridagsrad || '';
+    const keyData = savedKey ? FRIDAG_KEYS[savedKey] : null;
+    const rowOptions = keyData ? buildRowOptions(keyData.cycle) : '<option value="">-- Välj nyckel först --</option>';
+
+    // Current status text
+    let currentHtml = '';
+    if (savedKey && savedRow) {
+      currentHtml = `
+        <div class="fridag-current">
+          Nuvarande: <strong>${savedKey}</strong>, rad <strong>${savedRow}</strong>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="fridag-employee-item" id="fridag-item-${emp.employeeId}">
+        <div class="fridag-employee-header">
+          <div class="avatar ${emp.color}">${emp.initials}</div>
+          <span class="name">${emp.name}</span>
+        </div>
+        <div class="fridag-selects">
+          <div class="fridag-select-row">
+            <label>Nyckel:</label>
+            <select id="fridag-key-${emp.employeeId}" onchange="onFridagKeyChange('${emp.employeeId}', this)">
+              ${keyOptions.replace(`value="${savedKey}"`, `value="${savedKey}" selected`)}
+            </select>
+          </div>
+          <div class="fridag-select-row">
+            <label>Rad:</label>
+            <select id="fridag-row-${emp.employeeId}" ${!savedKey ? 'disabled' : ''}>
+              ${savedRow ? rowOptions.replace(`value="${savedRow}"`, `value="${savedRow}" selected`) : rowOptions}
+            </select>
+          </div>
+        </div>
+        <div class="fridag-actions">
+          <button class="fridag-apply-btn" id="fridag-btn-${emp.employeeId}" onclick="applyFridagsnyckel('${emp.employeeId}')">
+            Applicera
+          </button>
+        </div>
+        ${currentHtml}
+        <div class="fridag-status" id="fridag-status-${emp.employeeId}"></div>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Apply fridagsnyckel for an employee
+ * Generates FP/FPV shifts from March 1, 2026 to Feb 28, 2027
+ */
+async function applyFridagsnyckel(employeeId) {
+  const keySelect = document.getElementById(`fridag-key-${employeeId}`);
+  const rowSelect = document.getElementById(`fridag-row-${employeeId}`);
+  const btn = document.getElementById(`fridag-btn-${employeeId}`);
+  const statusEl = document.getElementById(`fridag-status-${employeeId}`);
+
+  const selectedKey = keySelect?.value;
+  const selectedRow = parseInt(rowSelect?.value, 10);
+
+  // Validate
+  if (!selectedKey) {
+    showFridagStatus(statusEl, 'Välj en fridagsnyckel', 'error');
+    return;
+  }
+  if (!selectedRow) {
+    showFridagStatus(statusEl, 'Välj en startrad', 'error');
+    return;
+  }
+
+  const keyData = FRIDAG_KEYS[selectedKey];
+  if (!keyData) {
+    showFridagStatus(statusEl, 'Ogiltig nyckel', 'error');
+    return;
+  }
+
+  // Show loading state
+  btn.classList.add('loading');
+  btn.disabled = true;
+
+  try {
+    // Generate FP/FPV shifts
+    const shifts = generateFridagShifts(employeeId, selectedKey, selectedRow);
+
+    // Save to Firebase
+    await saveFridagShiftsToFirebase(employeeId, selectedKey, selectedRow, shifts);
+
+    // Update local data
+    for (const shift of shifts) {
+      if (!employeesData[shift.date]) {
+        employeesData[shift.date] = [];
+      }
+      // Remove any existing FP/FPV for this employee on this date
+      employeesData[shift.date] = employeesData[shift.date].filter(
+        s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
+      );
+      // Add new shift
+      employeesData[shift.date].push({
+        employeeId,
+        badge: shift.type.toLowerCase(),
+        badgeText: shift.type,
+        time: '-'
+      });
+    }
+
+    // Update employee record
+    if (registeredEmployees[employeeId]) {
+      registeredEmployees[employeeId].fridagsnyckel = selectedKey;
+      registeredEmployees[employeeId].fridagsrad = selectedRow;
+    }
+
+    // Refresh UI
+    renderEmployees();
+    renderFridagEmployeeList();
+
+    showFridagStatus(statusEl, `${shifts.length} fridagar inlagda!`, 'success');
+  } catch (error) {
+    console.error('Error applying fridagsnyckel:', error);
+    showFridagStatus(statusEl, 'Ett fel uppstod', 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Show status message for fridagsnyckel action
+ */
+function showFridagStatus(element, message, type) {
+  if (!element) return;
+  element.textContent = message;
+  element.className = `fridag-status ${type}`;
+  setTimeout(() => {
+    element.className = 'fridag-status';
+    element.textContent = '';
+  }, 4000);
+}
+
+/**
+ * Generate FP/FPV shifts based on fridagsnyckel
+ * @returns Array of { date: 'YYYY-MM-DD', type: 'FP'|'FPV' }
+ */
+function generateFridagShifts(employeeId, keyId, startRow) {
+  const keyData = FRIDAG_KEYS[keyId];
+  if (!keyData) return [];
+
+  const shifts = [];
+  const startDate = new Date(FRIDAG_START_DATE);
+  const endDate = new Date(FRIDAG_END_DATE);
+  const cycle = keyData.cycle;
+
+  // Day name mapping (JS getDay(): 0=Sun, 1=Mon, ... 6=Sat)
+  const dayMap = {
+    0: 'sun', 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat'
+  };
+
+  // Find which week we start in (based on start date being week 1)
+  let currentDate = new Date(startDate);
+  let currentRow = startRow;
+
+  // Calculate the Monday of the week containing startDate
+  const startDayOfWeek = startDate.getDay();
+  const daysToMonday = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+  const weekStartDate = new Date(startDate);
+  weekStartDate.setDate(weekStartDate.getDate() - daysToMonday);
+
+  // Process week by week
+  let weekStart = new Date(weekStartDate);
+
+  while (weekStart <= endDate) {
+    const pattern = keyData.pattern[currentRow];
+
+    if (pattern) {
+      // Go through each day of the week
+      for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const dayDate = new Date(weekStart);
+        dayDate.setDate(dayDate.getDate() + dayOffset);
+
+        // Check if date is within our range
+        if (dayDate >= startDate && dayDate <= endDate) {
+          const dayName = dayMap[dayDate.getDay()];
+          const shiftType = pattern[dayName];
+
+          if (shiftType) {
+            const dateKey = getDateKey(dayDate);
+            shifts.push({
+              date: dateKey,
+              type: shiftType
+            });
+          }
+        }
+      }
+    }
+
+    // Move to next week
+    weekStart.setDate(weekStart.getDate() + 7);
+
+    // Rotate to next row in cycle
+    currentRow++;
+    if (currentRow > cycle) {
+      currentRow = 1;
+    }
+  }
+
+  return shifts;
+}

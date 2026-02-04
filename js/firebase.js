@@ -279,3 +279,57 @@ async function deleteEmployeeFromFirebase(employeeId) {
   await db.collection('employees').doc(employeeId).delete();
   console.log('Employee fully deleted from Firebase:', employeeId);
 }
+
+/**
+ * Save fridagsnyckel shifts to Firebase
+ * - Updates employee with fridagsnyckel and fridagsrad
+ * - Adds FP/FPV shifts to schedule collection
+ * @param {string} employeeId
+ * @param {string} keyId - Fridagsnyckel ID (e.g., 'TVMC11')
+ * @param {number} startRow - Starting row (1-12)
+ * @param {Array} shifts - Array of { date: 'YYYY-MM-DD', type: 'FP'|'FPV' }
+ */
+async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
+  console.log(`Saving ${shifts.length} fridag shifts for employee ${employeeId}`);
+
+  // 1. Update employee document with fridagsnyckel info
+  await db.collection('employees').doc(employeeId).update({
+    fridagsnyckel: keyId,
+    fridagsrad: startRow
+  });
+
+  // 2. Group shifts by date for batch updates
+  const shiftsByDate = {};
+  for (const shift of shifts) {
+    if (!shiftsByDate[shift.date]) {
+      shiftsByDate[shift.date] = [];
+    }
+    shiftsByDate[shift.date].push({
+      employeeId,
+      badge: shift.type.toLowerCase(),
+      badgeText: shift.type,
+      time: '-'
+    });
+  }
+
+  // 3. Update each date's schedule
+  for (const [dateStr, newShifts] of Object.entries(shiftsByDate)) {
+    // Get existing shifts for this date
+    const docRef = db.collection('schedules').doc(dateStr);
+    const doc = await docRef.get();
+    let existingShifts = doc.exists ? (doc.data().shifts || []) : [];
+
+    // Remove any existing FP/FPV for this employee on this date
+    existingShifts = existingShifts.filter(
+      s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
+    );
+
+    // Add new shifts
+    const updatedShifts = [...existingShifts, ...newShifts];
+
+    // Save to Firebase
+    await docRef.set({ shifts: updatedShifts });
+  }
+
+  console.log('Fridag shifts saved to Firebase');
+}

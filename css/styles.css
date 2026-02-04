@@ -2163,3 +2163,201 @@ html.dark .export-calendar-btn .export-icon {
     font-size: 14px;
   }
 }
+
+/* ==========================================
+   FRIDAGSNYCKEL SETTINGS
+   ========================================== */
+.fridag-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.fridag-employee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fridag-employee-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.fridag-employee-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fridag-employee-header .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.fridag-employee-header .name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.fridag-selects {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fridag-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fridag-select-row label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 55px;
+}
+
+.fridag-select-row select {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236e6e73' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+html.dark .fridag-select-row select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888aa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
+.fridag-select-row select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.fridag-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fridag-apply-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-blue);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fridag-apply-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.fridag-apply-btn:active {
+  transform: translateY(0);
+}
+
+.fridag-apply-btn:disabled {
+  background: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.fridag-apply-btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.fridag-apply-btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.fridag-status {
+  font-size: 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: none;
+}
+
+.fridag-status.success {
+  display: block;
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+html.dark .fridag-status.success {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.fridag-status.error {
+  display: block;
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+html.dark .fridag-status.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.fridag-current {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+
+.fridag-current strong {
+  color: var(--text-primary);
+}
+
+/* Empty state */
+.fridag-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}

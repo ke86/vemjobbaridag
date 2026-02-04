@@ -199,6 +199,20 @@
         </div>
       </div>
 
+      <!-- Fridagsnyckel (collapsible) -->
+      <div class="settings-section collapsible" id="fridagsSection">
+        <div class="collapsible-header" id="fridagsHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">🗓️ Fridagsnyckel</h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="fridagsContent">
+          <p class="fridag-info">Välj fridagsnyckel och startrad för varje anställd. Klicka "Applicera" för att lägga in FP/FPV-dagar från 1 mars 2026 till 28 feb 2027.</p>
+          <div class="fridag-employee-list" id="fridagEmployeeList">
+            <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
+          </div>
+        </div>
+      </div>
+
       <!-- Radera data (collapsible) -->
       <div class="settings-section collapsible" id="deleteDataSection">
         <div class="collapsible-header" id="deleteDataHeader">
@@ -216,7 +230,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v2.1</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v2.2</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
