@@ -1549,10 +1549,6 @@ html.dark .export-calendar-btn .export-icon {
   opacity: 0.9;
 }
 
-.holidays-icon {
-  font-size: 16px;
-}
-
 /* Holidays Modal - iOS Style */
 .holidays-modal {
   display: none;
@@ -1611,82 +1607,100 @@ html.dark .holidays-modal {
 
 .holidays-list {
   padding: 12px;
-  max-height: 420px;
+  max-height: 450px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-/* iOS-style grouped list */
-.holiday-group {
-  background: var(--bg-card);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 12px;
-}
-
-.holiday-group:last-child {
-  margin-bottom: 0;
-}
-
-.holiday-group-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 8px 16px 6px;
-  background: transparent;
-}
-
-.holiday-item {
+/* Holiday Cell Design */
+.holiday-cell {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 12px 14px;
   background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
-  transition: background 0.15s;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease;
 }
 
-.holiday-item:last-child {
-  border-bottom: none;
+html.dark .holiday-cell {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-.holiday-item:active {
+.holiday-cell:active {
+  transform: scale(0.98);
   background: var(--bg-secondary);
 }
 
+/* Date Box - Red accent for "röda dagar" */
+.holiday-date-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  height: 52px;
+  background: linear-gradient(145deg, #e74c3c, #c0392b);
+  border-radius: 12px;
+  box-shadow: 0 3px 8px rgba(231, 76, 60, 0.3);
+}
+
+.holiday-day {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  line-height: 1.1;
+}
+
+.holiday-month {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Holiday Info */
 .holiday-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  flex: 1;
 }
 
 .holiday-name {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: -0.2px;
 }
 
-.holiday-date {
+.holiday-weekday {
   font-size: 13px;
   color: var(--text-secondary);
 }
 
+/* FP/FPV Badge */
 .holiday-badge {
   font-size: 12px;
-  font-weight: 600;
-  padding: 5px 10px;
-  border-radius: 8px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 10px;
   background: linear-gradient(135deg, rgba(76, 217, 100, 0.2), rgba(76, 217, 100, 0.1));
   color: #34c759;
   border: 1px solid rgba(76, 217, 100, 0.3);
+  box-shadow: 0 2px 6px rgba(76, 217, 100, 0.15);
 }
 
 .holiday-badge.fpv {
   background: linear-gradient(135deg, rgba(90, 200, 250, 0.2), rgba(90, 200, 250, 0.1));
   color: #32ade6;
   border: 1px solid rgba(90, 200, 250, 0.3);
+  box-shadow: 0 2px 6px rgba(90, 200, 250, 0.15);
 }
 
 /* Schedule Grid */

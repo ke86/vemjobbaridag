@@ -551,52 +551,32 @@ function toggleHolidaysModal() {
   const holidays = getSwedishHolidays2026();
   const employeeId = selectedEmployeeId;
 
-  // Group holidays by quarter
-  const quarters = {
-    'Q1 · Jan–Mar 2026': [],
-    'Q2 · Apr–Jun': [],
-    'Q3 · Jul–Sep': [],
-    'Q4 · Okt–Dec': [],
-    '2027': []
-  };
+  // Render cell-based list
+  const html = holidays.map(holiday => {
+    const badge = getHolidayBadge(employeeId, holiday.date);
+    const badgeHtml = badge
+      ? `<span class="holiday-badge ${badge === 'FPV' ? 'fpv' : ''}">${badge}</span>`
+      : '';
 
-  holidays.forEach(holiday => {
-    const year = parseInt(holiday.date.split('-')[0]);
-    const month = parseInt(holiday.date.split('-')[1]);
-    if (year === 2027) quarters['2027'].push(holiday);
-    else if (month <= 3) quarters['Q1 · Jan–Mar 2026'].push(holiday);
-    else if (month <= 6) quarters['Q2 · Apr–Jun'].push(holiday);
-    else if (month <= 9) quarters['Q3 · Jul–Sep'].push(holiday);
-    else quarters['Q4 · Okt–Dec'].push(holiday);
-  });
+    // Extract day and month for date box
+    const [year, month, day] = holiday.date.split('-');
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+    const monthName = monthNames[parseInt(month) - 1];
 
-  // Render grouped list
-  let html = '';
-  for (const [quarter, items] of Object.entries(quarters)) {
-    if (items.length === 0) continue;
-
-    html += `<div class="holiday-group">`;
-    html += `<div class="holiday-group-title">${quarter}</div>`;
-
-    items.forEach(holiday => {
-      const badge = getHolidayBadge(employeeId, holiday.date);
-      const badgeHtml = badge
-        ? `<span class="holiday-badge ${badge === 'FPV' ? 'fpv' : ''}">${badge}</span>`
-        : '';
-
-      html += `
-        <div class="holiday-item">
-          <div class="holiday-info">
-            <span class="holiday-name">${holiday.name}</span>
-            <span class="holiday-date">${formatSwedishDate(holiday.date)}</span>
-          </div>
-          ${badgeHtml}
+    return `
+      <div class="holiday-cell">
+        <div class="holiday-date-box">
+          <span class="holiday-day">${parseInt(day)}</span>
+          <span class="holiday-month">${monthName}</span>
         </div>
-      `;
-    });
-
-    html += `</div>`;
-  }
+        <div class="holiday-info">
+          <span class="holiday-name">${holiday.name}</span>
+          <span class="holiday-weekday">${formatSwedishDate(holiday.date)}</span>
+        </div>
+        ${badgeHtml}
+      </div>
+    `;
+  }).join('');
 
   holidaysList.innerHTML = html;
   holidaysModal.classList.add('active');
