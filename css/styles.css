@@ -1855,6 +1855,31 @@ html.dark .export-calendar-btn .export-icon {
 .person-list-card .arrow {
   color: var(--text-secondary);
   font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* FP/FPV Counters */
+.fridag-counters {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.fridag-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.fridag-count.over-limit {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.15);
 }
 
 /* Person Schedule Header */

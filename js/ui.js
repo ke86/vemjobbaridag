@@ -442,6 +442,33 @@ function goToPersonSchedule(employeeId) {
   showPersonScheduleView(employeeId);
 }
 
+// Count FP and FPV badges for an employee within the "fridagsår" (March 1 - Feb 28 next year)
+function countFridagBadges(employeeId) {
+  const startDate = new Date(2026, 2, 1); // March 1, 2026
+  const endDate = new Date(2027, 1, 28);  // Feb 28, 2027
+
+  let fpCount = 0;
+  let fpvCount = 0;
+
+  // Loop through all dates in employeesData
+  Object.entries(employeesData).forEach(([dateKey, dayShifts]) => {
+    const [year, month, day] = dateKey.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    // Check if date is within fridagsår
+    if (date >= startDate && date <= endDate) {
+      dayShifts.forEach(shift => {
+        if (shift.employeeId === employeeId) {
+          if (shift.badge === 'fp') fpCount++;
+          if (shift.badge === 'fpv') fpvCount++;
+        }
+      });
+    }
+  });
+
+  return { fp: fpCount, fpv: fpvCount };
+}
+
 function renderPersonList() {
   const employees = getSortedEmployees();
 
@@ -464,12 +491,21 @@ function renderPersonList() {
       }
     });
 
+    // Count FP/FPV for this employee
+    const fridagCount = countFridagBadges(emp.employeeId);
+    const fpClass = fridagCount.fp > 104 ? 'over-limit' : '';
+    const fpvClass = fridagCount.fpv > 14 ? 'over-limit' : '';
+
     return `
       <div class="person-list-card" style="animation-delay: ${index * 0.05}s" onclick="showPersonScheduleView('${emp.employeeId}')">
         <div class="avatar ${emp.color}">${emp.initials}</div>
         <div class="person-info">
           <div class="person-name">${emp.name}</div>
           <div class="person-subtitle">${totalShifts} dagar inlästa</div>
+        </div>
+        <div class="fridag-counters">
+          <span class="fridag-count ${fpClass}">FP: ${fridagCount.fp}/104</span>
+          <span class="fridag-count ${fpvClass}">FPV: ${fridagCount.fpv}/14</span>
         </div>
         <span class="arrow">›</span>
       </div>
