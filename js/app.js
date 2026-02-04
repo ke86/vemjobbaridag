@@ -179,6 +179,12 @@ function setupEventListeners() {
       }
     });
   }
+
+  // Check for updates button
+  const checkUpdateBtn = document.getElementById('checkUpdateBtn');
+  if (checkUpdateBtn) {
+    checkUpdateBtn.addEventListener('click', checkForUpdates);
+  }
 }
 
 /**
@@ -343,6 +349,81 @@ async function setupDarkMode() {
       // Save preference to IndexedDB
       await saveSetting('darkMode', isDark);
     });
+  }
+}
+
+/**
+ * Check for app updates via Service Worker
+ */
+async function checkForUpdates() {
+  const btn = document.getElementById('checkUpdateBtn');
+  const statusEl = document.getElementById('versionStatus');
+
+  if (!btn || !statusEl) return;
+
+  // Show checking state
+  btn.classList.add('checking');
+  btn.innerHTML = '<span class="update-icon">🔄</span> Söker...';
+  statusEl.textContent = 'Kontrollerar...';
+  statusEl.className = 'version-status checking';
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration();
+
+      if (registration) {
+        // Force check for updates
+        await registration.update();
+
+        // Wait a moment for the update check
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        if (registration.waiting) {
+          // New version available and waiting
+          btn.classList.remove('checking');
+          btn.classList.add('has-update');
+          btn.innerHTML = '<span class="update-icon">⬇️</span> Installera uppdatering';
+          statusEl.textContent = 'Ny version tillgänglig!';
+          statusEl.className = 'version-status update-available';
+
+          // Change button to install update
+          btn.onclick = () => {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            statusEl.textContent = 'Installerar...';
+            btn.classList.add('checking');
+          };
+        } else if (registration.installing) {
+          // Update is being installed
+          statusEl.textContent = 'Installerar uppdatering...';
+          statusEl.className = 'version-status checking';
+          btn.classList.remove('checking');
+          btn.innerHTML = '<span class="update-icon">🔄</span> Sök efter uppdatering';
+        } else {
+          // No update available
+          btn.classList.remove('checking');
+          btn.innerHTML = '<span class="update-icon">🔄</span> Sök efter uppdatering';
+          statusEl.textContent = '✓ Du har senaste versionen';
+          statusEl.className = 'version-status';
+        }
+      } else {
+        // No service worker registered
+        btn.classList.remove('checking');
+        btn.innerHTML = '<span class="update-icon">🔄</span> Sök efter uppdatering';
+        statusEl.textContent = 'Service worker ej registrerad';
+        statusEl.className = 'version-status';
+      }
+    } else {
+      statusEl.textContent = 'Uppdateringar stöds ej i denna webbläsare';
+      statusEl.className = 'version-status';
+      btn.classList.remove('checking');
+      btn.innerHTML = '<span class="update-icon">🔄</span> Sök efter uppdatering';
+    }
+  } catch (error) {
+    console.error('Update check failed:', error);
+    btn.classList.remove('checking');
+    btn.innerHTML = '<span class="update-icon">🔄</span> Sök efter uppdatering';
+    statusEl.textContent = 'Kunde inte kontrollera uppdateringar';
+    statusEl.className = 'version-status';
   }
 }
 
