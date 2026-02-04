@@ -548,7 +548,7 @@ function toggleHolidaysModal() {
   }
 
   const holidays = getSwedishHolidays2026();
-  const employeeId = currentPersonId;
+  const employeeId = selectedEmployeeId;
 
   holidaysList.innerHTML = holidays.map(holiday => {
     const badge = getHolidayBadge(employeeId, holiday.date);

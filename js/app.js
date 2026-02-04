@@ -331,11 +331,9 @@ async function setupDarkMode() {
       if (darkModeToggle) darkModeToggle.checked = false;
     }
   } else {
-    // No saved preference - use system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.classList.add('dark');
-      if (darkModeToggle) darkModeToggle.checked = true;
-    }
+    // No saved preference - default to light mode
+    document.documentElement.classList.remove('dark');
+    if (darkModeToggle) darkModeToggle.checked = false;
   }
 
   // Listen for system theme changes (only if no saved preference)
