@@ -965,12 +965,31 @@ async function confirmDeleteEmployee() {
   const employeeId = pendingDeleteEmployeeId;
   hideDeleteConfirmModal();
 
+  // Show immediate feedback - remove from UI first
+  showToast('Raderar data...', 'info');
+
+  // Delete from local data immediately for instant UI update
+  delete registeredEmployees[employeeId];
+
+  // Remove from all local schedule data
+  for (const dateStr of Object.keys(employeesData)) {
+    if (employeesData[dateStr]) {
+      employeesData[dateStr] = employeesData[dateStr].filter(s => s.employeeId !== employeeId);
+      if (employeesData[dateStr].length === 0) {
+        delete employeesData[dateStr];
+      }
+    }
+  }
+
+  // Update UI immediately
+  renderDeleteEmployeeList();
+  renderEmployees();
+  renderPersonList();
+
+  // Now sync to Firebase in background
   try {
-    await deleteEmployeeData(employeeId);
+    await deleteEmployeeFromFirebase(employeeId);
     showToast('Data raderad', 'success');
-    renderDeleteEmployeeList();
-    renderEmployees();
-    renderPersonList();
   } catch (error) {
     console.error('Error deleting employee:', error);
     showToast('Kunde inte radera data', 'error');

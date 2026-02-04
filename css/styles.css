@@ -32,6 +32,8 @@ html.dark {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  /* Prevent double-tap zoom */
+  touch-action: manipulation;
 }
 
 body {
@@ -46,6 +48,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+  /* Prevent text selection on tap */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent callout on long press */
+  -webkit-touch-callout: none;
 }
 
 html {
@@ -512,16 +519,16 @@ html.dark .menu-btn:hover {
   pointer-events: auto;
 }
 
-/* Badge icon sizing - 2x larger */
+/* Badge icon sizing */
 .badge-icon {
   height: 36px;
   width: auto;
   object-fit: contain;
 }
 
-/* Flag icons */
+/* Flag icons - extra large */
 .badge-icon-flag {
-  height: 36px;
+  height: 48px;
 }
 
 /* Reserve icons */

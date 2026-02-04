@@ -247,3 +247,35 @@ async function deleteEmployeeData(employeeId) {
     throw error;
   }
 }
+
+/**
+ * Delete employee data from Firebase only (local data already removed)
+ * Used for background sync after immediate UI update
+ */
+async function deleteEmployeeFromFirebase(employeeId) {
+  console.log('Syncing delete to Firebase:', employeeId);
+
+  if (!employeeId) {
+    throw new Error('No employeeId provided');
+  }
+
+  // Get all schedule documents and update them
+  const schedulesSnapshot = await db.collection('schedules').get();
+
+  for (const doc of schedulesSnapshot.docs) {
+    const shifts = doc.data().shifts || [];
+    const filteredShifts = shifts.filter(s => s.employeeId !== employeeId);
+
+    if (filteredShifts.length !== shifts.length) {
+      if (filteredShifts.length > 0) {
+        await db.collection('schedules').doc(doc.id).set({ shifts: filteredShifts });
+      } else {
+        await db.collection('schedules').doc(doc.id).delete();
+      }
+    }
+  }
+
+  // Delete the employee document
+  await db.collection('employees').doc(employeeId).delete();
+  console.log('Employee fully deleted from Firebase:', employeeId);
+}

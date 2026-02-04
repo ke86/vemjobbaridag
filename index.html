@@ -213,7 +213,7 @@
       </div>
 
       <div class="settings-section settings-footer">
-        <p class="version-text">Vem jobbar idag? v1.7</p>
+        <p class="version-text">Vem jobbar idag? v1.9</p>
       </div>
     </div>
   </main>
@@ -239,5 +239,42 @@
   <script src="js/schedule.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/app.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered:', registration.scope);
+
+            // Check for updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New version available - activate it immediately
+                  console.log('New version available, updating...');
+                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.log('SW registration failed:', error);
+          });
+
+        // Reload page when new service worker takes over
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            console.log('New version activated, reloading...');
+            window.location.reload();
+          }
+        });
+      });
+    }
+  </script>
 </body>
 </html>
