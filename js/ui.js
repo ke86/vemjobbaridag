@@ -130,15 +130,22 @@ function isToday(year, month, day) {
 }
 
 // ==========================================
-// TURN ICONS
+// TURN ICONS (Custom PNG images)
 // ==========================================
 
 function getTurnIcons(turnNumber) {
   const icons = [];
   const turnStr = (turnNumber || '').toString().toUpperCase().trim();
 
-  if (turnStr.startsWith('RESERV')) {
-    icons.push({ type: 'x-reserv', content: '✕' });
+  // RESERVSTAM - shows XRES icon
+  if (turnStr === 'RESERVSTAM') {
+    icons.push({ type: 'x-reserv', src: 'icons/XRES.png', alt: 'Reservstam' });
+    return icons;
+  }
+
+  // RESERV - shows RES icon
+  if (turnStr === 'RESERV') {
+    icons.push({ type: 'reserv', src: 'icons/RES.png', alt: 'Reserv' });
     return icons;
   }
 
@@ -156,22 +163,25 @@ function getTurnIcons(turnNumber) {
       if (/\d/.test(char3)) {
         const digit = parseInt(char3, 10);
         if (digit % 2 === 0) {
-          icons.push({ type: 'flag', content: '🇩🇰' });
+          // Even = Denmark
+          icons.push({ type: 'flag', src: 'icons/DK.png', alt: 'Danmark' });
         } else {
-          icons.push({ type: 'flag', content: '🇸🇪' });
+          // Odd = Sweden
+          icons.push({ type: 'flag', src: 'icons/SE.png', alt: 'Sverige' });
         }
       }
     }
 
+    // Reserve turn (position 4 = 8 or 9)
     if (isReservTurn) {
-      icons.push({ type: 'reserv', content: 'R' });
+      icons.push({ type: 'reserv', src: 'icons/RES.png', alt: 'Reserv' });
     }
 
     // Show day indicator for A/B turns
     if (char6 === 'A') {
-      icons.push({ type: 'day-1', content: '1' });
+      icons.push({ type: 'day-1', src: 'icons/A1.png', alt: 'Dag 1' });
     } else if (char6 === 'B') {
-      icons.push({ type: 'day-2', content: '2' });
+      icons.push({ type: 'day-2', src: 'icons/B2.png', alt: 'Dag 2' });
     }
   }
 
@@ -183,18 +193,7 @@ function renderTurnIcons(turnNumber) {
   if (icons.length === 0) return '';
 
   const iconsHtml = icons.map(icon => {
-    if (icon.type === 'flag') {
-      return `<span class="turn-icon flag-icon">${icon.content}</span>`;
-    } else if (icon.type === 'reserv') {
-      return `<span class="turn-icon reserv-icon">${icon.content}</span>`;
-    } else if (icon.type === 'day-1') {
-      return `<span class="turn-icon day-indicator day-1">${icon.content}</span>`;
-    } else if (icon.type === 'day-2') {
-      return `<span class="turn-icon day-indicator day-2">${icon.content}</span>`;
-    } else if (icon.type === 'x-reserv') {
-      return `<span class="turn-icon x-reserv">${icon.content}</span>`;
-    }
-    return '';
+    return `<img class="turn-icon turn-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
   }).join('');
 
   return `<div class="turn-icons">${iconsHtml}</div>`;
@@ -520,19 +519,20 @@ function getCalendarDayIcon(badgeText) {
   const icons = getTurnIcons(badgeText);
   if (icons.length === 0) return '';
 
+  // Priority: flag > reserv > day indicator
   for (const icon of icons) {
     if (icon.type === 'flag') {
-      return `<span class="day-icon flag">${icon.content}</span>`;
+      return `<img class="day-icon day-icon-flag" src="${icon.src}" alt="${icon.alt}">`;
     }
   }
   for (const icon of icons) {
     if (icon.type === 'reserv' || icon.type === 'x-reserv') {
-      return `<span class="day-icon reserv">R</span>`;
+      return `<img class="day-icon day-icon-reserv" src="${icon.src}" alt="${icon.alt}">`;
     }
   }
   for (const icon of icons) {
     if (icon.type === 'day-1' || icon.type === 'day-2') {
-      return `<span class="day-icon">${icon.content}</span>`;
+      return `<img class="day-icon day-icon-day" src="${icon.src}" alt="${icon.alt}">`;
     }
   }
   return '';
@@ -655,16 +655,7 @@ function renderListIcons(turnNumber) {
   if (icons.length === 0) return '<div class="list-icons"></div>';
 
   const iconsHtml = icons.map(icon => {
-    if (icon.type === 'flag') {
-      return `<span class="list-icon flag-icon">${icon.content}</span>`;
-    } else if (icon.type === 'reserv') {
-      return `<span class="list-icon reserv-icon">${icon.content}</span>`;
-    } else if (icon.type === 'day-1' || icon.type === 'day-2') {
-      return `<span class="list-icon day-indicator">${icon.content}</span>`;
-    } else if (icon.type === 'x-reserv') {
-      return `<span class="list-icon reserv-icon">✕</span>`;
-    }
-    return '';
+    return `<img class="list-icon list-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
   }).join('');
 
   return `<div class="list-icons">${iconsHtml}</div>`;

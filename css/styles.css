@@ -467,7 +467,7 @@ html.dark .menu-btn:hover {
 }
 
 /* ==========================================
-   TURN ICONS
+   TURN ICONS (Custom PNG images)
    ========================================== */
 .turn-icons {
   display: flex;
@@ -480,43 +480,29 @@ html.dark .menu-btn:hover {
 }
 
 .turn-icon {
-  font-size: 18px;
-  line-height: 1;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
 }
 
-.turn-icon.flag-icon {
-  font-size: 22px;
+/* Flag icons slightly larger */
+.turn-icon-flag {
+  width: 22px;
+  height: 22px;
 }
 
-.turn-icon.reserv-icon {
-  font-size: 14px;
-  color: #fbbf24;
-  font-weight: 700;
+/* Reserve icons */
+.turn-icon-reserv,
+.turn-icon-x-reserv {
+  width: 20px;
+  height: 20px;
 }
 
-.turn-icon.day-indicator {
-  position: relative;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: var(--text-primary);
-}
-
-.turn-icon.day-1 {
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  clip-path: polygon(0% 0%, 100% 0%, 100% 70%, 85% 100%, 70% 70%, 55% 100%, 40% 70%, 25% 100%, 10% 70%, 0% 100%);
-  padding-bottom: 8px;
-}
-
-.turn-icon.day-2 {
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  clip-path: polygon(0% 30%, 15% 0%, 30% 30%, 45% 0%, 60% 30%, 75% 0%, 90% 30%, 100% 0%, 100% 100%, 0% 100%);
-  padding-top: 8px;
+/* Day indicators */
+.turn-icon-day-1,
+.turn-icon-day-2 {
+  width: 18px;
+  height: 22px;
 }
 
 /* ==========================================
@@ -1465,12 +1451,24 @@ html.dark .export-calendar-btn .export-icon {
 }
 
 .schedule-day .day-icon {
-  font-size: 10px;
-  line-height: 1;
+  width: 12px;
+  height: 12px;
+  object-fit: contain;
 }
 
-.schedule-day .day-icon.flag {
-  font-size: 12px;
+.schedule-day .day-icon-flag {
+  width: 14px;
+  height: 14px;
+}
+
+.schedule-day .day-icon-reserv {
+  width: 12px;
+  height: 12px;
+}
+
+.schedule-day .day-icon-day {
+  width: 10px;
+  height: 14px;
 }
 
 .schedule-day .day-start,
@@ -1633,6 +1631,29 @@ html.dark .export-calendar-btn .export-icon {
   min-width: 40px;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+.list-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.list-icon-flag {
+  width: 18px;
+  height: 18px;
+}
+
+.list-icon-reserv,
+.list-icon-x-reserv {
+  width: 16px;
+  height: 16px;
+}
+
+.list-icon-day-1,
+.list-icon-day-2 {
+  width: 14px;
+  height: 18px;
 }
 
 /* Week block in list view */
