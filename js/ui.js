@@ -1125,16 +1125,21 @@ function renderFridagEmployeeList() {
       ? `${savedKey} Rad ${savedRow}`
       : 'Välj fridagsnyckel';
 
+    // If hasKey, row is locked (can't expand) - must remove first
+    const rowClickable = !hasKey;
+    const rowClass = hasKey ? 'fridag-employee-row locked' : 'fridag-employee-row';
+    const rowOnClick = rowClickable ? `onclick="toggleFridagExpand('${emp.employeeId}')"` : '';
+
     return `
-      <div class="fridag-employee-item compact" id="fridag-item-${emp.employeeId}">
-        <div class="fridag-employee-row" onclick="toggleFridagExpand('${emp.employeeId}')">
+      <div class="fridag-employee-item compact ${hasKey ? '' : ''}" id="fridag-item-${emp.employeeId}">
+        <div class="${rowClass}" ${rowOnClick}>
           <div class="fridag-employee-left">
             <div class="avatar ${emp.color}">${emp.initials}</div>
             <div class="fridag-employee-info">
               <span class="name">${emp.name}</span>
               <span class="fridag-key-status ${hasKey ? 'has-key' : 'no-key'}">
                 ${statusText}
-                <span class="expand-icon">▼</span>
+                ${!hasKey ? '<span class="expand-icon">▼</span>' : ''}
               </span>
             </div>
           </div>
@@ -1144,18 +1149,19 @@ function renderFridagEmployeeList() {
             </button>
           ` : ''}
         </div>
+        ${!hasKey ? `
         <div class="fridag-expand-content" id="fridag-expand-${emp.employeeId}">
           <div class="fridag-selects">
             <div class="fridag-select-row">
               <label>Nyckel:</label>
               <select id="fridag-key-${emp.employeeId}" onchange="onFridagKeyChange('${emp.employeeId}', this)">
-                ${keyOptions.replace(`value="${savedKey}"`, `value="${savedKey}" selected`)}
+                ${keyOptions}
               </select>
             </div>
             <div class="fridag-select-row">
               <label>Rad:</label>
-              <select id="fridag-row-${emp.employeeId}" ${!savedKey ? 'disabled' : ''}>
-                ${savedRow ? rowOptions.replace(`value="${savedRow}"`, `value="${savedRow}" selected`) : rowOptions}
+              <select id="fridag-row-${emp.employeeId}" disabled>
+                <option value="">-- Välj nyckel först --</option>
               </select>
             </div>
           </div>
@@ -1166,6 +1172,7 @@ function renderFridagEmployeeList() {
           </div>
           <div class="fridag-status" id="fridag-status-${emp.employeeId}"></div>
         </div>
+        ` : ''}
       </div>
     `;
   }).join('');

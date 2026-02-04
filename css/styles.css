@@ -2205,6 +2205,15 @@ html.dark .export-calendar-btn .export-icon {
   background: var(--bg-primary);
 }
 
+/* Locked state - has key, can't expand */
+.fridag-employee-row.locked {
+  cursor: default;
+}
+
+.fridag-employee-row.locked:hover {
+  background: transparent;
+}
+
 .fridag-employee-left {
   display: flex;
   align-items: center;
