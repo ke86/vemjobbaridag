@@ -1232,7 +1232,8 @@ async function applyFridagsnyckel(employeeId) {
     showFridagStatus(statusEl, `${shifts.length} fridagar inlagda!`, 'success');
   } catch (error) {
     console.error('Error applying fridagsnyckel:', error);
-    showFridagStatus(statusEl, 'Ett fel uppstod', 'error');
+    const errorMsg = error.message || error.toString();
+    showFridagStatus(statusEl, `Fel: ${errorMsg}`, 'error');
   } finally {
     btn.classList.remove('loading');
     btn.disabled = false;

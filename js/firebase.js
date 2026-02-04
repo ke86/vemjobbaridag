@@ -292,13 +292,17 @@ async function deleteEmployeeFromFirebase(employeeId) {
 async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
   console.log(`Saving ${shifts.length} fridag shifts for employee ${employeeId}`);
 
+  if (!shifts || shifts.length === 0) {
+    throw new Error('Inga fridagar genererades');
+  }
+
   // 1. Update employee document with fridagsnyckel info
-  await db.collection('employees').doc(employeeId).update({
+  await db.collection('employees').doc(employeeId).set({
     fridagsnyckel: keyId,
     fridagsrad: startRow
-  });
+  }, { merge: true });
 
-  // 2. Group shifts by date for batch updates
+  // 2. Group shifts by date
   const shiftsByDate = {};
   for (const shift of shifts) {
     if (!shiftsByDate[shift.date]) {
@@ -312,23 +316,33 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
     });
   }
 
-  // 3. Update each date's schedule
-  for (const [dateStr, newShifts] of Object.entries(shiftsByDate)) {
-    // Get existing shifts for this date
-    const docRef = db.collection('schedules').doc(dateStr);
-    const doc = await docRef.get();
-    let existingShifts = doc.exists ? (doc.data().shifts || []) : [];
+  // 3. Get all existing schedules we need to update
+  const dateKeys = Object.keys(shiftsByDate);
+  console.log(`Updating ${dateKeys.length} dates...`);
 
-    // Remove any existing FP/FPV for this employee on this date
-    existingShifts = existingShifts.filter(
-      s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
-    );
+  // Process in smaller batches to avoid timeout (50 at a time)
+  const batchSize = 50;
+  for (let i = 0; i < dateKeys.length; i += batchSize) {
+    const batchDates = dateKeys.slice(i, i + batchSize);
+    const batch = db.batch();
 
-    // Add new shifts
-    const updatedShifts = [...existingShifts, ...newShifts];
+    for (const dateStr of batchDates) {
+      const docRef = db.collection('schedules').doc(dateStr);
+      const doc = await docRef.get();
+      let existingShifts = doc.exists ? (doc.data().shifts || []) : [];
 
-    // Save to Firebase
-    await docRef.set({ shifts: updatedShifts });
+      // Remove any existing FP/FPV for this employee on this date
+      existingShifts = existingShifts.filter(
+        s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
+      );
+
+      // Add new shifts
+      const updatedShifts = [...existingShifts, ...shiftsByDate[dateStr]];
+      batch.set(docRef, { shifts: updatedShifts });
+    }
+
+    await batch.commit();
+    console.log(`Batch ${Math.floor(i / batchSize) + 1} committed`);
   }
 
   console.log('Fridag shifts saved to Firebase');
