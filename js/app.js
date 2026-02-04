@@ -16,6 +16,9 @@ function initApp() {
   // Initialize Day Editor
   initDayEditor();
 
+  // Initialize Month Picker
+  initMonthPicker();
+
   // Initialize authentication
   initAuth();
 

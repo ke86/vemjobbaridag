@@ -3245,3 +3245,234 @@ html.dark .fridag-remove-error p {
   transform: scale(0.99);
   opacity: 0.9;
 }
+
+/* ==========================================
+   MONTH PICKER BOTTOM SHEET
+   ========================================== */
+
+/* Month display clickable style */
+.month-display.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.month-display.clickable:hover {
+  border-color: var(--accent-blue);
+  background: var(--bg-card);
+}
+
+.month-display.clickable:active {
+  transform: scale(0.98);
+}
+
+/* Overlay */
+.month-picker-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.month-picker-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Sheet */
+.month-picker-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-secondary);
+  border-radius: 20px 20px 0 0;
+  z-index: 601;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.month-picker-sheet.active {
+  transform: translateY(0);
+}
+
+/* Handle */
+.month-picker-handle {
+  width: 36px;
+  height: 5px;
+  background: var(--border-color);
+  border-radius: 3px;
+  margin: 10px auto;
+  flex-shrink: 0;
+}
+
+/* Header */
+.month-picker-header {
+  padding: 0 20px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.month-picker-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.month-picker-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+/* Content */
+.month-picker-content {
+  padding: 24px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Year selector */
+.year-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.year-display {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 80px;
+  text-align: center;
+}
+
+.year-nav-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.year-nav-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--accent-blue);
+}
+
+.year-nav-btn:active {
+  transform: scale(0.95);
+}
+
+/* Month grid */
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.month-btn {
+  height: 52px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.month-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--text-secondary);
+}
+
+.month-btn:active {
+  transform: scale(0.96);
+}
+
+/* Current month highlight (ring) */
+.month-btn.current {
+  border-color: var(--accent-blue);
+  border-width: 2px;
+}
+
+/* Selected month (solid) */
+.month-btn.selected {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+}
+
+/* Footer */
+.month-picker-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.month-picker-btn {
+  flex: 1;
+  height: 52px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.month-picker-btn.today {
+  background: var(--accent-green);
+  color: white;
+}
+
+.month-picker-btn.today:hover {
+  filter: brightness(1.1);
+}
+
+.month-picker-btn.today:active {
+  transform: scale(0.98);
+}
+
+.month-picker-btn.cancel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.month-picker-btn.cancel:hover {
+  background: var(--bg-primary);
+}

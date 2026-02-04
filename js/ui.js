@@ -439,6 +439,11 @@ function showPersonScheduleView(employeeId) {
 
 function goToPersonSchedule(employeeId) {
   currentScheduleView = 'list';
+
+  // Set view to the same month/year as currentDate (from daily view)
+  viewMonth = currentDate.getMonth();
+  viewYear = currentDate.getFullYear();
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   monthlyPage.classList.add('active');
   headerTitle.textContent = 'Schema';
@@ -1653,6 +1658,153 @@ function generateFridagShifts(employeeId, keyId, startRow) {
 }
 
 // ==========================================
+// MONTH PICKER - Bottom Sheet
+// ==========================================
+
+let monthPickerOverlay, monthPickerSheet, monthPickerYearDisplay;
+let pickerYear = new Date().getFullYear(); // Year shown in picker
+
+/**
+ * Initialize Month Picker UI elements
+ */
+function initMonthPicker() {
+  monthPickerOverlay = document.getElementById('monthPickerOverlay');
+  monthPickerSheet = document.getElementById('monthPickerSheet');
+  monthPickerYearDisplay = document.getElementById('yearDisplay');
+
+  // Event listeners
+  if (monthPickerOverlay) {
+    monthPickerOverlay.addEventListener('click', closeMonthPicker);
+  }
+
+  const closeBtn = document.getElementById('monthPickerClose');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeMonthPicker);
+  }
+
+  const cancelBtn = document.getElementById('monthPickerCancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeMonthPicker);
+  }
+
+  const todayBtn = document.getElementById('monthPickerToday');
+  if (todayBtn) {
+    todayBtn.addEventListener('click', goToCurrentMonth);
+  }
+
+  // Year navigation
+  const yearPrev = document.getElementById('yearPrev');
+  const yearNext = document.getElementById('yearNext');
+  if (yearPrev) {
+    yearPrev.addEventListener('click', () => changePickerYear(-1));
+  }
+  if (yearNext) {
+    yearNext.addEventListener('click', () => changePickerYear(1));
+  }
+
+  // Month buttons
+  document.querySelectorAll('.month-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectMonth(parseInt(btn.dataset.month, 10)));
+  });
+}
+
+/**
+ * Open the month picker
+ */
+function openMonthPicker() {
+  if (!monthPickerSheet || !monthPickerOverlay) return;
+
+  // Set picker year to current view year
+  pickerYear = viewYear;
+  updateMonthPickerUI();
+
+  // Show picker
+  monthPickerOverlay.classList.add('active');
+  monthPickerSheet.classList.add('active');
+}
+
+/**
+ * Close the month picker
+ */
+function closeMonthPicker() {
+  if (monthPickerOverlay) monthPickerOverlay.classList.remove('active');
+  if (monthPickerSheet) monthPickerSheet.classList.remove('active');
+}
+
+/**
+ * Change the year in the picker
+ */
+function changePickerYear(delta) {
+  pickerYear += delta;
+  updateMonthPickerUI();
+}
+
+/**
+ * Update the month picker UI (year display and month highlights)
+ */
+function updateMonthPickerUI() {
+  // Update year display
+  if (monthPickerYearDisplay) {
+    monthPickerYearDisplay.textContent = pickerYear;
+  }
+
+  // Update month button states
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+
+  document.querySelectorAll('.month-btn').forEach(btn => {
+    const month = parseInt(btn.dataset.month, 10);
+
+    // Remove all state classes
+    btn.classList.remove('selected', 'current');
+
+    // Mark currently viewed month/year (selected)
+    if (month === viewMonth && pickerYear === viewYear) {
+      btn.classList.add('selected');
+    }
+    // Mark today's month with outline (current)
+    else if (month === currentMonth && pickerYear === currentYear) {
+      btn.classList.add('current');
+    }
+  });
+}
+
+/**
+ * Select a month from the picker
+ */
+function selectMonth(month) {
+  viewMonth = month;
+  viewYear = pickerYear;
+
+  // Close picker and refresh view
+  closeMonthPicker();
+  renderPersonSchedule();
+}
+
+/**
+ * Jump to current month (today button)
+ */
+function goToCurrentMonth() {
+  const today = new Date();
+  viewMonth = today.getMonth();
+  viewYear = today.getFullYear();
+
+  // Close picker and refresh view
+  closeMonthPicker();
+  renderPersonSchedule();
+
+  // Visual feedback
+  if (monthDisplay) {
+    monthDisplay.style.transition = 'color 0.2s';
+    monthDisplay.style.color = 'var(--accent-green)';
+    setTimeout(() => {
+      monthDisplay.style.color = '';
+    }, 500);
+  }
+}
+
+// ==========================================
 // DAY EDITOR - Bottom Sheet
 // ==========================================
 
@@ -1775,7 +1927,9 @@ function selectDayType(chip) {
 
   // Toggle selection
   if (chip.classList.contains('selected')) {
+    // Deselecting - restore original values
     chip.classList.remove('selected');
+    restoreOriginalFields();
   } else {
     // Remove selection from all chips
     document.querySelectorAll('.day-editor-chip').forEach(c => c.classList.remove('selected'));
@@ -1790,6 +1944,40 @@ function selectDayType(chip) {
       }
     }
   }
+}
+
+/**
+ * Restore original field values when deselecting a type chip
+ */
+function restoreOriginalFields() {
+  if (!currentEditingDay) return;
+
+  const shift = currentEditingDay.shift;
+
+  // If no original shift or it was a special type, clear fields
+  if (!shift || ['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab'].includes(shift.badge)) {
+    dayEditorStartTime.value = '';
+    dayEditorEndTime.value = '';
+    dayEditorTurn.value = '';
+    return;
+  }
+
+  // Restore original working shift data
+  if (shift.time && shift.time !== '-') {
+    const timeParts = shift.time.split('-');
+    if (timeParts.length === 2) {
+      dayEditorStartTime.value = timeParts[0].trim();
+      dayEditorEndTime.value = timeParts[1].trim();
+    } else {
+      dayEditorStartTime.value = shift.time;
+      dayEditorEndTime.value = '';
+    }
+  } else {
+    dayEditorStartTime.value = '';
+    dayEditorEndTime.value = '';
+  }
+
+  dayEditorTurn.value = shift.badgeText || '';
 }
 
 /**

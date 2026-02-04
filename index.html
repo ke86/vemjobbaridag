@@ -130,7 +130,7 @@
       <!-- Month Picker -->
       <div class="month-picker">
         <button class="date-nav-btn" id="prevMonth">←</button>
-        <div class="month-display" id="monthDisplay">Januari 2026</div>
+        <div class="month-display clickable" id="monthDisplay" onclick="openMonthPicker()">Januari 2026</div>
         <button class="date-nav-btn" id="nextMonth">→</button>
       </div>
 
@@ -246,7 +246,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.4</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.5.1</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -268,6 +268,43 @@
         <button class="modal-btn cancel" id="deleteModalCancel">Avbryt</button>
         <button class="modal-btn danger" id="deleteModalConfirm">Radera</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Month Picker Bottom Sheet -->
+  <div class="month-picker-overlay" id="monthPickerOverlay"></div>
+  <div class="month-picker-sheet" id="monthPickerSheet">
+    <div class="month-picker-handle"></div>
+    <div class="month-picker-header">
+      <h3>Välj månad</h3>
+      <button class="month-picker-close" id="monthPickerClose">×</button>
+    </div>
+    <div class="month-picker-content">
+      <!-- Year selector -->
+      <div class="year-selector">
+        <button class="year-nav-btn" id="yearPrev">◀</button>
+        <span class="year-display" id="yearDisplay">2026</span>
+        <button class="year-nav-btn" id="yearNext">▶</button>
+      </div>
+      <!-- Month grid -->
+      <div class="month-grid" id="monthGrid">
+        <button class="month-btn" data-month="0">Jan</button>
+        <button class="month-btn" data-month="1">Feb</button>
+        <button class="month-btn" data-month="2">Mar</button>
+        <button class="month-btn" data-month="3">Apr</button>
+        <button class="month-btn" data-month="4">Maj</button>
+        <button class="month-btn" data-month="5">Jun</button>
+        <button class="month-btn" data-month="6">Jul</button>
+        <button class="month-btn" data-month="7">Aug</button>
+        <button class="month-btn" data-month="8">Sep</button>
+        <button class="month-btn" data-month="9">Okt</button>
+        <button class="month-btn" data-month="10">Nov</button>
+        <button class="month-btn" data-month="11">Dec</button>
+      </div>
+    </div>
+    <div class="month-picker-footer">
+      <button class="month-picker-btn today" id="monthPickerToday">📅 Idag</button>
+      <button class="month-picker-btn cancel" id="monthPickerCancel">Avbryt</button>
     </div>
   </div>
 
