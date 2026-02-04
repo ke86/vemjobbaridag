@@ -1231,40 +1231,87 @@ function closeFridagModal() {
  * Remove fridagsnyckel from an employee
  */
 async function removeFridagsnyckel(employeeId) {
-  closeFridagModal();
-
-  const item = document.getElementById(`fridag-item-${employeeId}`);
-  const statusEl = document.getElementById(`fridag-status-${employeeId}`);
+  // Don't close modal - update it to show progress
+  const modal = document.getElementById('fridagRemoveModal');
+  const modalBody = modal?.querySelector('.fridag-modal-body');
+  const modalFooter = modal?.querySelector('.fridag-modal-footer');
 
   try {
-    // Show loading state
-    if (item) item.classList.add('removing');
-
     // Get the employee's current fridagsnyckel to know which shifts to remove
     const employee = registeredEmployees[employeeId];
     if (!employee || !employee.fridagsnyckel) {
       throw new Error('Ingen fridagsnyckel att ta bort');
     }
 
-    // Remove from Firebase and local data
-    await removeFridagShiftsFromFirebase(employeeId);
+    // Update modal to show progress
+    if (modalBody) {
+      modalBody.innerHTML = `
+        <div class="fridag-remove-progress">
+          <p>Tar bort fridagar...</p>
+          <div class="fridag-progress-bar">
+            <div class="fridag-progress-fill" id="removeProgressFill"></div>
+          </div>
+          <p class="fridag-progress-text" id="removeProgressText">Förbereder...</p>
+        </div>
+      `;
+    }
+    if (modalFooter) {
+      modalFooter.style.display = 'none';
+    }
+
+    // Progress callback to update modal
+    const onProgress = (processed, total) => {
+      const percent = Math.round((processed / total) * 100);
+      const progressFill = document.getElementById('removeProgressFill');
+      const progressText = document.getElementById('removeProgressText');
+      if (progressFill) {
+        progressFill.style.width = `${percent}%`;
+      }
+      if (progressText) {
+        progressText.textContent = `${processed}/${total} (${percent}%)`;
+      }
+    };
+
+    // Remove from Firebase and local data with progress
+    await removeFridagShiftsFromFirebase(employeeId, onProgress);
 
     // Update local employee record
     delete registeredEmployees[employeeId].fridagsnyckel;
     delete registeredEmployees[employeeId].fridagsrad;
 
-    // Refresh UI
-    renderEmployees();
-    renderFridagEmployeeList();
+    // Show success briefly then close
+    if (modalBody) {
+      modalBody.innerHTML = `
+        <div class="fridag-remove-success">
+          <p>✓ Fridagsnyckel borttagen!</p>
+        </div>
+      `;
+    }
+
+    // Close modal after short delay and refresh UI
+    setTimeout(() => {
+      closeFridagModal();
+      renderEmployees();
+      renderFridagEmployeeList();
+    }, 800);
 
     console.log(`Fridagsnyckel removed for ${employeeId}`);
   } catch (error) {
     console.error('Error removing fridagsnyckel:', error);
-    if (statusEl) {
-      showFridagStatus(statusEl, `Fel: ${error.message}`, 'error');
+    // Show error in modal
+    if (modalBody) {
+      modalBody.innerHTML = `
+        <div class="fridag-remove-error">
+          <p>Ett fel uppstod: ${error.message}</p>
+        </div>
+      `;
     }
-  } finally {
-    if (item) item.classList.remove('removing');
+    if (modalFooter) {
+      modalFooter.innerHTML = `
+        <button class="fridag-modal-btn cancel" onclick="closeFridagModal()">Stäng</button>
+      `;
+      modalFooter.style.display = 'flex';
+    }
   }
 }
 

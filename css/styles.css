@@ -2605,3 +2605,65 @@ html.dark .fridag-status.error {
 .fridag-modal-btn.confirm:hover {
   background: #b91c1c;
 }
+
+/* Remove progress */
+.fridag-remove-progress {
+  text-align: center;
+}
+
+.fridag-remove-progress p {
+  margin: 0 0 12px 0;
+}
+
+.fridag-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.fridag-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-blue);
+  border-radius: 4px;
+  transition: width 0.15s ease-out;
+}
+
+.fridag-progress-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.fridag-remove-success {
+  text-align: center;
+  padding: 10px;
+}
+
+.fridag-remove-success p {
+  margin: 0;
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+html.dark .fridag-remove-success p {
+  color: #4ade80;
+}
+
+.fridag-remove-error {
+  text-align: center;
+  padding: 10px;
+}
+
+.fridag-remove-error p {
+  margin: 0;
+  color: #dc2626;
+}
+
+html.dark .fridag-remove-error p {
+  color: #f87171;
+}
