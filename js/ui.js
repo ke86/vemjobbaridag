@@ -1193,13 +1193,21 @@ async function applyFridagsnyckel(employeeId) {
   // Show loading state
   btn.classList.add('loading');
   btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.innerHTML = '<span class="progress-text">Förbereder...</span>';
 
   try {
     // Generate FP/FPV shifts
     const shifts = generateFridagShifts(employeeId, selectedKey, selectedRow);
 
-    // Save to Firebase
-    await saveFridagShiftsToFirebase(employeeId, selectedKey, selectedRow, shifts);
+    // Progress callback to update button text
+    const onProgress = (processed, total) => {
+      const percent = Math.round((processed / total) * 100);
+      btn.innerHTML = `<span class="progress-text">${processed}/${total} (${percent}%)</span>`;
+    };
+
+    // Save to Firebase with progress updates
+    await saveFridagShiftsToFirebase(employeeId, selectedKey, selectedRow, shifts, onProgress);
 
     // Update local data
     for (const shift of shifts) {
@@ -1237,6 +1245,7 @@ async function applyFridagsnyckel(employeeId) {
   } finally {
     btn.classList.remove('loading');
     btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
 
@@ -1255,6 +1264,7 @@ function showFridagStatus(element, message, type) {
 
 /**
  * Generate FP/FPV shifts based on fridagsnyckel
+ * Note: FPV is excluded during summer months (June, July, August)
  * @returns Array of { date: 'YYYY-MM-DD', type: 'FP'|'FPV' }
  */
 function generateFridagShifts(employeeId, keyId, startRow) {
@@ -1265,6 +1275,9 @@ function generateFridagShifts(employeeId, keyId, startRow) {
   const startDate = new Date(FRIDAG_START_DATE);
   const endDate = new Date(FRIDAG_END_DATE);
   const cycle = keyData.cycle;
+
+  // Summer months where FPV is excluded (June=5, July=6, August=7 in JS)
+  const summerMonths = [5, 6, 7];
 
   // Day name mapping (JS getDay(): 0=Sun, 1=Mon, ... 6=Sat)
   const dayMap = {
@@ -1299,6 +1312,13 @@ function generateFridagShifts(employeeId, keyId, startRow) {
           const shiftType = pattern[dayName];
 
           if (shiftType) {
+            // Skip FPV during summer months (June-August)
+            const month = dayDate.getMonth();
+            if (shiftType === 'FPV' && summerMonths.includes(month)) {
+              // FPV excluded in summer - skip this shift
+              continue;
+            }
+
             const dateKey = getDateKey(dayDate);
             shifts.push({
               date: dateKey,

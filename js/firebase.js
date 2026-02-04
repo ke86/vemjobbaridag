@@ -301,8 +301,9 @@ async function deleteEmployeeFromFirebase(employeeId) {
  * @param {string} keyId - Fridagsnyckel ID (e.g., 'TVMC11')
  * @param {number} startRow - Starting row (1-12)
  * @param {Array} shifts - Array of { date: 'YYYY-MM-DD', type: 'FP'|'FPV' }
+ * @param {Function} onProgress - Optional callback for progress updates (processed, total)
  */
-async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
+async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts, onProgress) {
   console.log(`Saving ${shifts.length} fridag shifts for employee ${employeeId}`);
 
   if (!shifts || shifts.length === 0) {
@@ -344,7 +345,8 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
 
   // 3. Update each date using transaction to avoid conflicts with realtime listeners
   const dateKeys = Object.keys(shiftsByDate);
-  console.log(`Updating ${dateKeys.length} dates...`);
+  const totalDates = dateKeys.length;
+  console.log(`Updating ${totalDates} dates...`);
 
   let processed = 0;
   for (const dateStr of dateKeys) {
@@ -365,8 +367,14 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
     });
 
     processed++;
+
+    // Call progress callback if provided
+    if (onProgress && typeof onProgress === 'function') {
+      onProgress(processed, totalDates);
+    }
+
     if (processed % 50 === 0) {
-      console.log(`Processed ${processed}/${dateKeys.length} dates...`);
+      console.log(`Processed ${processed}/${totalDates} dates...`);
     }
   }
 
