@@ -39,7 +39,7 @@ const dayNamesFull = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lörd
 const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'sjuk'];
 
 // Working types that show actual time (not "Ledig")
-const workingSpecialTypes = ['ffu'];
+const workingSpecialTypes = ['ffu', 'seko'];
 
 // IndexedDB Configuration
 const DB_NAME = 'VemJobbarIdagDB';

@@ -86,6 +86,9 @@ function normalizeService(service) {
   if (serviceUpper.startsWith('FÖRÄLDRALEDIGHET')) return 'Föräldraledighet';
   if (serviceUpper === 'AFD') return 'AFD';
   if (serviceUpper.includes('VÅRD AV SJUKT BARN') || serviceUpper === 'VAB') return 'VAB';
+  if (serviceUpper === 'FACKEXP') return 'FACKEXP';
+  if (serviceUpper === 'FACKM') return 'FACKM';
+  if (serviceUpper === 'FACKUTB' || serviceUpper.includes('FACKLIGT UTAN LÖN')) return 'FACKUTB';
   if (serviceUpper === 'FACKLIGT') return 'Fackligt';
   if (serviceUpper === 'SJUK') return 'Sjuk';
 
@@ -341,10 +344,26 @@ function importScheduleData(data) {
     } else if (serviceUpper === 'VAB' || serviceUpper.includes('VÅRD AV SJUKT BARN')) {
       shiftEntry.badge = 'vab';
       shiftEntry.badgeText = 'VAB';
+    } else if (serviceUpper === 'FACKEXP') {
+      shiftEntry.badge = 'seko';
+      shiftEntry.badgeText = 'Seko kontor';
+      if (!shiftEntry.time || shiftEntry.time === '-') shiftEntry.time = '08:00-17:00';
+      workingDays++;
+    } else if (serviceUpper === 'FACKM') {
+      shiftEntry.badge = 'seko';
+      shiftEntry.badgeText = 'Seko möte';
+      if (!shiftEntry.time || shiftEntry.time === '-') shiftEntry.time = '08:00-17:00';
+      workingDays++;
+    } else if (serviceUpper === 'FACKUTB' || serviceUpper.includes('FACKLIGT UTAN LÖN')) {
+      shiftEntry.badge = 'seko';
+      shiftEntry.badgeText = 'Seko utb';
+      if (!shiftEntry.time || shiftEntry.time === '-') shiftEntry.time = '08:00-17:00';
+      workingDays++;
     } else if (serviceUpper === 'FACKLIGT') {
-      shiftEntry.badge = 'ffu';
-      shiftEntry.badgeText = 'FFU';
-      workingDays++; // FFU shows time, counts as working
+      shiftEntry.badge = 'seko';
+      shiftEntry.badgeText = 'Seko';
+      if (!shiftEntry.time || shiftEntry.time === '-') shiftEntry.time = '08:00-17:00';
+      workingDays++;
     } else if (serviceUpper === 'SJUK') {
       shiftEntry.badge = 'sjuk';
       shiftEntry.badgeText = 'Sjuk';

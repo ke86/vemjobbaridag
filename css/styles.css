@@ -459,6 +459,13 @@ html.dark .menu-btn:hover {
   color: #f97316;
 }
 
+/* Seko (Fackligt) - Cyan */
+.badge.seko-badge {
+  background: rgba(34, 211, 216, 0.15);
+  border-color: rgba(34, 211, 216, 0.3);
+  color: #22d3d8;
+}
+
 /* ==========================================
    TURN ICONS
    ========================================== */

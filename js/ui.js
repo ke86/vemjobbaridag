@@ -146,7 +146,12 @@ function getTurnIcons(turnNumber) {
     const char4 = turnStr.charAt(3);
     const isReservTurn = (char4 === '8' || char4 === '9');
 
-    if (!isReservTurn) {
+    // Check if this is a day A/B turn (position 6)
+    const char6 = turnStr.length >= 6 ? turnStr.charAt(5) : '';
+    const isDayAB = (char6 === 'A' || char6 === 'B');
+
+    // Only show flag if NOT a day A/B turn
+    if (!isReservTurn && !isDayAB) {
       const char3 = turnStr.charAt(2);
       if (/\d/.test(char3)) {
         const digit = parseInt(char3, 10);
@@ -162,13 +167,11 @@ function getTurnIcons(turnNumber) {
       icons.push({ type: 'reserv', content: 'R' });
     }
 
-    if (turnStr.length >= 6) {
-      const char6 = turnStr.charAt(5);
-      if (char6 === 'A') {
-        icons.push({ type: 'day-1', content: '1' });
-      } else if (char6 === 'B') {
-        icons.push({ type: 'day-2', content: '2' });
-      }
+    // Show day indicator for A/B turns
+    if (char6 === 'A') {
+      icons.push({ type: 'day-1', content: '1' });
+    } else if (char6 === 'B') {
+      icons.push({ type: 'day-2', content: '2' });
     }
   }
 
@@ -257,6 +260,7 @@ function renderEmployees() {
       case 'afd': badgeHtml = '<span class="badge afd-badge">AFD</span>'; break;
       case 'vab': badgeHtml = '<span class="badge vab-badge">VAB</span>'; break;
       case 'ffu': badgeHtml = '<span class="badge ffu-badge">FFU</span>'; break;
+      case 'seko': badgeHtml = `<span class="badge seko-badge">${shift.badgeText}</span>`; break;
       case 'sjuk': badgeHtml = '<span class="badge sjuk-badge">Sjuk</span>'; break;
       case 'reserv': badgeHtml = `<span class="badge reserv">${shift.badgeText}</span>`; break;
       case 'dag': badgeHtml = `<span class="badge dag">${shift.badgeText}</span>`; break;
