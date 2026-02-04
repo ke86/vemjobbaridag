@@ -294,6 +294,38 @@ async function deleteEmployeeFromFirebase(employeeId) {
 }
 
 /**
+ * Helper function to delay execution
+ */
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Helper function to commit batch with retry on rate limit
+ * @param {Object} batch - Firestore batch object
+ * @param {number} maxRetries - Maximum number of retries
+ */
+async function commitBatchWithRetry(batch, maxRetries = 3) {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      await batch.commit();
+      return;
+    } catch (error) {
+      if (error.code === 'resource-exhausted' || error.message?.includes('429') || error.message?.includes('Quota')) {
+        retries++;
+        const waitTime = Math.pow(2, retries) * 1000; // Exponential backoff: 2s, 4s, 8s
+        console.log(`Rate limit hit, waiting ${waitTime}ms before retry ${retries}/${maxRetries}...`);
+        await delay(waitTime);
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error('Max retries exceeded due to rate limiting');
+}
+
+/**
  * Save fridagsnyckel shifts to Firebase
  * - Updates employee with fridagsnyckel and fridagsrad
  * - Adds FP/FPV shifts to schedule collection
@@ -329,6 +361,9 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts, o
     }
   }
 
+  // Small delay after employee update
+  await delay(200);
+
   // 2. Group shifts by date
   const shiftsByDate = {};
   for (const shift of shifts) {
@@ -343,35 +378,52 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts, o
     });
   }
 
-  // 3. First, read all existing data for these dates
+  // 3. First, read all existing data for these dates - SEQUENTIALLY to avoid rate limits
   const dateKeys = Object.keys(shiftsByDate);
   const totalDates = dateKeys.length;
   console.log(`Updating ${totalDates} dates...`);
 
-  // Read existing data in batches to avoid rate limits
+  // Read existing data ONE BY ONE with delays (Firebase Spark has strict per-second limits)
   const existingData = {};
-  const BATCH_SIZE = 10; // Smaller read batches
+  const READ_BATCH_SIZE = 3; // Very small batches for reads
 
-  for (let i = 0; i < dateKeys.length; i += BATCH_SIZE) {
-    const batchKeys = dateKeys.slice(i, i + BATCH_SIZE);
-    const promises = batchKeys.map(dateStr =>
-      db.collection('schedules').doc(dateStr).get()
-    );
+  for (let i = 0; i < dateKeys.length; i += READ_BATCH_SIZE) {
+    const batchKeys = dateKeys.slice(i, i + READ_BATCH_SIZE);
 
-    const docs = await Promise.all(promises);
-    docs.forEach((doc, idx) => {
-      const dateStr = batchKeys[idx];
-      existingData[dateStr] = doc.exists ? (doc.data().shifts || []) : [];
-    });
+    // Read sequentially within each small batch
+    for (const dateStr of batchKeys) {
+      try {
+        const doc = await db.collection('schedules').doc(dateStr).get();
+        existingData[dateStr] = doc.exists ? (doc.data().shifts || []) : [];
+      } catch (error) {
+        if (error.code === 'resource-exhausted' || error.message?.includes('429')) {
+          // Rate limited on read - wait and retry
+          console.log('Rate limit on read, waiting 2s...');
+          await delay(2000);
+          const doc = await db.collection('schedules').doc(dateStr).get();
+          existingData[dateStr] = doc.exists ? (doc.data().shifts || []) : [];
+        } else {
+          throw error;
+        }
+      }
+    }
 
-    // Small delay between read batches
-    if (i + BATCH_SIZE < dateKeys.length) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+    // Report read progress
+    if (onProgress && typeof onProgress === 'function') {
+      const readProgress = Math.min(i + READ_BATCH_SIZE, dateKeys.length);
+      onProgress(Math.floor(readProgress * 0.3), totalDates); // 0-30% for reads
+    }
+
+    // Longer delay between read batches
+    if (i + READ_BATCH_SIZE < dateKeys.length) {
+      await delay(500);
     }
   }
 
-  // 4. Prepare all updates and write in batches
-  const WRITE_BATCH_SIZE = 20; // Smaller write batches to avoid quota
+  console.log('All existing data read, starting writes...');
+
+  // 4. Prepare all updates and write in VERY small batches with long delays
+  const WRITE_BATCH_SIZE = 5; // Much smaller batches
   let processed = 0;
 
   for (let i = 0; i < dateKeys.length; i += WRITE_BATCH_SIZE) {
@@ -392,21 +444,22 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts, o
       batch.set(docRef, { shifts: updatedShifts });
     }
 
-    // Commit the batch
-    await batch.commit();
+    // Commit with retry logic for rate limits
+    await commitBatchWithRetry(batch);
 
     processed += batchKeys.length;
 
-    // Call progress callback if provided
+    // Call progress callback if provided (30-100% for writes)
     if (onProgress && typeof onProgress === 'function') {
-      onProgress(processed, totalDates);
+      const writeProgress = Math.floor(30 + (processed / totalDates) * 70);
+      onProgress(writeProgress, 100);
     }
 
     console.log(`Processed ${processed}/${totalDates} dates...`);
 
-    // Add delay between batches to avoid rate limiting
+    // Long delay between batches to stay well under quota (1 second)
     if (i + WRITE_BATCH_SIZE < dateKeys.length) {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await delay(1000);
     }
   }
 
@@ -430,10 +483,23 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
     fridagsrad: firebase.firestore.FieldValue.delete()
   });
 
-  // 2. Get all schedules and remove FP/FPV shifts for this employee
-  // Only remove shifts that are FP/FPV with time '-' (generated by fridagsnyckel)
-  // Preserve PDF-uploaded shifts (they have actual time values)
-  const schedulesSnapshot = await db.collection('schedules').get();
+  // Small delay after employee update
+  await delay(300);
+
+  // 2. Get all schedules - this might hit rate limits on large datasets
+  let schedulesSnapshot;
+  try {
+    schedulesSnapshot = await db.collection('schedules').get();
+  } catch (error) {
+    if (error.code === 'resource-exhausted' || error.message?.includes('429')) {
+      console.log('Rate limit on initial read, waiting 3s...');
+      await delay(3000);
+      schedulesSnapshot = await db.collection('schedules').get();
+    } else {
+      throw error;
+    }
+  }
+
   const docs = schedulesSnapshot.docs;
   const totalDocs = docs.length;
 
@@ -465,8 +531,8 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
     }
   }
 
-  // Write updates in batches
-  const BATCH_SIZE = 20;
+  // Write updates in VERY small batches with long delays
+  const BATCH_SIZE = 5;
   const allChanges = [...updates.map(u => ({ type: 'update', ...u })), ...deletes.map(id => ({ type: 'delete', id }))];
   const totalChanges = allChanges.length;
   let processed = 0;
@@ -486,16 +552,17 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
       }
     }
 
-    await batch.commit();
+    // Commit with retry logic
+    await commitBatchWithRetry(batch);
 
     processed += batchItems.length;
     if (onProgress && typeof onProgress === 'function') {
       onProgress(processed, totalChanges > 0 ? totalChanges : 1);
     }
 
-    // Add delay between batches
+    // Long delay between batches (1 second)
     if (i + BATCH_SIZE < allChanges.length) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await delay(1000);
     }
   }
 
