@@ -316,33 +316,29 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts) {
     });
   }
 
-  // 3. Get all existing schedules we need to update
+  // 3. Update each date individually (safer than batch with async reads)
   const dateKeys = Object.keys(shiftsByDate);
   console.log(`Updating ${dateKeys.length} dates...`);
 
-  // Process in smaller batches to avoid timeout (50 at a time)
-  const batchSize = 50;
-  for (let i = 0; i < dateKeys.length; i += batchSize) {
-    const batchDates = dateKeys.slice(i, i + batchSize);
-    const batch = db.batch();
+  let processed = 0;
+  for (const dateStr of dateKeys) {
+    const docRef = db.collection('schedules').doc(dateStr);
+    const doc = await docRef.get();
+    let existingShifts = doc.exists ? (doc.data().shifts || []) : [];
 
-    for (const dateStr of batchDates) {
-      const docRef = db.collection('schedules').doc(dateStr);
-      const doc = await docRef.get();
-      let existingShifts = doc.exists ? (doc.data().shifts || []) : [];
+    // Remove any existing FP/FPV for this employee on this date
+    existingShifts = existingShifts.filter(
+      s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
+    );
 
-      // Remove any existing FP/FPV for this employee on this date
-      existingShifts = existingShifts.filter(
-        s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
-      );
+    // Add new shifts
+    const updatedShifts = [...existingShifts, ...shiftsByDate[dateStr]];
+    await docRef.set({ shifts: updatedShifts });
 
-      // Add new shifts
-      const updatedShifts = [...existingShifts, ...shiftsByDate[dateStr]];
-      batch.set(docRef, { shifts: updatedShifts });
+    processed++;
+    if (processed % 50 === 0) {
+      console.log(`Processed ${processed}/${dateKeys.length} dates...`);
     }
-
-    await batch.commit();
-    console.log(`Batch ${Math.floor(i / batchSize) + 1} committed`);
   }
 
   console.log('Fridag shifts saved to Firebase');
