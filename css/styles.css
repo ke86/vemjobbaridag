@@ -512,28 +512,28 @@ html.dark .menu-btn:hover {
   pointer-events: auto;
 }
 
-/* Badge icon sizing - bigger to match badge height */
+/* Badge icon sizing - 2x larger */
 .badge-icon {
-  height: 28px;
+  height: 36px;
   width: auto;
   object-fit: contain;
 }
 
 /* Flag icons */
 .badge-icon-flag {
-  height: 28px;
+  height: 36px;
 }
 
 /* Reserve icons */
 .badge-icon-reserv,
 .badge-icon-x-reserv {
-  height: 26px;
+  height: 34px;
 }
 
 /* Day indicators */
 .badge-icon-day-1,
 .badge-icon-day-2 {
-  height: 30px;
+  height: 38px;
 }
 
 /* ==========================================

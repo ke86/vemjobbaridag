@@ -205,38 +205,45 @@ async function saveScheduleToFirebase(dateStr, shifts) {
 async function deleteEmployeeData(employeeId) {
   console.log('Deleting employee data:', employeeId);
 
-  // 1. Remove from local registeredEmployees
-  delete registeredEmployees[employeeId];
-
-  // 2. Remove from local employeesData (all dates)
-  for (const dateStr of Object.keys(employeesData)) {
-    const shifts = employeesData[dateStr];
-    const filteredShifts = shifts.filter(s => s.employeeId !== employeeId);
-
-    if (filteredShifts.length !== shifts.length) {
-      employeesData[dateStr] = filteredShifts;
-
-      // Update Firebase for this date
-      if (filteredShifts.length > 0) {
-        await saveScheduleToFirebase(dateStr, filteredShifts);
-      } else {
-        // Remove the date document if no shifts left
-        try {
-          await db.collection('schedules').doc(dateStr).delete();
-        } catch (error) {
-          console.error('Error deleting schedule doc:', error);
-        }
-        delete employeesData[dateStr];
-      }
-    }
+  if (!employeeId) {
+    console.error('No employeeId provided');
+    throw new Error('No employeeId provided');
   }
 
-  // 3. Remove employee document from Firebase
   try {
+    // 1. Remove from local registeredEmployees
+    delete registeredEmployees[employeeId];
+
+    // 2. Remove from local employeesData (all dates)
+    const dateKeys = Object.keys(employeesData);
+    for (const dateStr of dateKeys) {
+      const shifts = employeesData[dateStr];
+      if (!shifts) continue;
+
+      const filteredShifts = shifts.filter(s => s.employeeId !== employeeId);
+
+      if (filteredShifts.length !== shifts.length) {
+        employeesData[dateStr] = filteredShifts;
+
+        // Update Firebase for this date
+        if (filteredShifts.length > 0) {
+          await saveScheduleToFirebase(dateStr, filteredShifts);
+        } else {
+          // Remove the date document if no shifts left
+          await db.collection('schedules').doc(dateStr).delete().catch(e => {
+            console.warn('Could not delete schedule doc:', dateStr, e);
+          });
+          delete employeesData[dateStr];
+        }
+      }
+    }
+
+    // 3. Remove employee document from Firebase
     await db.collection('employees').doc(employeeId).delete();
     console.log('Employee deleted from Firebase:', employeeId);
+
   } catch (error) {
-    console.error('Error deleting employee from Firebase:', error);
+    console.error('Error in deleteEmployeeData:', error);
     throw error;
   }
 }
