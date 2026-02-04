@@ -1,0 +1,18 @@
+{
+  "name": "Vem jobbar idag?",
+  "short_name": "Vem jobbar?",
+  "description": "Se vem som jobbar idag och kommande dagar",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0d1a",
+  "theme_color": "#0d0d1a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
