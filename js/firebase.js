@@ -85,69 +85,82 @@ function setupRealtimeListeners() {
   let employeesInitialLoad = true;
   let schedulesInitialLoad = true;
 
-  // Listen for employee changes
-  db.collection('employees').onSnapshot((snapshot) => {
-    const hasChanges = snapshot.docChanges().length > 0;
+  try {
+    // Listen for employee changes
+    db.collection('employees').onSnapshot(
+      { includeMetadataChanges: false },
+      (snapshot) => {
+        const hasChanges = snapshot.docChanges().length > 0;
 
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added' || change.type === 'modified') {
-        registeredEmployees[change.doc.id] = change.doc.data();
-      } else if (change.type === 'removed') {
-        delete registeredEmployees[change.doc.id];
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            registeredEmployees[change.doc.id] = change.doc.data();
+          } else if (change.type === 'removed') {
+            delete registeredEmployees[change.doc.id];
+          }
+        });
+
+        // Show syncing animation (but not on initial load)
+        if (hasChanges && !employeesInitialLoad && isLoggedIn) {
+          updateSyncStatus('syncing');
+        }
+        employeesInitialLoad = false;
+
+        // Re-render if logged in
+        if (isLoggedIn) {
+          renderEmployees();
+          renderPersonList();
+        }
+      },
+      (error) => {
+        console.error('Employee listener error:', error);
+        updateSyncStatus('offline');
       }
-    });
+    );
 
-    // Show syncing animation (but not on initial load)
-    if (hasChanges && !employeesInitialLoad && isLoggedIn) {
-      updateSyncStatus('syncing');
-    }
-    employeesInitialLoad = false;
+    // Listen for schedule changes
+    db.collection('schedules').onSnapshot(
+      { includeMetadataChanges: false },
+      (snapshot) => {
+        const hasChanges = snapshot.docChanges().length > 0;
 
-    // Re-render if logged in
-    if (isLoggedIn) {
-      renderEmployees();
-      renderPersonList();
-    }
-  }, (error) => {
-    console.error('Employee listener error:', error);
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            employeesData[change.doc.id] = change.doc.data().shifts || [];
+          } else if (change.type === 'removed') {
+            delete employeesData[change.doc.id];
+          }
+        });
+
+        // Show syncing animation (but not on initial load)
+        if (hasChanges && !schedulesInitialLoad && isLoggedIn) {
+          updateSyncStatus('syncing');
+        }
+        schedulesInitialLoad = false;
+
+        // Re-render if logged in
+        if (isLoggedIn) {
+          renderEmployees();
+          // Also update schedule view if a person is selected
+          if (selectedEmployeeId) {
+            renderPersonSchedule();
+          }
+        }
+      },
+      (error) => {
+        console.error('Schedule listener error:', error);
+        updateSyncStatus('offline');
+      }
+    );
+
+    console.log('Realtime listeners active - auto-sync enabled');
+  } catch (error) {
+    console.error('Failed to setup realtime listeners:', error);
     updateSyncStatus('offline');
-  });
-
-  // Listen for schedule changes
-  db.collection('schedules').onSnapshot((snapshot) => {
-    const hasChanges = snapshot.docChanges().length > 0;
-
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added' || change.type === 'modified') {
-        employeesData[change.doc.id] = change.doc.data().shifts || [];
-      } else if (change.type === 'removed') {
-        delete employeesData[change.doc.id];
-      }
-    });
-
-    // Show syncing animation (but not on initial load)
-    if (hasChanges && !schedulesInitialLoad && isLoggedIn) {
-      updateSyncStatus('syncing');
-    }
-    schedulesInitialLoad = false;
-
-    // Re-render if logged in
-    if (isLoggedIn) {
-      renderEmployees();
-      // Also update schedule view if a person is selected
-      if (selectedEmployeeId) {
-        renderPersonSchedule();
-      }
-    }
-  }, (error) => {
-    console.error('Schedule listener error:', error);
-    updateSyncStatus('offline');
-  });
+  }
 
   // Monitor Firebase connection state
   setupConnectionMonitor();
-
-  console.log('Realtime listeners active - auto-sync enabled');
 }
 
 /**
