@@ -467,8 +467,73 @@ html.dark .menu-btn:hover {
 }
 
 /* ==========================================
-   TURN ICONS (Custom PNG images)
+   TURN ICONS & TOGGLE (Custom PNG images)
    ========================================== */
+
+/* Static turn display (no icons, just text) */
+.turn-display {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-right: 8px;
+  min-width: 60px;
+}
+
+.turn-number-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Toggle container */
+.turn-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-right: 8px;
+  min-width: 60px;
+  min-height: 16px;
+  cursor: pointer;
+}
+
+/* Icons view (default visible) */
+.turn-icons-view {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Number view (default hidden) */
+.turn-number-view {
+  position: absolute;
+  right: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
+}
+
+/* Toggle state: show number, hide icons */
+.turn-toggle.show-number .turn-icons-view {
+  opacity: 0;
+  transform: scale(0.8);
+  pointer-events: none;
+}
+
+.turn-toggle.show-number .turn-number-view {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Legacy turn-icons class (for calendar/list views) */
 .turn-icons {
   display: flex;
   flex-direction: row;
@@ -479,30 +544,28 @@ html.dark .menu-btn:hover {
   min-width: 60px;
 }
 
+/* Icon sizing - match turn number height (~16px) */
 .turn-icon {
-  width: 20px;
-  height: 20px;
+  height: 16px;
+  width: auto;
   object-fit: contain;
 }
 
-/* Flag icons slightly larger */
+/* Flag icons */
 .turn-icon-flag {
-  width: 22px;
-  height: 22px;
+  height: 16px;
 }
 
 /* Reserve icons */
 .turn-icon-reserv,
 .turn-icon-x-reserv {
-  width: 20px;
-  height: 20px;
+  height: 16px;
 }
 
 /* Day indicators */
 .turn-icon-day-1,
 .turn-icon-day-2 {
-  width: 18px;
-  height: 22px;
+  height: 18px;
 }
 
 /* ==========================================

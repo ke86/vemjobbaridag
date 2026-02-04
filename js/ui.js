@@ -199,6 +199,41 @@ function renderTurnIcons(turnNumber) {
   return `<div class="turn-icons">${iconsHtml}</div>`;
 }
 
+/**
+ * Render toggle container with icons and turn number
+ * Icons shown by default, tap to reveal turn number
+ */
+function renderTurnToggle(turnNumber) {
+  const icons = getTurnIcons(turnNumber);
+  const turnStr = (turnNumber || '').toString().trim();
+
+  // No icons - just show turn number
+  if (icons.length === 0) {
+    if (!turnStr) return '';
+    return `<div class="turn-display"><span class="turn-number-text">${turnStr}</span></div>`;
+  }
+
+  // Has icons - create toggle container
+  const iconsHtml = icons.map(icon => {
+    return `<img class="turn-icon turn-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
+  }).join('');
+
+  return `
+    <div class="turn-toggle" onclick="toggleTurnDisplay(event, this)">
+      <div class="turn-icons-view">${iconsHtml}</div>
+      <div class="turn-number-view">${turnStr}</div>
+    </div>
+  `;
+}
+
+/**
+ * Toggle between icons and turn number
+ */
+function toggleTurnDisplay(event, element) {
+  event.stopPropagation(); // Don't trigger card click
+  element.classList.toggle('show-number');
+}
+
 // ==========================================
 // DAILY VIEW RENDERING
 // ==========================================
@@ -240,7 +275,8 @@ function renderEmployees() {
       color: 'blue'
     };
 
-    const turnIconsHtml = renderTurnIcons(shift.badgeText);
+    // Use toggle for icons/turn number
+    const turnToggleHtml = renderTurnToggle(shift.badgeText);
 
     // Determine time display: "Ledig" for non-working types, actual time otherwise
     let timeDisplay = shift.time || '-';
@@ -274,7 +310,7 @@ function renderEmployees() {
           <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
-          ${turnIconsHtml}
+          ${turnToggleHtml}
           ${badgeHtml}
         </div>
       </div>
