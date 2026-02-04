@@ -442,10 +442,11 @@ function goToPersonSchedule(employeeId) {
   showPersonScheduleView(employeeId);
 }
 
-// Count FP and FPV badges for an employee within the "fridagsår" (March 1 - Feb 28 next year)
+// Count FP and FPV badges for an employee within the calendar year (Jan 1 - Dec 31)
 function countFridagBadges(employeeId) {
-  const startDate = new Date(2026, 2, 1); // March 1, 2026
-  const endDate = new Date(2027, 1, 28);  // Feb 28, 2027
+  const currentYear = 2026;
+  const startDate = new Date(currentYear, 0, 1);  // Jan 1, 2026
+  const endDate = new Date(currentYear, 11, 31);  // Dec 31, 2026
 
   let fpCount = 0;
   let fpvCount = 0;
@@ -455,12 +456,24 @@ function countFridagBadges(employeeId) {
     const [year, month, day] = dateKey.split('-').map(Number);
     const date = new Date(year, month - 1, day);
 
-    // Check if date is within fridagsår
+    // Check if date is within calendar year
     if (date >= startDate && date <= endDate) {
       dayShifts.forEach(shift => {
         if (shift.employeeId === employeeId) {
-          if (shift.badge === 'fp') fpCount++;
-          if (shift.badge === 'fpv') fpvCount++;
+          // Check multiple fields for FP/FPV detection (handles legacy data)
+          const badge = (shift.badge || '').toLowerCase();
+          const badgeText = (shift.badgeText || '').toUpperCase();
+          const service = (shift.service || '').toUpperCase();
+
+          // FPV check first (more specific)
+          if (badge === 'fpv' || badgeText === 'FPV' || service === 'FPV' ||
+              service.includes('FP-V') || service.includes('FP2')) {
+            fpvCount++;
+          }
+          // FP check (but not if already counted as FPV)
+          else if (badge === 'fp' || badgeText === 'FP' || service === 'FP' || service === 'FRIDAG') {
+            fpCount++;
+          }
         }
       });
     }
