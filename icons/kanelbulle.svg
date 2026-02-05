@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Kanelbulle - Swedish cinnamon bun with pearl sugar -->
+
+  <!-- Shadow -->
+  <ellipse cx="32" cy="56" rx="24" ry="6" fill="#00000015"/>
+
+  <!-- Base/outer ring -->
+  <ellipse cx="32" cy="38" rx="26" ry="14" fill="#D4892E"/>
+  <ellipse cx="32" cy="36" rx="24" ry="12" fill="#E69C3C"/>
+
+  <!-- Spiral rings (cinnamon swirl) - from outside to inside -->
+  <!-- Ring 1 (outer) -->
+  <ellipse cx="32" cy="32" rx="22" ry="11" fill="#8B4513"/>
+  <ellipse cx="32" cy="30" rx="20" ry="10" fill="#E69C3C"/>
+
+  <!-- Ring 2 -->
+  <ellipse cx="32" cy="28" rx="17" ry="8.5" fill="#8B4513"/>
+  <ellipse cx="32" cy="26" rx="15" ry="7.5" fill="#E69C3C"/>
+
+  <!-- Ring 3 -->
+  <ellipse cx="32" cy="24" rx="12" ry="6" fill="#8B4513"/>
+  <ellipse cx="32" cy="22" rx="10" ry="5" fill="#E69C3C"/>
+
+  <!-- Ring 4 (center) -->
+  <ellipse cx="32" cy="20" rx="7" ry="3.5" fill="#8B4513"/>
+  <ellipse cx="32" cy="19" rx="5" ry="2.5" fill="#D4892E"/>
+
+  <!-- Highlight -->
+  <ellipse cx="26" cy="24" rx="6" ry="3" fill="#F0A848" opacity="0.5"/>
+
+  <!-- Pearl sugar (white dots) -->
+  <circle cx="18" cy="30" r="2" fill="#FFFEF8"/>
+  <circle cx="24" cy="24" r="1.8" fill="#FFFEF8"/>
+  <circle cx="32" cy="20" r="1.5" fill="#FFFEF8"/>
+  <circle cx="40" cy="24" r="1.8" fill="#FFFEF8"/>
+  <circle cx="46" cy="30" r="2" fill="#FFFEF8"/>
+  <circle cx="42" cy="34" r="1.6" fill="#FFFEF8"/>
+  <circle cx="22" cy="34" r="1.6" fill="#FFFEF8"/>
+  <circle cx="28" cy="28" r="1.4" fill="#FFFEF8"/>
+  <circle cx="36" cy="28" r="1.4" fill="#FFFEF8"/>
+  <circle cx="32" cy="32" r="1.5" fill="#FFFEF8"/>
+  <circle cx="14" cy="34" r="1.8" fill="#FFFEF8"/>
+  <circle cx="50" cy="34" r="1.8" fill="#FFFEF8"/>
+  <circle cx="26" cy="18" r="1.2" fill="#FFFEF8"/>
+  <circle cx="38" cy="18" r="1.2" fill="#FFFEF8"/>
+</svg>

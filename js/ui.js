@@ -545,9 +545,10 @@ function countFridagBadges(employeeId) {
   return { fp: fpCount, fpv: fpvCount };
 }
 
-// Swedish holidays for 2026
+// Swedish holidays for 2026 (including fun days)
 function getSwedishHolidays2026() {
   return [
+    // Officiella helgdagar
     { date: '2026-01-01', name: 'Nyårsdagen', type: 'newyear' },
     { date: '2026-01-06', name: 'Trettondedag jul', type: 'christmas' },
     { date: '2026-04-03', name: 'Långfredagen', type: 'easter' },
@@ -566,7 +567,18 @@ function getSwedishHolidays2026() {
     { date: '2026-12-25', name: 'Juldagen', type: 'christmas' },
     { date: '2026-12-26', name: 'Annandag jul', type: 'christmas' },
     { date: '2026-12-31', name: 'Nyårsafton', type: 'newyear' },
-    { date: '2027-01-01', name: 'Nyårsdagen 2027', type: 'newyear' }
+    { date: '2027-01-01', name: 'Nyårsdagen 2027', type: 'newyear' },
+    // Roliga dagar
+    { date: '2026-02-14', name: 'Alla hjärtans dag', type: 'valentine' },
+    { date: '2026-02-17', name: 'Fettisdagen', type: 'fattuesday' },
+    { date: '2026-03-12', name: 'Alla korvars dag', type: 'sausage' },
+    { date: '2026-05-11', name: 'Chokladbollens dag', type: 'chocolateball' },
+    { date: '2026-05-17', name: 'Norges nationaldag', type: 'norway' },
+    { date: '2026-05-31', name: 'Mors dag', type: 'mothersday' },
+    { date: '2026-10-04', name: 'Kanelbullens dag', type: 'cinnamonbun' },
+    { date: '2026-11-09', name: 'Fars dag', type: 'fathersday' },
+    { date: '2026-11-13', name: 'Smörgåstårtans dag', type: 'sandwichcake' },
+    { date: '2026-12-13', name: 'Luciadagen', type: 'lucia' }
   ];
 }
 

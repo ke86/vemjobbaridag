@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Semla - Swedish cream bun -->
+
+  <!-- Shadow -->
+  <ellipse cx="32" cy="58" rx="22" ry="4" fill="#00000020"/>
+
+  <!-- Bottom bun -->
+  <ellipse cx="32" cy="48" rx="24" ry="12" fill="#D4892E"/>
+  <ellipse cx="32" cy="46" rx="22" ry="10" fill="#E69C3C"/>
+
+  <!-- Cream filling -->
+  <path d="M12 42 Q16 28 24 32 Q28 22 32 30 Q36 20 40 30 Q48 26 52 42 Z" fill="#FFFEF5"/>
+  <path d="M14 42 Q18 32 24 34 Q28 26 32 32 Q36 24 40 32 Q46 30 50 42 Z" fill="#FFF8E7"/>
+
+  <!-- Top bun (lid) -->
+  <ellipse cx="32" cy="24" rx="18" ry="10" fill="#D4892E"/>
+  <ellipse cx="32" cy="22" rx="16" ry="8" fill="#E69C3C"/>
+  <ellipse cx="28" cy="20" rx="8" ry="4" fill="#F0A848" opacity="0.6"/>
+
+  <!-- Powdered sugar specks -->
+  <circle cx="24" cy="18" r="1" fill="white" opacity="0.8"/>
+  <circle cx="30" cy="16" r="0.8" fill="white" opacity="0.7"/>
+  <circle cx="36" cy="19" r="1" fill="white" opacity="0.8"/>
+  <circle cx="40" cy="17" r="0.7" fill="white" opacity="0.6"/>
+  <circle cx="28" cy="22" r="0.9" fill="white" opacity="0.7"/>
+  <circle cx="34" cy="21" r="0.8" fill="white" opacity="0.6"/>
+</svg>

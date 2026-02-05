@@ -2799,3 +2799,232 @@ html.dark .fridag-remove-error p {
 .month-picker-btn.cancel:hover {
   background: var(--bg-primary);
 }
+
+/* ==========================================
+   VIKTIGA DATUM (Important Dates)
+   ========================================== */
+
+/* Form styling */
+.important-date-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.important-date-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  background: var(--accent-blue);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.important-date-add-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.important-date-add-btn:active {
+  transform: translateY(0);
+}
+
+/* List of saved dates */
+.important-dates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.important-date-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.important-date-item .date-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.important-date-item .date-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.important-date-item .date-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.important-date-item .date-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.important-date-item .date-delete {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.important-date-item .date-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+html.dark .important-date-item .date-delete {
+  color: #f87171;
+}
+
+.important-dates-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ==========================================
+   VIKTIGT DATUM KORT (Main page card)
+   ========================================== */
+
+.important-date-card {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  animation: slideIn 0.3s ease-out;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.important-date-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.important-date-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.important-date-card-icon {
+  font-size: 20px;
+}
+
+.important-date-card-title {
+  font-weight: 700;
+  font-size: 16px;
+  flex: 1;
+}
+
+.important-date-card-time {
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.important-date-card-desc {
+  font-size: 14px;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Marquee/scrolling text for long descriptions */
+.important-date-card-desc.scrolling {
+  animation: marqueeScroll 10s linear infinite;
+}
+
+@keyframes marqueeScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.important-date-card-date {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 6px;
+}

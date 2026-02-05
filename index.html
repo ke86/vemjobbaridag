@@ -241,6 +241,47 @@
         </div>
       </div>
 
+      <!-- Viktiga datum (collapsible) -->
+      <div class="settings-section collapsible" id="importantDatesSection">
+        <div class="collapsible-header" id="importantDatesHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">📌 Viktiga datum</h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="importantDatesContent">
+          <p class="fridag-info">Lägg till viktiga datum som visas överst på huvudsidan.</p>
+
+          <!-- Add new date form -->
+          <div class="important-date-form" id="importantDateForm">
+            <div class="form-group">
+              <label class="form-label">Rubrik</label>
+              <input type="text" class="form-input" id="importantDateTitle" placeholder="T.ex. Möte">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Datum</label>
+                <input type="date" class="form-input" id="importantDateDate">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tid (valfritt)</label>
+                <input type="time" class="form-input" id="importantDateTime">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Beskrivning (valfritt)</label>
+              <textarea class="form-textarea" id="importantDateDesc" placeholder="T.ex. Vägvägen 10, ta med laptop" rows="2"></textarea>
+            </div>
+            <button class="important-date-add-btn" onclick="addImportantDate()">
+              <span>➕</span> Lägg till datum
+            </button>
+          </div>
+
+          <!-- List of saved dates -->
+          <div class="important-dates-list" id="importantDatesList">
+            <!-- Saved dates will be rendered here -->
+          </div>
+        </div>
+      </div>
+
       <!-- Radera data (collapsible) -->
       <div class="settings-section collapsible" id="deleteDataSection">
         <div class="collapsible-header" id="deleteDataHeader">
@@ -258,7 +299,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.8</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.9</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

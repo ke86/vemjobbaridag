@@ -22,6 +22,9 @@ function initApp() {
   // Initialize Holiday Animations
   initHolidayAnimations();
 
+  // Initialize Important Dates
+  initImportantDates();
+
   // Initialize authentication
   initAuth();
 

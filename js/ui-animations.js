@@ -239,26 +239,42 @@ function triggerFloatingAnimation() {
   if (!animType) return;
 
   const animations = {
+    // Original animations
     birthday: { emoji: '🎈', count: 3, className: 'float-balloon' },
     easter: { emoji: '🥚', count: 2, className: 'float-egg' },
     midsummer: { emoji: '☀️', count: 1, className: 'float-sun' },
     christmas: { emoji: '🎅', count: 1, className: 'float-santa' },
     newyear: { emoji: '🎆', count: 2, className: 'float-firework' },
     nationalday: { emoji: '🇸🇪', count: 2, className: 'float-flag' },
-    default: { emoji: '✨', count: 2, className: 'float-sparkle' }
+    default: { emoji: '✨', count: 2, className: 'float-sparkle' },
+    // Roliga dagar - nya animationer
+    valentine: { emoji: '❤️', count: 3, className: 'float-heart' },
+    fattuesday: { svg: 'icons/semla.svg', count: 2, className: 'float-semla' },
+    sausage: { emoji: '🌭', count: 2, className: 'float-sausage' },
+    chocolateball: { svg: 'icons/chokladboll.svg', count: 3, className: 'float-chokladboll' },
+    norway: { svg: 'icons/NO.svg', count: 2, className: 'float-flag' },
+    mothersday: { emoji: '💐', count: 2, className: 'float-flower' },
+    cinnamonbun: { svg: 'icons/kanelbulle.svg', count: 2, className: 'float-kanelbulle' },
+    fathersday: { emoji: '👔', count: 2, className: 'float-tie' },
+    sandwichcake: { svg: 'icons/smorgastarta.svg', count: 1, className: 'float-smorgastarta' },
+    lucia: { emoji: '🕯️', count: 3, className: 'float-candle' }
   };
 
   const anim = animations[animType] || animations.default;
 
   for (let i = 0; i < anim.count; i++) {
     setTimeout(() => {
-      createFloatingElement(anim.emoji, anim.className);
+      if (anim.svg) {
+        createFloatingSvgElement(anim.svg, anim.className);
+      } else {
+        createFloatingElement(anim.emoji, anim.className);
+      }
     }, i * 500);
   }
 }
 
 /**
- * Create a floating animation element
+ * Create a floating animation element (emoji)
  */
 function createFloatingElement(emoji, className) {
   const el = document.createElement('div');
@@ -271,7 +287,28 @@ function createFloatingElement(emoji, className) {
   // Remove after animation completes
   setTimeout(() => {
     el.remove();
-  }, 5000);
+  }, 6000);
+}
+
+/**
+ * Create a floating animation element (SVG image)
+ */
+function createFloatingSvgElement(svgPath, className) {
+  const el = document.createElement('div');
+  el.className = `floating-animation floating-svg ${className}`;
+  el.style.top = `${20 + Math.random() * 60}%`;
+
+  const img = document.createElement('img');
+  img.src = svgPath;
+  img.alt = '';
+  el.appendChild(img);
+
+  document.body.appendChild(el);
+
+  // Remove after animation completes
+  setTimeout(() => {
+    el.remove();
+  }, 6000);
 }
 
 // ==========================================

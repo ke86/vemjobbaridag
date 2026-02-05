@@ -422,3 +422,217 @@ async function saveDayEdit() {
     btn.innerHTML = '💾 Spara';
   }
 }
+
+// ==========================================
+// VIKTIGA DATUM (Important Dates)
+// ==========================================
+
+let importantDates = [];
+
+/**
+ * Initialize important dates from storage
+ */
+async function initImportantDates() {
+  try {
+    const stored = await getFromIndexedDB('importantDates');
+    if (stored) {
+      importantDates = stored;
+    }
+    renderImportantDatesList();
+    renderImportantDateCards();
+  } catch (e) {
+    console.log('Could not load important dates');
+  }
+
+  // Set up collapsible section
+  const header = document.getElementById('importantDatesHeader');
+  const section = document.getElementById('importantDatesSection');
+  if (header && section) {
+    header.addEventListener('click', () => {
+      section.classList.toggle('expanded');
+    });
+  }
+}
+
+/**
+ * Add a new important date
+ */
+async function addImportantDate() {
+  const titleEl = document.getElementById('importantDateTitle');
+  const dateEl = document.getElementById('importantDateDate');
+  const timeEl = document.getElementById('importantDateTime');
+  const descEl = document.getElementById('importantDateDesc');
+
+  const title = titleEl.value.trim();
+  const date = dateEl.value;
+  const time = timeEl.value;
+  const desc = descEl.value.trim();
+
+  if (!title) {
+    showToast('Ange en rubrik', 'error');
+    return;
+  }
+
+  if (!date) {
+    showToast('Ange ett datum', 'error');
+    return;
+  }
+
+  const newDate = {
+    id: Date.now().toString(),
+    title,
+    date,
+    time,
+    description: desc
+  };
+
+  importantDates.push(newDate);
+
+  // Sort by date
+  importantDates.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Save to storage
+  try {
+    await saveToIndexedDB('importantDates', importantDates);
+  } catch (e) {
+    console.log('Could not save important dates');
+  }
+
+  // Clear form
+  titleEl.value = '';
+  dateEl.value = '';
+  timeEl.value = '';
+  descEl.value = '';
+
+  // Update UI
+  renderImportantDatesList();
+  renderImportantDateCards();
+
+  showToast('Datum tillagt', 'success');
+}
+
+/**
+ * Delete an important date
+ */
+async function deleteImportantDate(id) {
+  importantDates = importantDates.filter(d => d.id !== id);
+
+  try {
+    await saveToIndexedDB('importantDates', importantDates);
+  } catch (e) {
+    console.log('Could not save important dates');
+  }
+
+  renderImportantDatesList();
+  renderImportantDateCards();
+
+  showToast('Datum borttaget', 'success');
+}
+
+/**
+ * Render the list of important dates in settings
+ */
+function renderImportantDatesList() {
+  const listEl = document.getElementById('importantDatesList');
+  if (!listEl) return;
+
+  if (importantDates.length === 0) {
+    listEl.innerHTML = '<div class="important-dates-empty">Inga viktiga datum tillagda</div>';
+    return;
+  }
+
+  listEl.innerHTML = importantDates.map(d => {
+    const dateObj = new Date(d.date + 'T00:00:00');
+    const dateStr = dateObj.toLocaleDateString('sv-SE', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    });
+    const timeStr = d.time ? ` kl ${d.time}` : '';
+    const descStr = d.description ? ` • ${d.description}` : '';
+
+    return `
+      <div class="important-date-item">
+        <div class="date-icon">📌</div>
+        <div class="date-info">
+          <div class="date-title">${d.title}</div>
+          <div class="date-details">${dateStr}${timeStr}${descStr}</div>
+        </div>
+        <button class="date-delete" onclick="deleteImportantDate('${d.id}')">🗑️</button>
+      </div>
+    `;
+  }).join('');
+}
+
+/**
+ * Render important date cards on the main page
+ */
+function renderImportantDateCards() {
+  // Get or create container
+  let container = document.getElementById('importantDatesContainer');
+  if (!container) {
+    // Create container before employee list
+    const employeeList = document.getElementById('employeeList');
+    if (employeeList) {
+      container = document.createElement('div');
+      container.id = 'importantDatesContainer';
+      employeeList.parentNode.insertBefore(container, employeeList);
+    } else {
+      return;
+    }
+  }
+
+  // Filter dates for today and future (within 7 days)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const weekFromNow = new Date(today);
+  weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+  const relevantDates = importantDates.filter(d => {
+    const dateObj = new Date(d.date + 'T00:00:00');
+    return dateObj >= today && dateObj <= weekFromNow;
+  });
+
+  if (relevantDates.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = relevantDates.map(d => {
+    const dateObj = new Date(d.date + 'T00:00:00');
+    const isToday = dateObj.toDateString() === today.toDateString();
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const isTomorrow = dateObj.toDateString() === tomorrow.toDateString();
+
+    let dateLabel = dateObj.toLocaleDateString('sv-SE', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short'
+    });
+    if (isToday) dateLabel = 'Idag';
+    if (isTomorrow) dateLabel = 'Imorgon';
+
+    const timeStr = d.time ? `kl ${d.time}` : '';
+
+    // Check if description is long (needs scrolling)
+    const needsScroll = d.description && d.description.length > 40;
+    const descContent = needsScroll
+      ? `<span>${d.description}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;${d.description}</span>`
+      : d.description || '';
+
+    return `
+      <div class="important-date-card">
+        <div class="important-date-card-header">
+          <span class="important-date-card-icon">📌</span>
+          <span class="important-date-card-title">${d.title}</span>
+          ${timeStr ? `<span class="important-date-card-time">${timeStr}</span>` : ''}
+        </div>
+        ${d.description ? `<div class="important-date-card-desc ${needsScroll ? 'scrolling' : ''}">${descContent}</div>` : ''}
+        <div class="important-date-card-date">${dateLabel}</div>
+      </div>
+    `;
+  }).join('');
+}
