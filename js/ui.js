@@ -152,9 +152,9 @@ function getTurnIcons(turnNumber) {
     return icons;
   }
 
-  // RESERV - shows RES icon
-  if (turnStr === 'RESERV') {
-    icons.push({ type: 'reserv', src: 'icons/RES.svg', alt: 'Reserv' });
+  // RESERV (eller RESERV + siffra) - shows XRES icon
+  if (turnStr === 'RESERV' || /^RESERV\d+$/.test(turnStr)) {
+    icons.push({ type: 'x-reserv', src: 'icons/XRES.svg', alt: 'Reserv' });
     return icons;
   }
 
