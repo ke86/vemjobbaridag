@@ -2961,116 +2961,57 @@ html.dark .important-date-item .date-delete {
    VIKTIGT DATUM KORT (Main page card)
    ========================================== */
 
-#importantDatesContainer {
-  margin-bottom: 8px;
-}
-
 .important-date-card {
-  background: linear-gradient(135deg, #0ea5e9 0%, #0369a1 50%, #0c4a6e 100%);
-  border-radius: 16px;
-  padding: 16px 18px;
-  margin-bottom: 10px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
   color: white;
-  box-shadow:
-    0 4px 16px rgba(14, 165, 233, 0.35),
-    0 2px 6px rgba(0, 0, 0, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  animation: slideIn 0.3s ease-out, cardGlow 3s ease-in-out infinite;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  animation: slideIn 0.3s ease-out;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s;
   overflow: hidden;
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.important-date-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-}
-
-@keyframes cardGlow {
-  0%, 100% {
-    box-shadow:
-      0 4px 16px rgba(14, 165, 233, 0.35),
-      0 2px 6px rgba(0, 0, 0, 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  }
-  50% {
-    box-shadow:
-      0 4px 20px rgba(14, 165, 233, 0.5),
-      0 2px 8px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  }
 }
 
 .important-date-card:hover {
-  transform: translateY(-3px) scale(1.01);
-  box-shadow:
-    0 8px 24px rgba(14, 165, 233, 0.45),
-    0 4px 10px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
 }
 
 .important-date-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
 .important-date-card-icon {
-  font-size: 24px;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
-  animation: pinBounce 2s ease-in-out infinite;
-}
-
-@keyframes pinBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
+  font-size: 20px;
 }
 
 .important-date-card-title {
   font-weight: 700;
-  font-size: 18px;
+  font-size: 16px;
   flex: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  letter-spacing: 0.3px;
 }
 
 .important-date-card-time {
-  font-size: 15px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.2);
-  padding: 4px 10px;
-  border-radius: 20px;
-  backdrop-filter: blur(4px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .important-date-card-desc {
   font-size: 14px;
-  opacity: 0.95;
+  opacity: 0.9;
   white-space: nowrap;
   overflow: hidden;
-  padding: 8px 12px;
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 8px;
-  margin-top: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Marquee/scrolling text for long descriptions */
 .important-date-card-desc.scrolling {
-  animation: marqueeScroll 12s linear infinite;
-}
-
-.important-date-card-desc.scrolling span {
-  display: inline-block;
+  animation: marqueeScroll 10s linear infinite;
 }
 
 @keyframes marqueeScroll {
@@ -3080,4 +3021,10 @@ html.dark .important-date-item .date-delete {
   100% {
     transform: translateX(-50%);
   }
+}
+
+.important-date-card-date {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 6px;
 }

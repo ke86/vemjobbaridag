@@ -190,6 +190,15 @@ function setupEventListeners() {
     fridagsHeader.addEventListener('click', toggleFridagsSection);
   }
 
+  // Utseende section (collapsible)
+  const appearanceHeader = document.getElementById('appearanceHeader');
+  const appearanceSection = document.getElementById('appearanceSection');
+  if (appearanceHeader && appearanceSection) {
+    appearanceHeader.addEventListener('click', () => {
+      appearanceSection.classList.toggle('expanded');
+    });
+  }
+
   // Delete confirmation modal
   if (deleteModalCancel) {
     deleteModalCancel.addEventListener('click', hideDeleteConfirmModal);
