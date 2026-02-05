@@ -424,25 +424,26 @@ async function saveDayEdit() {
 }
 
 // ==========================================
-// VIKTIGA DATUM (Important Dates)
+// VIKTIGA DATUM (Important Dates) - Firebase synced
 // ==========================================
 
 let importantDates = [];
 
 /**
- * Initialize important dates from storage
+ * Initialize important dates from Firebase with real-time listener
  */
 async function initImportantDates() {
-  try {
-    const stored = await getFromIndexedDB('importantDates');
-    if (stored) {
-      importantDates = stored;
-    }
+  // Set up real-time listener for important dates
+  db.collection('importantDates').orderBy('date').onSnapshot(snapshot => {
+    importantDates = [];
+    snapshot.forEach(doc => {
+      importantDates.push({ id: doc.id, ...doc.data() });
+    });
     renderImportantDatesList();
     renderImportantDateCards();
-  } catch (e) {
-    console.log('Could not load important dates');
-  }
+  }, error => {
+    console.log('Could not load important dates:', error);
+  });
 
   // Set up collapsible section
   const header = document.getElementById('importantDatesHeader');
@@ -455,7 +456,7 @@ async function initImportantDates() {
 }
 
 /**
- * Add a new important date
+ * Add a new important date to Firebase
  */
 async function addImportantDate() {
   const titleEl = document.getElementById('importantDateTitle');
@@ -479,54 +480,42 @@ async function addImportantDate() {
   }
 
   const newDate = {
-    id: Date.now().toString(),
     title,
     date,
     time,
-    description: desc
+    description: desc,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
-  importantDates.push(newDate);
-
-  // Sort by date
-  importantDates.sort((a, b) => a.date.localeCompare(b.date));
-
-  // Save to storage
   try {
-    await saveToIndexedDB('importantDates', importantDates);
+    updateSyncStatus('syncing');
+    await db.collection('importantDates').add(newDate);
+
+    // Clear form
+    titleEl.value = '';
+    dateEl.value = '';
+    timeEl.value = '';
+    descEl.value = '';
+
+    showToast('Datum tillagt', 'success');
   } catch (e) {
-    console.log('Could not save important dates');
+    console.log('Could not save important date:', e);
+    showToast('Kunde inte spara datum', 'error');
   }
-
-  // Clear form
-  titleEl.value = '';
-  dateEl.value = '';
-  timeEl.value = '';
-  descEl.value = '';
-
-  // Update UI
-  renderImportantDatesList();
-  renderImportantDateCards();
-
-  showToast('Datum tillagt', 'success');
 }
 
 /**
- * Delete an important date
+ * Delete an important date from Firebase
  */
 async function deleteImportantDate(id) {
-  importantDates = importantDates.filter(d => d.id !== id);
-
   try {
-    await saveToIndexedDB('importantDates', importantDates);
+    updateSyncStatus('syncing');
+    await db.collection('importantDates').doc(id).delete();
+    showToast('Datum borttaget', 'success');
   } catch (e) {
-    console.log('Could not save important dates');
+    console.log('Could not delete important date:', e);
+    showToast('Kunde inte radera datum', 'error');
   }
-
-  renderImportantDatesList();
-  renderImportantDateCards();
-
-  showToast('Datum borttaget', 'success');
 }
 
 /**
