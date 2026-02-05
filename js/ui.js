@@ -466,9 +466,20 @@ function showPage(pageId) {
   } else if (pageId === 'settings') {
     document.getElementById('settingsPage').classList.add('active');
     headerTitle.textContent = 'Inställningar';
+    resetSettingsCollapse();
   }
 
   closeSidebarMenu();
+}
+
+/**
+ * Reset all collapsible sections in settings to collapsed state
+ */
+function resetSettingsCollapse() {
+  const collapsibleSections = document.querySelectorAll('.settings-section.collapsible');
+  collapsibleSections.forEach(section => {
+    section.classList.remove('expanded');
+  });
 }
 
 // ==========================================

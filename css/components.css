@@ -2822,11 +2822,18 @@ html.dark .fridag-remove-error p {
 
 .form-row {
   display: flex;
-  gap: 12px;
+  gap: 8px;
 }
 
 .form-row .form-group {
   flex: 1;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.form-row .form-input {
+  padding: 10px 8px;
+  font-size: 15px;
 }
 
 .form-label {
@@ -2865,24 +2872,25 @@ html.dark .fridag-remove-error p {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 20px;
-  background: var(--accent-blue);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 15px;
-  font-weight: 600;
+  padding: 12px 18px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .important-date-add-btn:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .important-date-add-btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 /* List of saved dates (collapsible items) */
