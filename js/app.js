@@ -19,6 +19,9 @@ function initApp() {
   // Initialize Month Picker
   initMonthPicker();
 
+  // Initialize Holiday Animations
+  initHolidayAnimations();
+
   // Initialize authentication
   initAuth();
 

@@ -357,8 +357,15 @@ function renderEmployees() {
     }
   }
 
-  if (currentDateEl) currentDateEl.textContent = formatDate(currentDate);
+  if (currentDateEl) {
+    currentDateEl.textContent = formatDate(currentDate);
+    currentDateEl.style.transition = 'opacity 0.2s ease';
+  }
   if (workingCountEl) workingCountEl.textContent = workingShifts.length;
+
+  // Start holiday animations if applicable
+  startHolidayDateDisplay();
+  startHolidayAnimations();
 
   if (!employeeListEl) return;
 
@@ -421,7 +428,7 @@ function renderEmployees() {
     return `
       <div class="employee-card ${birthdayClass}" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
         <div class="employee-info">
-          <div class="employee-name">${cakeHtml}${emp.name}</div>
+          <div class="employee-name">${emp.name}${cakeHtml}</div>
           <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
@@ -602,26 +609,262 @@ function countFridagBadges(employeeId) {
 // Swedish holidays for 2026
 function getSwedishHolidays2026() {
   return [
-    { date: '2026-01-01', name: 'Nyårsdagen' },
-    { date: '2026-01-06', name: 'Trettondedag jul' },
-    { date: '2026-04-03', name: 'Långfredagen' },
-    { date: '2026-04-04', name: 'Påskafton' },
-    { date: '2026-04-05', name: 'Påskdagen' },
-    { date: '2026-04-06', name: 'Annandag påsk' },
-    { date: '2026-05-01', name: 'Första maj' },
-    { date: '2026-05-14', name: 'Kristi himmelsfärdsdag' },
-    { date: '2026-05-23', name: 'Pingstafton' },
-    { date: '2026-05-24', name: 'Pingstdagen' },
-    { date: '2026-06-06', name: 'Sveriges nationaldag' },
-    { date: '2026-06-19', name: 'Midsommarafton' },
-    { date: '2026-06-20', name: 'Midsommardagen' },
-    { date: '2026-10-31', name: 'Alla helgons dag' },
-    { date: '2026-12-24', name: 'Julafton' },
-    { date: '2026-12-25', name: 'Juldagen' },
-    { date: '2026-12-26', name: 'Annandag jul' },
-    { date: '2026-12-31', name: 'Nyårsafton' },
-    { date: '2027-01-01', name: 'Nyårsdagen 2027' }
+    { date: '2026-01-01', name: 'Nyårsdagen', type: 'newyear' },
+    { date: '2026-01-06', name: 'Trettondedag jul', type: 'christmas' },
+    { date: '2026-04-03', name: 'Långfredagen', type: 'easter' },
+    { date: '2026-04-04', name: 'Påskafton', type: 'easter' },
+    { date: '2026-04-05', name: 'Påskdagen', type: 'easter' },
+    { date: '2026-04-06', name: 'Annandag påsk', type: 'easter' },
+    { date: '2026-05-01', name: 'Första maj', type: 'default' },
+    { date: '2026-05-14', name: 'Kristi himmelsfärdsdag', type: 'default' },
+    { date: '2026-05-23', name: 'Pingstafton', type: 'default' },
+    { date: '2026-05-24', name: 'Pingstdagen', type: 'default' },
+    { date: '2026-06-06', name: 'Sveriges nationaldag', type: 'nationalday' },
+    { date: '2026-06-19', name: 'Midsommarafton', type: 'midsummer' },
+    { date: '2026-06-20', name: 'Midsommardagen', type: 'midsummer' },
+    { date: '2026-10-31', name: 'Alla helgons dag', type: 'default' },
+    { date: '2026-12-24', name: 'Julafton', type: 'christmas' },
+    { date: '2026-12-25', name: 'Juldagen', type: 'christmas' },
+    { date: '2026-12-26', name: 'Annandag jul', type: 'christmas' },
+    { date: '2026-12-31', name: 'Nyårsafton', type: 'newyear' },
+    { date: '2027-01-01', name: 'Nyårsdagen 2027', type: 'newyear' }
   ];
+}
+
+// ==========================================
+// HOLIDAY ANIMATIONS SYSTEM
+// ==========================================
+
+let holidayAnimationsEnabled = true;
+let dateDisplayInterval = null;
+let showingHolidayName = false;
+let animationInterval = null;
+
+/**
+ * Get holiday info for a specific date
+ */
+function getHolidayForDate(date) {
+  const dateKey = getDateKey(date);
+  const holidays = getSwedishHolidays2026();
+  return holidays.find(h => h.date === dateKey) || null;
+}
+
+/**
+ * Check if anyone has birthday on date (for animation)
+ */
+function hasBirthdayOnDate(date) {
+  const checkMonth = date.getMonth() + 1;
+  const checkDay = date.getDate();
+
+  for (const [name, birthday] of Object.entries(BIRTHDAYS)) {
+    const [, birthMonth, birthDay] = birthday.split('-').map(Number);
+    if (birthMonth === checkMonth && birthDay === checkDay) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Get animation type for current date
+ */
+function getAnimationType(date) {
+  // Check birthday first
+  if (hasBirthdayOnDate(date)) {
+    return 'birthday';
+  }
+
+  // Check holiday
+  const holiday = getHolidayForDate(date);
+  if (holiday) {
+    return holiday.type;
+  }
+
+  return null;
+}
+
+/**
+ * Start date display alternation for holidays
+ */
+function startHolidayDateDisplay() {
+  if (dateDisplayInterval) {
+    clearInterval(dateDisplayInterval);
+  }
+
+  const holiday = getHolidayForDate(currentDate);
+  if (!holiday || !holidayAnimationsEnabled) return;
+
+  // Toggle every 10 seconds
+  dateDisplayInterval = setInterval(() => {
+    if (!holidayAnimationsEnabled) {
+      stopHolidayDateDisplay();
+      return;
+    }
+
+    showingHolidayName = !showingHolidayName;
+    updateDateDisplay();
+  }, 10000);
+}
+
+/**
+ * Stop date display alternation
+ */
+function stopHolidayDateDisplay() {
+  if (dateDisplayInterval) {
+    clearInterval(dateDisplayInterval);
+    dateDisplayInterval = null;
+  }
+  showingHolidayName = false;
+  updateDateDisplay();
+}
+
+/**
+ * Update date display (normal or holiday name)
+ */
+function updateDateDisplay() {
+  if (!currentDateEl) return;
+
+  const holiday = getHolidayForDate(currentDate);
+
+  if (showingHolidayName && holiday && holidayAnimationsEnabled) {
+    currentDateEl.style.opacity = '0';
+    setTimeout(() => {
+      currentDateEl.textContent = holiday.name;
+      currentDateEl.style.opacity = '1';
+    }, 200);
+  } else {
+    currentDateEl.style.opacity = '0';
+    setTimeout(() => {
+      currentDateEl.textContent = formatDate(currentDate);
+      currentDateEl.style.opacity = '1';
+    }, 200);
+  }
+}
+
+/**
+ * Start floating animations
+ */
+function startHolidayAnimations() {
+  if (animationInterval) {
+    clearInterval(animationInterval);
+  }
+
+  if (!holidayAnimationsEnabled) return;
+
+  // Run first animation after 5 seconds, then every 30-60 seconds
+  setTimeout(() => {
+    triggerFloatingAnimation();
+  }, 5000);
+
+  animationInterval = setInterval(() => {
+    if (holidayAnimationsEnabled) {
+      triggerFloatingAnimation();
+    }
+  }, 30000 + Math.random() * 30000);
+}
+
+/**
+ * Stop floating animations
+ */
+function stopHolidayAnimations() {
+  if (animationInterval) {
+    clearInterval(animationInterval);
+    animationInterval = null;
+  }
+  // Remove any existing floating elements
+  document.querySelectorAll('.floating-animation').forEach(el => el.remove());
+}
+
+/**
+ * Trigger a floating animation based on current date
+ */
+function triggerFloatingAnimation() {
+  if (!holidayAnimationsEnabled) return;
+
+  const animType = getAnimationType(currentDate);
+  if (!animType) return;
+
+  const animations = {
+    birthday: { emoji: '🎈', count: 3, className: 'float-balloon' },
+    easter: { emoji: '🥚', count: 2, className: 'float-egg' },
+    midsummer: { emoji: '☀️', count: 1, className: 'float-sun' },
+    christmas: { emoji: '🎅', count: 1, className: 'float-santa' },
+    newyear: { emoji: '🎆', count: 2, className: 'float-firework' },
+    nationalday: { emoji: '🇸🇪', count: 2, className: 'float-flag' },
+    default: { emoji: '✨', count: 2, className: 'float-sparkle' }
+  };
+
+  const anim = animations[animType] || animations.default;
+
+  for (let i = 0; i < anim.count; i++) {
+    setTimeout(() => {
+      createFloatingElement(anim.emoji, anim.className);
+    }, i * 500);
+  }
+}
+
+/**
+ * Create a floating animation element
+ */
+function createFloatingElement(emoji, className) {
+  const el = document.createElement('div');
+  el.className = `floating-animation ${className}`;
+  el.textContent = emoji;
+  el.style.top = `${20 + Math.random() * 60}%`;
+
+  document.body.appendChild(el);
+
+  // Remove after animation completes
+  setTimeout(() => {
+    el.remove();
+  }, 5000);
+}
+
+/**
+ * Initialize holiday animations setting from storage
+ */
+async function initHolidayAnimations() {
+  try {
+    const stored = await getFromIndexedDB('holidayAnimations');
+    if (stored !== null) {
+      holidayAnimationsEnabled = stored;
+    }
+    updateHolidayAnimationsToggle();
+  } catch (e) {
+    console.log('Could not load holiday animations setting');
+  }
+}
+
+/**
+ * Toggle holiday animations setting
+ */
+async function toggleHolidayAnimations() {
+  holidayAnimationsEnabled = !holidayAnimationsEnabled;
+  updateHolidayAnimationsToggle();
+
+  try {
+    await saveToIndexedDB('holidayAnimations', holidayAnimationsEnabled);
+  } catch (e) {
+    console.log('Could not save holiday animations setting');
+  }
+
+  if (holidayAnimationsEnabled) {
+    startHolidayDateDisplay();
+    startHolidayAnimations();
+  } else {
+    stopHolidayDateDisplay();
+    stopHolidayAnimations();
+  }
+}
+
+/**
+ * Update the toggle UI
+ */
+function updateHolidayAnimationsToggle() {
+  const toggle = document.getElementById('holidayAnimationsToggle');
+  if (toggle) {
+    toggle.checked = holidayAnimationsEnabled;
+  }
 }
 
 // Check if employee has FP or FPV on a specific date

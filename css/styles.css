@@ -3505,7 +3505,7 @@ html.dark .fridag-remove-error p {
 /* Birthday cake icon */
 .birthday-cake {
   font-size: 18px;
-  margin-right: 8px;
+  margin-left: 8px;
   cursor: pointer;
   display: inline-block;
   animation: cakeBounce 1s ease-in-out infinite;
@@ -3601,4 +3601,248 @@ html.dark .fridag-remove-error p {
 
 .birthday-modal-btn:active {
   transform: scale(0.98);
+}
+
+/* ==========================================
+   FLOATING HOLIDAY ANIMATIONS
+   ========================================== */
+
+.floating-animation {
+  position: fixed;
+  font-size: 40px;
+  z-index: 50;
+  pointer-events: none;
+  animation: floatAcross 5s ease-in-out forwards;
+  left: -60px;
+}
+
+@keyframes floatAcross {
+  0% {
+    left: -60px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    opacity: 0;
+  }
+}
+
+/* Balloon - floats upward while moving */
+.float-balloon {
+  animation: balloonFloat 5s ease-out forwards;
+}
+
+@keyframes balloonFloat {
+  0% {
+    left: -60px;
+    transform: translateY(0) rotate(-5deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-30px) rotate(5deg);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: translateY(-60px) rotate(-5deg);
+    opacity: 0;
+  }
+}
+
+/* Egg - rolls across */
+.float-egg {
+  animation: eggRoll 5s linear forwards;
+}
+
+@keyframes eggRoll {
+  0% {
+    left: -60px;
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Sun - glides smoothly with glow */
+.float-sun {
+  font-size: 50px;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 0, 0.6));
+  animation: sunGlide 6s ease-in-out forwards;
+}
+
+@keyframes sunGlide {
+  0% {
+    left: -60px;
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* Santa - slides across with bobbing */
+.float-santa {
+  font-size: 50px;
+  animation: santaSlide 5s ease-in-out forwards;
+}
+
+@keyframes santaSlide {
+  0% {
+    left: -60px;
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(-10px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+  75% {
+    transform: translateY(-10px);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+/* Firework - pops and sparkles */
+.float-firework {
+  animation: fireworkPop 4s ease-out forwards;
+}
+
+@keyframes fireworkPop {
+  0% {
+    left: 20%;
+    transform: scale(0) translateY(50px);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.5) translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5) translateY(-30px);
+    opacity: 0;
+    left: 30%;
+  }
+}
+
+.float-firework:nth-child(2) {
+  animation-delay: 0.5s;
+  left: 60%;
+}
+
+/* Flag - waves while moving */
+.float-flag {
+  animation: flagWave 5s linear forwards;
+}
+
+@keyframes flagWave {
+  0% {
+    left: -60px;
+    transform: scaleX(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  20% {
+    transform: scaleX(0.95);
+  }
+  40% {
+    transform: scaleX(1.05);
+  }
+  60% {
+    transform: scaleX(0.95);
+  }
+  80% {
+    transform: scaleX(1.05);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+/* Sparkle - twinkles */
+.float-sparkle {
+  animation: sparkleTwinkle 4s ease-in-out forwards;
+}
+
+@keyframes sparkleTwinkle {
+  0% {
+    left: -60px;
+    transform: scale(0.5) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.2) rotate(45deg);
+  }
+  50% {
+    transform: scale(0.8) rotate(90deg);
+  }
+  75% {
+    transform: scale(1.2) rotate(135deg);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: scale(0.5) rotate(180deg);
+    opacity: 0;
+  }
 }
