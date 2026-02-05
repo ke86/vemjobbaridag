@@ -1,0 +1,438 @@
+/* ==========================================
+   VEM JOBBAR IDAG? - ANIMATIONS
+   v4.8 - Split from original styles.css
+
+   This file contains:
+   - Keyframe animations
+   - Birthday styling & popup
+   - Floating holiday animations
+   ========================================== */
+
+/* ==========================================
+   KEYFRAME ANIMATIONS
+   ========================================== */
+
+/* Sync icon spin */
+@keyframes syncSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Slide in animation for cards */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Generic spin animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Shake animation for errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+/* Pop in animation for modals */
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Slide up animation for modals */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================
+   BIRTHDAY STYLING
+   ========================================== */
+
+/* Birthday card - festive gradient */
+.employee-card.birthday {
+  background: linear-gradient(135deg, #ff6b9d 0%, #c44cff 50%, #6c5ce7 100%);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 15px rgba(196, 76, 255, 0.3);
+}
+
+.employee-card.birthday .employee-name {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.employee-card.birthday .employee-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.employee-card.birthday:hover {
+  transform: translateX(4px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(196, 76, 255, 0.4);
+}
+
+/* Birthday cake icon */
+.birthday-cake {
+  font-size: 18px;
+  margin-left: 8px;
+  cursor: pointer;
+  display: inline-block;
+  animation: cakeBounce 1s ease-in-out infinite;
+}
+
+.birthday-cake:hover {
+  transform: scale(1.3);
+}
+
+@keyframes cakeBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Birthday popup modal */
+.birthday-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease;
+}
+
+.birthday-modal {
+  background: linear-gradient(135deg, #ff6b9d 0%, #c44cff 50%, #6c5ce7 100%);
+  border-radius: 24px;
+  padding: 32px 40px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(196, 76, 255, 0.5);
+  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 300px;
+  margin: 20px;
+}
+
+.birthday-modal-content {
+  color: white;
+}
+
+.birthday-emojis {
+  font-size: 48px;
+  margin-bottom: 16px;
+  animation: confetti 0.5s ease-out;
+}
+
+@keyframes confetti {
+  0% { transform: scale(0) rotate(-20deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.birthday-text {
+  font-size: 20px;
+  font-weight: 500;
+  margin: 4px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.birthday-age {
+  font-size: 56px;
+  font-weight: 800;
+  margin: 8px 0;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.birthday-modal-btn {
+  margin-top: 20px;
+  background: white;
+  color: #6c5ce7;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 48px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.birthday-modal-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.birthday-modal-btn:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================
+   FLOATING HOLIDAY ANIMATIONS
+   ========================================== */
+
+.floating-animation {
+  position: fixed;
+  font-size: 40px;
+  z-index: 50;
+  pointer-events: none;
+  animation: floatAcross 5s ease-in-out forwards;
+  left: -60px;
+}
+
+@keyframes floatAcross {
+  0% {
+    left: -60px;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    opacity: 0;
+  }
+}
+
+/* Balloon - floats upward while moving */
+.float-balloon {
+  animation: balloonFloat 5s ease-out forwards;
+}
+
+@keyframes balloonFloat {
+  0% {
+    left: -60px;
+    transform: translateY(0) rotate(-5deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-30px) rotate(5deg);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: translateY(-60px) rotate(-5deg);
+    opacity: 0;
+  }
+}
+
+/* Egg - rolls across */
+.float-egg {
+  animation: eggRoll 5s linear forwards;
+}
+
+@keyframes eggRoll {
+  0% {
+    left: -60px;
+    transform: rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* Sun - glides smoothly with glow */
+.float-sun {
+  font-size: 50px;
+  filter: drop-shadow(0 0 10px rgba(255, 200, 0, 0.6));
+  animation: sunGlide 6s ease-in-out forwards;
+}
+
+@keyframes sunGlide {
+  0% {
+    left: -60px;
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* Santa - slides across with bobbing */
+.float-santa {
+  font-size: 50px;
+  animation: santaSlide 5s ease-in-out forwards;
+}
+
+@keyframes santaSlide {
+  0% {
+    left: -60px;
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(-10px);
+  }
+  50% {
+    transform: translateY(0);
+  }
+  75% {
+    transform: translateY(-10px);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+/* Firework - pops and sparkles */
+.float-firework {
+  animation: fireworkPop 4s ease-out forwards;
+}
+
+@keyframes fireworkPop {
+  0% {
+    left: 20%;
+    transform: scale(0) translateY(50px);
+    opacity: 0;
+  }
+  20% {
+    transform: scale(1.5) translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.5) translateY(-30px);
+    opacity: 0;
+    left: 30%;
+  }
+}
+
+.float-firework:nth-child(2) {
+  animation-delay: 0.5s;
+  left: 60%;
+}
+
+/* Flag - waves while moving */
+.float-flag {
+  animation: flagWave 5s linear forwards;
+}
+
+@keyframes flagWave {
+  0% {
+    left: -60px;
+    transform: scaleX(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  20% {
+    transform: scaleX(0.95);
+  }
+  40% {
+    transform: scaleX(1.05);
+  }
+  60% {
+    transform: scaleX(0.95);
+  }
+  80% {
+    transform: scaleX(1.05);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+/* Sparkle - twinkles */
+.float-sparkle {
+  animation: sparkleTwinkle 4s ease-in-out forwards;
+}
+
+@keyframes sparkleTwinkle {
+  0% {
+    left: -60px;
+    transform: scale(0.5) rotate(0deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1.2) rotate(45deg);
+  }
+  50% {
+    transform: scale(0.8) rotate(90deg);
+  }
+  75% {
+    transform: scale(1.2) rotate(135deg);
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 60px);
+    transform: scale(0.5) rotate(180deg);
+    opacity: 0;
+  }
+}
