@@ -530,7 +530,7 @@ async function deleteImportantDate(id) {
 }
 
 /**
- * Render the list of important dates in settings
+ * Render the list of important dates in settings (collapsible items)
  */
 function renderImportantDatesList() {
   const listEl = document.getElementById('importantDatesList');
@@ -541,31 +541,58 @@ function renderImportantDatesList() {
     return;
   }
 
-  listEl.innerHTML = importantDates.map(d => {
+  // Sort by date
+  const sortedDates = [...importantDates].sort((a, b) =>
+    new Date(a.date) - new Date(b.date)
+  );
+
+  listEl.innerHTML = sortedDates.map(d => {
     const dateObj = new Date(d.date + 'T00:00:00');
     const dateStr = dateObj.toLocaleDateString('sv-SE', {
       weekday: 'short',
       day: 'numeric',
       month: 'short'
     });
-    const timeStr = d.time ? ` kl ${d.time}` : '';
-    const descStr = d.description ? ` • ${d.description}` : '';
 
     return `
-      <div class="important-date-item">
-        <div class="date-icon">📌</div>
-        <div class="date-info">
-          <div class="date-title">${d.title}</div>
-          <div class="date-details">${dateStr}${timeStr}${descStr}</div>
+      <div class="important-date-item" data-id="${d.id}">
+        <div class="important-date-item-header" onclick="toggleImportantDateItem(this)">
+          <div class="date-icon">📌</div>
+          <div class="date-info">
+            <div class="date-title">${d.title}</div>
+            <div class="date-subtitle">${dateStr}</div>
+          </div>
+          <span class="date-chevron">›</span>
         </div>
-        <button class="date-delete" onclick="deleteImportantDate('${d.id}')">🗑️</button>
+        <div class="important-date-item-content">
+          <div class="important-date-item-details">
+            <div class="date-time-row">
+              <span>📅 ${dateStr}</span>
+              ${d.time ? `<span>🕐 ${d.time}</span>` : ''}
+            </div>
+            ${d.description ? `<div class="date-description">${d.description}</div>` : ''}
+            <button class="date-delete" onclick="deleteImportantDate('${d.id}')">
+              🗑️ Radera
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }).join('');
 }
 
 /**
- * Render important date cards on the main page
+ * Toggle expand/collapse for important date item in settings
+ */
+function toggleImportantDateItem(header) {
+  const item = header.closest('.important-date-item');
+  if (item) {
+    item.classList.toggle('expanded');
+  }
+}
+
+/**
+ * Render important date cards on the main page (compact, expandable)
  */
 function renderImportantDateCards() {
   // Get or create container
@@ -597,26 +624,30 @@ function renderImportantDateCards() {
   }
 
   container.innerHTML = relevantDates.map(d => {
-    let dateLabel = 'Idag';
-
     const timeStr = d.time ? `kl ${d.time}` : '';
-
-    // Check if description is long (needs scrolling)
-    const needsScroll = d.description && d.description.length > 40;
-    const descContent = needsScroll
-      ? `<span>${d.description}&nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp;${d.description}</span>`
-      : d.description || '';
+    const hasDesc = d.description && d.description.trim().length > 0;
 
     return `
-      <div class="important-date-card">
+      <div class="important-date-card" onclick="toggleImportantDateCard(this)">
         <div class="important-date-card-header">
           <span class="important-date-card-icon">📌</span>
           <span class="important-date-card-title">${d.title}</span>
           ${timeStr ? `<span class="important-date-card-time">${timeStr}</span>` : ''}
+          ${hasDesc ? `<span class="important-date-card-chevron">▼</span>` : ''}
         </div>
-        ${d.description ? `<div class="important-date-card-desc ${needsScroll ? 'scrolling' : ''}">${descContent}</div>` : ''}
-        <div class="important-date-card-date">${dateLabel}</div>
+        ${hasDesc ? `
+          <div class="important-date-card-content">
+            <div class="important-date-card-desc">${d.description}</div>
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
+}
+
+/**
+ * Toggle expand/collapse for important date card on main page
+ */
+function toggleImportantDateCard(card) {
+  card.classList.toggle('expanded');
 }

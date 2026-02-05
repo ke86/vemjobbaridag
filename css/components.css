@@ -2885,25 +2885,36 @@ html.dark .fridag-remove-error p {
   transform: translateY(0);
 }
 
-/* List of saved dates */
+/* List of saved dates (collapsible items) */
 .important-dates-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .important-date-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.important-date-item-header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.important-date-item-header:hover {
+  background: var(--bg-secondary);
 }
 
 .important-date-item .date-icon {
-  font-size: 24px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -2918,28 +2929,72 @@ html.dark .fridag-remove-error p {
   color: var(--text-primary);
 }
 
-.important-date-item .date-details {
+.important-date-item .date-subtitle {
   font-size: 13px;
   color: var(--text-secondary);
-  white-space: nowrap;
+}
+
+.important-date-item .date-chevron {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.important-date-item.expanded .date-chevron {
+  transform: rotate(90deg);
+}
+
+.important-date-item-content {
+  max-height: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  transition: max-height 0.25s ease-out;
+}
+
+.important-date-item.expanded .important-date-item-content {
+  max-height: 200px;
+}
+
+.important-date-item-details {
+  padding: 0 14px 14px 46px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.important-date-item .date-time-row {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.important-date-item .date-time-row span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.important-date-item .date-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .important-date-item .date-delete {
-  width: 32px;
-  height: 32px;
+  align-self: flex-start;
+  padding: 8px 14px;
   border: none;
   border-radius: 8px;
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   transition: all 0.15s;
-  flex-shrink: 0;
 }
 
 .important-date-item .date-delete:hover {
@@ -2962,12 +3017,11 @@ html.dark .important-date-item .date-delete {
    ========================================== */
 
 .important-date-card {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 12px;
-  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-blue);
+  border-radius: 14px;
   margin-bottom: 12px;
-  color: white;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
   animation: slideIn 0.3s ease-out;
   cursor: pointer;
   transition: all 0.2s;
@@ -2975,56 +3029,70 @@ html.dark .important-date-item .date-delete {
 }
 
 .important-date-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+  border-color: var(--accent-blue);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.important-date-card:active {
+  transform: scale(0.98);
 }
 
 .important-date-card-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 12px;
+  padding: 16px;
+  min-height: 60px;
 }
 
 .important-date-card-icon {
-  font-size: 20px;
+  font-size: 22px;
+  flex-shrink: 0;
 }
 
 .important-date-card-title {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 16px;
+  color: var(--text-primary);
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .important-date-card-time {
   font-size: 14px;
   font-weight: 600;
-  opacity: 0.9;
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
+.important-date-card-chevron {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.important-date-card.expanded .important-date-card-chevron {
+  transform: rotate(180deg);
+}
+
+/* Expandable content */
+.important-date-card-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+
+.important-date-card.expanded .important-date-card-content {
+  max-height: 150px;
 }
 
 .important-date-card-desc {
+  padding: 0 16px 16px 50px;
   font-size: 14px;
-  opacity: 0.9;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-/* Marquee/scrolling text for long descriptions */
-.important-date-card-desc.scrolling {
-  animation: marqueeScroll 10s linear infinite;
-}
-
-@keyframes marqueeScroll {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.important-date-card-date {
-  font-size: 12px;
-  opacity: 0.8;
-  margin-top: 6px;
+  color: var(--text-secondary);
+  line-height: 1.5;
 }
