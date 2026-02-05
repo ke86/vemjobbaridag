@@ -438,6 +438,10 @@ async function initImportantDates() {
     if (stored) {
       importantDates = stored;
     }
+
+    // Auto-radera gamla datum (som passerat)
+    await cleanupOldDates();
+
     renderImportantDatesList();
     renderImportantDateCards();
   } catch (e) {
@@ -451,6 +455,24 @@ async function initImportantDates() {
     header.addEventListener('click', () => {
       section.classList.toggle('expanded');
     });
+  }
+}
+
+/**
+ * Auto-remove dates that have passed
+ */
+async function cleanupOldDates() {
+  const today = new Date().toISOString().split('T')[0];
+  const validDates = importantDates.filter(d => d.date >= today);
+
+  if (validDates.length !== importantDates.length) {
+    importantDates = validDates;
+    try {
+      await saveToIndexedDB('importantDates', importantDates);
+      console.log('Cleaned up old important dates');
+    } catch (e) {
+      console.log('Could not save after cleanup');
+    }
   }
 }
 
@@ -566,6 +588,7 @@ function renderImportantDatesList() {
 
 /**
  * Render important date cards on the main page
+ * Visar endast datum som matchar EXAKT dagens datum
  */
 function renderImportantDateCards() {
   // Get or create container
@@ -582,39 +605,17 @@ function renderImportantDateCards() {
     }
   }
 
-  // Filter dates for today and future (within 7 days)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Visa endast viktiga datum som matchar EXAKT dagens datum
+  const today = new Date().toISOString().split('T')[0];
 
-  const weekFromNow = new Date(today);
-  weekFromNow.setDate(weekFromNow.getDate() + 7);
+  const todaysDates = importantDates.filter(d => d.date === today);
 
-  const relevantDates = importantDates.filter(d => {
-    const dateObj = new Date(d.date + 'T00:00:00');
-    return dateObj >= today && dateObj <= weekFromNow;
-  });
-
-  if (relevantDates.length === 0) {
+  if (todaysDates.length === 0) {
     container.innerHTML = '';
     return;
   }
 
-  container.innerHTML = relevantDates.map(d => {
-    const dateObj = new Date(d.date + 'T00:00:00');
-    const isToday = dateObj.toDateString() === today.toDateString();
-
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const isTomorrow = dateObj.toDateString() === tomorrow.toDateString();
-
-    let dateLabel = dateObj.toLocaleDateString('sv-SE', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short'
-    });
-    if (isToday) dateLabel = 'Idag';
-    if (isTomorrow) dateLabel = 'Imorgon';
-
+  container.innerHTML = todaysDates.map(d => {
     const timeStr = d.time ? `kl ${d.time}` : '';
 
     // Check if description is long (needs scrolling)
@@ -631,7 +632,6 @@ function renderImportantDateCards() {
           ${timeStr ? `<span class="important-date-card-time">${timeStr}</span>` : ''}
         </div>
         ${d.description ? `<div class="important-date-card-desc ${needsScroll ? 'scrolling' : ''}">${descContent}</div>` : ''}
-        <div class="important-date-card-date">${dateLabel}</div>
       </div>
     `;
   }).join('');
