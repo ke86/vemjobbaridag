@@ -306,6 +306,11 @@ function renderEmployees() {
   startHolidayDateDisplay();
   startHolidayAnimations();
 
+  // Update important date cards for current viewing date
+  if (typeof renderImportantDateCards === 'function') {
+    renderImportantDateCards();
+  }
+
   if (!employeeListEl) return;
 
   if (shifts.length === 0) {

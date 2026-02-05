@@ -582,13 +582,13 @@ function renderImportantDateCards() {
     }
   }
 
-  // Filter dates for today only
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Filter dates for currently viewed date (currentDate from ui.js)
+  const viewingDate = new Date(currentDate);
+  viewingDate.setHours(0, 0, 0, 0);
 
   const relevantDates = importantDates.filter(d => {
     const dateObj = new Date(d.date + 'T00:00:00');
-    return dateObj.toDateString() === today.toDateString();
+    return dateObj.toDateString() === viewingDate.toDateString();
   });
 
   if (relevantDates.length === 0) {
