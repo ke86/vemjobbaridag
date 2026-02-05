@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="roundedClipA1">
+      <rect x="2" y="2" width="60" height="60" rx="10"/>
+    </clipPath>
+  </defs>
+  <!-- White background filling entire icon -->
+  <g clip-path="url(#roundedClipA1)">
+    <rect x="0" y="0" width="64" height="64" fill="#FFFFFF"/>
+  </g>
+  <!-- Black border -->
+  <rect x="2" y="2" width="60" height="60" rx="10" fill="none" stroke="#000000" stroke-width="2"/>
+  <!-- 1 text -->
+  <text x="32" y="32" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="700" fill="#000000" text-anchor="middle">1</text>
+  <!-- Arrow pointing down (triangle with point at bottom) -->
+  <path d="M22 44 L42 44 L32 54 Z" fill="#000000"/>
+</svg>

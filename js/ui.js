@@ -148,13 +148,13 @@ function getTurnIcons(turnNumber) {
 
   // RESERVSTAM - shows XRES icon
   if (turnStr === 'RESERVSTAM') {
-    icons.push({ type: 'x-reserv', src: 'icons/XRES.png', alt: 'Reservstam' });
+    icons.push({ type: 'x-reserv', src: 'icons/XRES.svg', alt: 'Reservstam' });
     return icons;
   }
 
   // RESERV - shows RES icon
   if (turnStr === 'RESERV') {
-    icons.push({ type: 'reserv', src: 'icons/RES.png', alt: 'Reserv' });
+    icons.push({ type: 'reserv', src: 'icons/RES.svg', alt: 'Reserv' });
     return icons;
   }
 
@@ -173,24 +173,24 @@ function getTurnIcons(turnNumber) {
         const digit = parseInt(char3, 10);
         if (digit % 2 === 0) {
           // Even = Denmark
-          icons.push({ type: 'flag', src: 'icons/DK.png', alt: 'Danmark' });
+          icons.push({ type: 'flag', src: 'icons/DK.svg', alt: 'Danmark' });
         } else {
           // Odd = Sweden
-          icons.push({ type: 'flag', src: 'icons/SE.png', alt: 'Sverige' });
+          icons.push({ type: 'flag', src: 'icons/SE.svg', alt: 'Sverige' });
         }
       }
     }
 
     // Reserve turn (position 4 = 8 or 9)
     if (isReservTurn) {
-      icons.push({ type: 'reserv', src: 'icons/RES.png', alt: 'Reserv' });
+      icons.push({ type: 'reserv', src: 'icons/RES.svg', alt: 'Reserv' });
     }
 
     // Show day indicator for A/B turns
     if (char6 === 'A') {
-      icons.push({ type: 'day-1', src: 'icons/A1.png', alt: 'Dag 1' });
+      icons.push({ type: 'day-1', src: 'icons/A1.svg', alt: 'Dag 1' });
     } else if (char6 === 'B') {
-      icons.push({ type: 'day-2', src: 'icons/B2.png', alt: 'Dag 2' });
+      icons.push({ type: 'day-2', src: 'icons/B2.svg', alt: 'Dag 2' });
     }
   }
 

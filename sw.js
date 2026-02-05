@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.9.4';
+const CACHE_VERSION = 'v4.9.5';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -27,12 +27,13 @@ const FILES_TO_CACHE = [
   // Assets
   './icon.png',
   './manifest.json',
-  './icons/SE.png',
-  './icons/DK.png',
-  './icons/A1.png',
-  './icons/B2.png',
-  './icons/RES.png',
-  './icons/XRES.png',
+  // Turn icons (SVG)
+  './icons/SE.svg',
+  './icons/DK.svg',
+  './icons/A1.svg',
+  './icons/B2.svg',
+  './icons/RES.svg',
+  './icons/XRES.svg',
   // Custom SVG icons (roliga dagar)
   './icons/semla.svg',
   './icons/chokladboll.svg',
