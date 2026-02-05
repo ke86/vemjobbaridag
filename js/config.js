@@ -38,6 +38,19 @@ const dayNamesFull = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lörd
 // Non-working shift types - these show "Ledig" in time field
 const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'sjuk'];
 
+// Birthdays - name: "YYYY-MM-DD"
+const BIRTHDAYS = {
+  "Zara Nilsson": "1995-04-19",
+  "Bendik Sørensen": "1993-05-28",
+  "Patrick Odervik Larsson": "1993-05-02",
+  "Sara Feldt": "1991-05-02",
+  "Saga Fagerström": "2000-05-02",
+  "Dennis Ross": "1987-04-23",
+  "Anders Bertilsson": "1984-07-06",
+  "Cristian Cardemil": "1982-07-27",
+  "Alexander Canlycke": "1991-09-24"
+};
+
 // Working types that show actual time (not "Ledig")
 const workingSpecialTypes = ['ffu', 'seko'];
 

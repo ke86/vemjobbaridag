@@ -264,6 +264,72 @@ function toggleBadgeDisplay(event, element) {
 // DAILY VIEW RENDERING
 // ==========================================
 
+/**
+ * Check if someone has birthday on a given date
+ * Returns { name, age } or null
+ */
+function getBirthdayInfo(employeeName, date) {
+  const birthday = BIRTHDAYS[employeeName];
+  if (!birthday) return null;
+
+  const [birthYear, birthMonth, birthDay] = birthday.split('-').map(Number);
+  const checkMonth = date.getMonth() + 1;
+  const checkDay = date.getDate();
+
+  if (birthMonth === checkMonth && birthDay === checkDay) {
+    const age = date.getFullYear() - birthYear;
+    return { name: employeeName, age };
+  }
+  return null;
+}
+
+/**
+ * Get all employees with birthday on a given date
+ */
+function getBirthdayEmployees(date) {
+  const birthdayPeople = [];
+  const checkMonth = date.getMonth() + 1;
+  const checkDay = date.getDate();
+
+  for (const [name, birthday] of Object.entries(BIRTHDAYS)) {
+    const [birthYear, birthMonth, birthDay] = birthday.split('-').map(Number);
+    if (birthMonth === checkMonth && birthDay === checkDay) {
+      const age = date.getFullYear() - birthYear;
+      // Find employee ID by name
+      const emp = Object.values(registeredEmployees).find(e => e.name === name);
+      if (emp) {
+        birthdayPeople.push({ ...emp, birthdayAge: age });
+      }
+    }
+  }
+  return birthdayPeople;
+}
+
+/**
+ * Show birthday popup
+ */
+function showBirthdayPopup(firstName, age) {
+  const modal = document.createElement('div');
+  modal.className = 'birthday-modal-overlay';
+  modal.innerHTML = `
+    <div class="birthday-modal">
+      <div class="birthday-modal-content">
+        <div class="birthday-emojis">🎉🎂🎉</div>
+        <div class="birthday-text">${firstName} fyller</div>
+        <div class="birthday-age">${age} år</div>
+        <div class="birthday-text">idag!</div>
+        <button class="birthday-modal-btn" onclick="this.closest('.birthday-modal-overlay').remove()">OK</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Close on overlay click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
+  });
+}
+
 function renderEmployees() {
   const dateKey = getDateKey(currentDate);
   const allShifts = employeesData[dateKey] || [];
@@ -271,7 +337,25 @@ function renderEmployees() {
 
   const workingShifts = allShifts.filter(s => !nonWorkingTypes.includes(s.badge));
   const ledigaShifts = allShifts.filter(s => nonWorkingTypes.includes(s.badge));
-  const shifts = showLediga ? [...workingShifts, ...ledigaShifts] : workingShifts;
+  let shifts = showLediga ? [...workingShifts, ...ledigaShifts] : workingShifts;
+
+  // Get birthday employees for today
+  const birthdayEmployees = getBirthdayEmployees(currentDate);
+
+  // Add birthday employees who are not already in the list
+  const shiftEmployeeIds = shifts.map(s => s.employeeId);
+  for (const bdayEmp of birthdayEmployees) {
+    if (!shiftEmployeeIds.includes(bdayEmp.employeeId)) {
+      // Add as "ledig" birthday person
+      shifts.push({
+        employeeId: bdayEmp.employeeId,
+        badge: 'birthday-only',
+        badgeText: '',
+        time: '-',
+        isBirthdayOnly: true
+      });
+    }
+  }
 
   if (currentDateEl) currentDateEl.textContent = formatDate(currentDate);
   if (workingCountEl) workingCountEl.textContent = workingShifts.length;
@@ -288,9 +372,20 @@ function renderEmployees() {
     return;
   }
 
+  // Sort: birthday people first, then by time
   const sortedShifts = [...shifts].sort((a, b) => {
-    const timeA = a.time.split('-')[0] || '99:99';
-    const timeB = b.time.split('-')[0] || '99:99';
+    const empA = registeredEmployees[a.employeeId];
+    const empB = registeredEmployees[b.employeeId];
+    const bdayA = empA ? getBirthdayInfo(empA.name, currentDate) : null;
+    const bdayB = empB ? getBirthdayInfo(empB.name, currentDate) : null;
+
+    // Birthday people first
+    if (bdayA && !bdayB) return -1;
+    if (!bdayA && bdayB) return 1;
+
+    // Then by time
+    const timeA = a.time?.split('-')[0] || '99:99';
+    const timeB = b.time?.split('-')[0] || '99:99';
     return timeA.localeCompare(timeB);
   });
 
@@ -301,19 +396,32 @@ function renderEmployees() {
       color: 'blue'
     };
 
-    // Determine time display: "Ledig" for non-working types, actual time otherwise
+    // Check if birthday
+    const birthdayInfo = getBirthdayInfo(emp.name, currentDate);
+    const isBirthday = !!birthdayInfo;
+    const birthdayClass = isBirthday ? 'birthday' : '';
+    const firstName = emp.name.split(' ')[0];
+
+    // Birthday cake icon (clickable)
+    const cakeHtml = isBirthday
+      ? `<span class="birthday-cake" onclick="event.stopPropagation(); showBirthdayPopup('${firstName}', ${birthdayInfo.age})">🎂</span>`
+      : '';
+
+    // Determine time display
     let timeDisplay = shift.time || '-';
-    if (nonWorkingTypes.includes(shift.badge)) {
+    if (shift.isBirthdayOnly) {
+      timeDisplay = 'Ledig';
+    } else if (nonWorkingTypes.includes(shift.badge)) {
       timeDisplay = 'Ledig';
     }
 
     // Build badge HTML with icon toggle support
-    const badgeHtml = renderBadgeWithToggle(shift);
+    const badgeHtml = shift.isBirthdayOnly ? '' : renderBadgeWithToggle(shift);
 
     return `
-      <div class="employee-card" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
+      <div class="employee-card ${birthdayClass}" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
         <div class="employee-info">
-          <div class="employee-name">${emp.name}</div>
+          <div class="employee-name">${cakeHtml}${emp.name}</div>
           <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
