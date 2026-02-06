@@ -67,6 +67,7 @@
     <ul class="sidebar-menu">
       <li><a href="#" data-page="schedule" id="menuTodayLink"><span class="icon">📅</span> Dagens schema</a></li>
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
+      <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema</a></li>
       <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
@@ -200,6 +201,30 @@
     </div>
   </main>
 
+  <!-- Shadow Schedule Page -->
+  <main class="shadow-page page" id="shadowPage">
+    <!-- Person selector -->
+    <div id="shadowPersonSelect">
+      <div class="person-list" id="shadowPersonList">
+        <!-- Person cards rendered here -->
+      </div>
+    </div>
+
+    <!-- Shadow schedule view (hidden until person selected) -->
+    <div id="shadowScheduleView" style="display: none;">
+      <div class="shadow-header">
+        <button class="shadow-back-btn" id="shadowBackBtn">← Tillbaka</button>
+        <div class="shadow-person-info">
+          <span class="shadow-person-name" id="shadowPersonName"></span>
+          <span class="shadow-cycle-badge" id="shadowCycleBadge"></span>
+        </div>
+      </div>
+      <div class="shadow-table-container" id="shadowTableContainer">
+        <!-- Shadow schedule table rendered here -->
+      </div>
+    </div>
+  </main>
+
   <!-- Settings Page -->
   <main class="settings-page page" id="settingsPage">
     <div class="settings-container">
@@ -311,7 +336,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.9.7</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.9.8</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

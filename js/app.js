@@ -180,6 +180,15 @@ function setupEventListeners() {
     holidaysClose.addEventListener('click', () => holidaysModal.classList.remove('active'));
   }
 
+  // Shadow schedule back button
+  const shadowBackBtn = document.getElementById('shadowBackBtn');
+  if (shadowBackBtn) {
+    shadowBackBtn.addEventListener('click', () => {
+      showShadowPersonSelect();
+      renderShadowPersonList();
+    });
+  }
+
   // Delete data section (collapsible)
   if (deleteDataHeader) {
     deleteDataHeader.addEventListener('click', toggleDeleteDataSection);
