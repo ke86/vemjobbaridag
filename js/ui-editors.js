@@ -453,6 +453,15 @@ async function initImportantDates() {
       section.classList.toggle('expanded');
     });
   }
+
+  // Set up collapsible sub-section for saved dates
+  const savedHeader = document.getElementById('savedDatesHeader');
+  const savedSection = document.getElementById('savedDatesSection');
+  if (savedHeader && savedSection) {
+    savedHeader.addEventListener('click', () => {
+      savedSection.classList.toggle('expanded');
+    });
+  }
 }
 
 /**
@@ -524,6 +533,10 @@ async function deleteImportantDate(id) {
 function renderImportantDatesList() {
   const listEl = document.getElementById('importantDatesList');
   if (!listEl) return;
+
+  // Update count badge
+  const countEl = document.getElementById('savedDatesCount');
+  if (countEl) countEl.textContent = importantDates.length;
 
   if (importantDates.length === 0) {
     listEl.innerHTML = '<div class="important-dates-empty">Inga viktiga datum tillagda</div>';

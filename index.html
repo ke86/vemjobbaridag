@@ -235,9 +235,18 @@
             </button>
           </div>
 
-          <!-- List of saved dates -->
-          <div class="important-dates-list" id="importantDatesList">
-            <!-- Saved dates will be rendered here -->
+          <!-- Saved dates (collapsible sub-section) -->
+          <div class="important-dates-sub collapsible" id="savedDatesSection">
+            <div class="collapsible-sub-header" id="savedDatesHeader">
+              <span class="saved-dates-title">📋 Inlagda datum</span>
+              <span class="saved-dates-count" id="savedDatesCount">0</span>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="collapsible-sub-content" id="savedDatesContent">
+              <div class="important-dates-list" id="importantDatesList">
+                <!-- Saved dates will be rendered here -->
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -302,7 +311,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.9.6</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.9.7</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

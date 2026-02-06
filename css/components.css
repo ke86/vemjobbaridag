@@ -2893,6 +2893,64 @@ html.dark .fridag-remove-error p {
   transform: scale(0.98);
 }
 
+/* Saved dates collapsible sub-section */
+.important-dates-sub {
+  margin-top: 16px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.collapsible-sub-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.collapsible-sub-header:hover {
+  opacity: 0.7;
+}
+
+.saved-dates-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.saved-dates-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.important-dates-sub .collapsible-arrow {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+
+.important-dates-sub.expanded .collapsible-arrow {
+  transform: rotate(90deg);
+}
+
+.collapsible-sub-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.important-dates-sub.expanded .collapsible-sub-content {
+  max-height: 1000px;
+}
+
 /* List of saved dates (collapsible items) */
 .important-dates-list {
   display: flex;
