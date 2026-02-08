@@ -661,31 +661,43 @@ async function showDagvyPopup(employeeId) {
     if (e.target === overlay) closeDagvy();
   });
 
-  // Fetch data
-  const data = await fetchDagvy(emp.name);
+  // Fetch data with debug info
+  let data = null;
+  let debugInfo = '';
+  try {
+    debugInfo += 'Sökt: "' + emp.name + '" | ';
+    const doc = await db.collection('dagvy').doc(emp.name).get();
+    debugInfo += 'Hittad: ' + doc.exists + ' | ';
+    if (doc.exists) {
+      data = doc.data();
+      const keys = data ? Object.keys(data) : [];
+      debugInfo += 'Fält: ' + keys.join(', ') + ' | ';
+      if (data && data.days) {
+        debugInfo += 'days typ: ' + (Array.isArray(data.days) ? 'array' : typeof data.days) + ', längd: ' + (data.days.length || '?');
+      } else {
+        debugInfo += 'days saknas';
+      }
+    } else {
+      // List all dagvy docs to debug
+      const allDocs = await db.collection('dagvy').get();
+      debugInfo += 'Antal docs: ' + allDocs.size + ' | IDs: ';
+      allDocs.forEach(function(d) { debugInfo += '"' + d.id + '" '; });
+    }
+  } catch (err) {
+    debugInfo += 'FEL: ' + err.code + ' - ' + err.message;
+  }
+
   const body = document.getElementById('dagvyBody');
   const loadingEl = overlay.querySelector('.dagvy-loading');
   if (!body) return;
 
-  // Check for fetch error
-  if (data && data._error) {
-    if (loadingEl) loadingEl.textContent = 'Fel vid hämtning';
-    body.innerHTML = `
-      <div class="dagvy-empty">
-        <div class="dagvy-empty-icon">⚠️</div>
-        <p>Kunde inte hämta dagvy</p>
-        <p style="font-size:11px;color:#999;margin-top:8px;">${data._error}</p>
-      </div>
-    `;
-    return;
-  }
-
   if (!data || !data.days || data.days.length === 0) {
-    if (loadingEl) loadingEl.textContent = 'Ingen dagvy tillgänglig';
+    if (loadingEl) loadingEl.textContent = 'Debug-info';
     body.innerHTML = `
       <div class="dagvy-empty">
-        <div class="dagvy-empty-icon">🚫</div>
-        <p>Ingen dagvy hittades för ${emp.name}</p>
+        <div class="dagvy-empty-icon">🔍</div>
+        <p>Ingen dagvy hittades</p>
+        <p style="font-size:10px;color:#999;margin-top:12px;word-break:break-all;text-align:left;padding:8px;background:#f5f5f5;border-radius:8px;">${debugInfo}</p>
       </div>
     `;
     return;
