@@ -697,10 +697,7 @@ function renderImportantDatesList() {
     return `
       <div class="important-date-item" data-id="${d.id}">
         <div class="important-date-item-header" onclick="toggleImportantDateItem(this)">
-          ${hasImage
-            ? `<img class="date-icon-img" src="${d.image}" alt="">`
-            : `<div class="date-icon">📌</div>`
-          }
+          <div class="date-icon">📌</div>
           <div class="date-info">
             <div class="date-title"><span class="marquee-inner">${d.title}</span></div>
             <div class="date-subtitle">${dateStr}</div>
@@ -811,10 +808,7 @@ function renderImportantDateCards() {
     return `
       <div class="important-date-card" onclick="toggleImportantDateCard(this)">
         <div class="important-date-card-header">
-          ${hasImage
-            ? `<img class="important-date-card-thumb" src="${d.image}" alt="">`
-            : `<span class="important-date-card-icon">📌</span>`
-          }
+          <span class="important-date-card-icon">📌</span>
           <span class="important-date-card-title"><span class="marquee-inner">${d.title}</span></span>
           ${timeStr ? `<span class="important-date-card-time">${timeStr}</span>` : ''}
           ${hasContent ? `<span class="important-date-card-chevron">▼</span>` : ''}
