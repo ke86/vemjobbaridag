@@ -266,39 +266,6 @@ function toggleBadgeDisplay(event, element) {
 }
 
 // ==========================================
-// NAME DAY BANNER
-// ==========================================
-
-/**
- * Update the name day banner below stats bar
- * Shows today's namnsdagar from the Swedish calendar
- */
-function updateNameDayBanner(date) {
-  const banner = document.getElementById('nameDayBanner');
-  const textEl = document.getElementById('nameDayText');
-  if (!banner || !textEl) return;
-
-  const names = getNameDayNames(date);
-  if (names.length === 0) {
-    banner.style.display = 'none';
-    return;
-  }
-
-  // Filter out non-personal day names (holidays etc)
-  const personalNames = names.filter(n =>
-    !n.includes('dagen') && !n.includes('afton') && !n.includes('mässo') && !n.includes('Första')
-  );
-
-  if (personalNames.length === 0) {
-    banner.style.display = 'none';
-    return;
-  }
-
-  textEl.textContent = personalNames.join(', ');
-  banner.style.display = 'flex';
-}
-
-// ==========================================
 // DAILY VIEW RENDERING
 // ==========================================
 
@@ -356,9 +323,6 @@ function renderEmployees() {
   // Start holiday animations if applicable
   startHolidayDateDisplay();
   startHolidayAnimations();
-
-  // Update name day banner
-  updateNameDayBanner(currentDate);
 
   // Update important date cards for current viewing date
   if (typeof renderImportantDateCards === 'function') {

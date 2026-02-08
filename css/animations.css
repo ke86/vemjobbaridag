@@ -197,37 +197,6 @@
    NAME DAY (NAMNSDAG) STYLES
    ========================================== */
 
-/* Name day banner below stats bar */
-.nameday-banner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 8px 16px;
-  margin: 0 16px 8px;
-  background: linear-gradient(135deg, #ffd700 0%, #ffb347 50%, #ff8c00 100%);
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
-  animation: nameDaySlide 0.4s ease-out;
-}
-
-.nameday-banner-icon {
-  font-size: 18px;
-  animation: crownBounce 2s ease-in-out infinite;
-}
-
-.nameday-banner-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #5a3e00;
-  letter-spacing: 0.3px;
-}
-
-@keyframes nameDaySlide {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 @keyframes crownBounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
@@ -308,15 +277,6 @@
 }
 
 /* Dark mode adjustments for name day */
-.dark .nameday-banner {
-  background: linear-gradient(135deg, #b8860b 0%, #cd853f 50%, #a0522d 100%);
-  box-shadow: 0 2px 8px rgba(184, 134, 11, 0.3);
-}
-
-.dark .nameday-banner-text {
-  color: #fff8dc;
-}
-
 .dark .employee-card.nameday {
   background: linear-gradient(135deg, #b8860b 0%, #cd853f 50%, #a0522d 100%);
   box-shadow: 0 4px 15px rgba(184, 134, 11, 0.3);
