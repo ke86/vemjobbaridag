@@ -575,6 +575,7 @@ const dagvyCache = {};
 
 /**
  * Fetch dagvy data from Firestore for a given employee name
+ * Tries exact match first, then case-insensitive search
  */
 async function fetchDagvy(employeeName) {
   // Check cache first (cache for 5 minutes)
@@ -584,12 +585,38 @@ async function fetchDagvy(employeeName) {
   }
 
   try {
+    // Try exact match first
     const doc = await db.collection('dagvy').doc(employeeName).get();
     if (doc.exists) {
       const data = doc.data();
       dagvyCache[employeeName] = { data, timestamp: Date.now() };
       return data;
     }
+
+    // If not found, search by personName field
+    const snapshot = await db.collection('dagvy')
+      .where('personName', '==', employeeName)
+      .limit(1)
+      .get();
+
+    if (!snapshot.empty) {
+      const data = snapshot.docs[0].data();
+      dagvyCache[employeeName] = { data, timestamp: Date.now() };
+      return data;
+    }
+
+    // Last resort: fetch all dagvy docs and do case-insensitive match
+    const allDocs = await db.collection('dagvy').get();
+    const lowerName = employeeName.toLowerCase();
+    for (const d of allDocs.docs) {
+      const dData = d.data();
+      if (d.id.toLowerCase() === lowerName ||
+          (dData.personName && dData.personName.toLowerCase() === lowerName)) {
+        dagvyCache[employeeName] = { data: dData, timestamp: Date.now() };
+        return dData;
+      }
+    }
+
     return null;
   } catch (err) {
     console.log('Dagvy fetch error: ' + err.message);
