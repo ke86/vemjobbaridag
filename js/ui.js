@@ -830,13 +830,15 @@ function buildDagvyContent(dayData, employeeName) {
       else if (isDisp) segClass = 'dagvy-seg-disp';
       else if (isGang) segClass = 'dagvy-seg-gang';
 
-      const label = isTrain
-        ? `${seg.trainType === 'Växling' ? '🔀' : ''} Tåg ${seg.trainNr}`
-        : (seg.activity || '–');
-
       const route = (seg.fromStation !== seg.toStation)
         ? `${seg.fromStation} → ${seg.toStation}`
         : seg.fromStation;
+
+      const trainBadge = isTrain
+        ? `<span class="dagvy-train-badge">${seg.trainType === 'Växling' ? '🔀 ' : ''}${seg.trainNr}</span>`
+        : '';
+
+      const label = isTrain ? route : (seg.activity || '–');
 
       const vehicleStr = seg.vehicles && seg.vehicles.length > 0
         ? `<span class="dagvy-seg-vehicle">${seg.vehicles.join(', ')}</span>`
@@ -898,8 +900,7 @@ function buildDagvyContent(dayData, employeeName) {
           <div class="dagvy-seg-time">${seg.timeStart}<br><span class="dagvy-seg-time-end">${seg.timeEnd}</span></div>
           <div class="dagvy-seg-dot"></div>
           <div class="dagvy-seg-content">
-            <div class="dagvy-seg-label">${label}${hasCrew ? '<span class="dagvy-seg-crew-hint">👥 ›</span>' : ''}</div>
-            <div class="dagvy-seg-route">${route} ${vehicleStr}</div>
+            <div class="dagvy-seg-label">${label} ${trainBadge} ${vehicleStr}${hasCrew ? '<span class="dagvy-seg-crew-hint">👥 ›</span>' : ''}</div>
           </div>
           ${crewHtml}
         </div>
