@@ -798,14 +798,24 @@ async function showDagvyPopup(employeeId) {
 
 /**
  * Build dagvy HTML content from a day's data
+ * Train segments are clickable — tapping shows crew inline
  */
 function buildDagvyContent(dayData, employeeName) {
   let html = '';
 
+  // Build a crew lookup by trainNr for inline expansion
+  const crewByTrain = {};
+  if (dayData.crews) {
+    for (const trainCrew of dayData.crews) {
+      if (!trainCrew.trainNr) continue;
+      crewByTrain[trainCrew.trainNr] = trainCrew;
+    }
+  }
+
   // === SEGMENTS TIMELINE ===
   if (dayData.segments && dayData.segments.length > 0) {
     html += '<div class="dagvy-section">';
-    html += '<h3 class="dagvy-section-title">🚂 Tidslinje</h3>';
+    html += '<h3 class="dagvy-section-title">Tidslinje</h3>';
     html += '<div class="dagvy-timeline">';
 
     for (const seg of dayData.segments) {
@@ -821,7 +831,7 @@ function buildDagvyContent(dayData, employeeName) {
       else if (isGang) segClass = 'dagvy-seg-gang';
 
       const label = isTrain
-        ? `${seg.trainType === 'Växling' ? '🔀' : '🚆'} Tåg ${seg.trainNr}`
+        ? `${seg.trainType === 'Växling' ? '🔀' : ''} Tåg ${seg.trainNr}`
         : (seg.activity || '–');
 
       const route = (seg.fromStation !== seg.toStation)
@@ -832,74 +842,71 @@ function buildDagvyContent(dayData, employeeName) {
         ? `<span class="dagvy-seg-vehicle">${seg.vehicles.join(', ')}</span>`
         : '';
 
+      // Check if this train has crew data
+      const hasCrew = isTrain && crewByTrain[seg.trainNr];
+      const clickAttr = hasCrew ? `onclick="this.classList.toggle('crew-open')"` : '';
+      const clickableClass = hasCrew ? ' dagvy-seg-clickable' : '';
+
+      // Build inline crew HTML for this train
+      let crewHtml = '';
+      if (hasCrew) {
+        const trainCrew = crewByTrain[seg.trainNr];
+        const vehStr = trainCrew.vehicles && trainCrew.vehicles.length > 0
+          ? `<div class="dagvy-inline-vehicles">${trainCrew.vehicles.join(' · ')}</div>`
+          : '';
+
+        crewHtml += `<div class="dagvy-inline-crew">`;
+        crewHtml += vehStr;
+
+        // Group by unique persons
+        const personMap = {};
+        for (const c of trainCrew.crew) {
+          const key = c.name;
+          if (!personMap[key]) {
+            personMap[key] = { ...c, legs: [] };
+          }
+          personMap[key].legs.push({ from: c.fromStation, to: c.toStation, start: c.timeStart, end: c.timeEnd });
+        }
+
+        for (const person of Object.values(personMap)) {
+          const isMe = normalizeName(person.name) === normalizeName(employeeName);
+          const roleBadge = person.role === 'Lokförare'
+            ? '<span class="dagvy-role-badge dagvy-role-lf">LF</span>'
+            : '<span class="dagvy-role-badge dagvy-role-tv">TV</span>';
+          const legSummary = person.legs.map(l => `${l.from}→${l.to}`).join(', ');
+          const timeRange = `${person.legs[0].start}–${person.legs[person.legs.length - 1].end}`;
+
+          crewHtml += `
+            <div class="dagvy-crew-person ${isMe ? 'dagvy-crew-me' : ''}">
+              <div class="dagvy-crew-person-main">
+                ${roleBadge}
+                <span class="dagvy-crew-name">${person.name}</span>
+                ${person.phone ? `<a href="tel:${person.phone}" class="dagvy-crew-phone" onclick="event.stopPropagation()">📞</a>` : ''}
+              </div>
+              <div class="dagvy-crew-person-detail">
+                <span class="dagvy-crew-time">${timeRange}</span>
+                <span class="dagvy-crew-leg">${legSummary}</span>
+              </div>
+            </div>
+          `;
+        }
+        crewHtml += '</div>';
+      }
+
       html += `
-        <div class="dagvy-seg ${segClass}">
+        <div class="dagvy-seg ${segClass}${clickableClass}" ${clickAttr}>
           <div class="dagvy-seg-time">${seg.timeStart}<br><span class="dagvy-seg-time-end">${seg.timeEnd}</span></div>
           <div class="dagvy-seg-dot"></div>
           <div class="dagvy-seg-content">
-            <div class="dagvy-seg-label">${label}</div>
+            <div class="dagvy-seg-label">${label}${hasCrew ? '<span class="dagvy-seg-crew-hint">👥 ›</span>' : ''}</div>
             <div class="dagvy-seg-route">${route} ${vehicleStr}</div>
           </div>
+          ${crewHtml}
         </div>
       `;
     }
 
     html += '</div></div>';
-  }
-
-  // === CREWS PER TRAIN ===
-  if (dayData.crews && dayData.crews.length > 0) {
-    html += '<div class="dagvy-section">';
-    html += '<h3 class="dagvy-section-title">👥 Personal på tågen</h3>';
-
-    for (const trainCrew of dayData.crews) {
-      const vehicleStr = trainCrew.vehicles && trainCrew.vehicles.length > 0
-        ? `<span class="dagvy-crew-vehicles">${trainCrew.vehicles.join(', ')}</span>`
-        : '';
-
-      html += `<div class="dagvy-crew-block">`;
-      html += `<div class="dagvy-crew-header" onclick="this.parentElement.classList.toggle('expanded')">`;
-      html += `<span class="dagvy-crew-train">🚆 Tåg ${trainCrew.trainNr}</span>`;
-      html += vehicleStr;
-      html += `<span class="dagvy-crew-chevron">›</span>`;
-      html += `</div>`;
-      html += `<div class="dagvy-crew-list">`;
-
-      // Group by unique persons
-      const personMap = {};
-      for (const c of trainCrew.crew) {
-        const key = c.name;
-        if (!personMap[key]) {
-          personMap[key] = { ...c, legs: [] };
-        }
-        personMap[key].legs.push({ from: c.fromStation, to: c.toStation, start: c.timeStart, end: c.timeEnd });
-      }
-
-      for (const person of Object.values(personMap)) {
-        const isMe = person.name === employeeName;
-        const roleIcon = person.role === 'Lokförare' ? '🚂' : '🎫';
-        const legSummary = person.legs.map(l => `${l.from}→${l.to}`).join(', ');
-        const timeRange = `${person.legs[0].start}–${person.legs[person.legs.length - 1].end}`;
-
-        html += `
-          <div class="dagvy-crew-person ${isMe ? 'dagvy-crew-me' : ''}">
-            <div class="dagvy-crew-person-main">
-              <span class="dagvy-crew-role">${roleIcon}</span>
-              <span class="dagvy-crew-name">${person.name}</span>
-            </div>
-            <div class="dagvy-crew-person-detail">
-              <span class="dagvy-crew-time">${timeRange}</span>
-              <span class="dagvy-crew-leg">${legSummary}</span>
-            </div>
-            ${person.phone ? `<a href="tel:${person.phone}" class="dagvy-crew-phone" onclick="event.stopPropagation()">📞</a>` : ''}
-          </div>
-        `;
-      }
-
-      html += '</div></div>';
-    }
-
-    html += '</div>';
   }
 
   return html;

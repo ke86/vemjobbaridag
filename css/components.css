@@ -4106,61 +4106,77 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 .dagvy-seg-gang .dagvy-seg-dot { background: #a3a3a3; }
 .dagvy-seg-gang .dagvy-seg-label { color: #888; font-weight: 400; }
 
-/* ---- Crews per train ---- */
-.dagvy-crew-block {
-  background: #f8f9fa;
-  border-radius: 12px;
-  margin-bottom: 8px;
-  overflow: hidden;
-}
-
-.dagvy-crew-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+/* ---- Clickable train segments with inline crew ---- */
+.dagvy-seg-clickable {
   cursor: pointer;
+  border-radius: 10px;
   transition: background 0.15s;
 }
 
-.dagvy-crew-header:hover {
-  background: #f0f1f3;
+.dagvy-seg-clickable:hover {
+  background: rgba(37, 99, 235, 0.04);
 }
 
-.dagvy-crew-train {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1a1a2e;
-}
-
-.dagvy-crew-vehicles {
-  font-size: 11px;
-  color: #888;
-  background: #e8e8e8;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-weight: 500;
-}
-
-.dagvy-crew-chevron {
-  margin-left: auto;
-  font-size: 18px;
+.dagvy-seg-crew-hint {
+  margin-left: 8px;
+  font-size: 12px;
   color: #aaa;
   transition: transform 0.2s;
 }
 
-.dagvy-crew-block.expanded .dagvy-crew-chevron {
+.dagvy-seg-clickable.crew-open .dagvy-seg-crew-hint {
+  display: inline-block;
   transform: rotate(90deg);
 }
 
-.dagvy-crew-list {
+.dagvy-inline-crew {
   max-height: 0;
   overflow: hidden;
-  transition: max-height 0.3s ease;
+  transition: max-height 0.35s ease;
+  margin-top: 0;
+  margin-left: 38px;
+  border-left: 2px solid #dbe4f0;
+  padding-left: 10px;
 }
 
-.dagvy-crew-block.expanded .dagvy-crew-list {
-  max-height: 600px;
+.dagvy-seg-clickable.crew-open .dagvy-inline-crew {
+  max-height: 800px;
+  margin-top: 8px;
+}
+
+.dagvy-inline-vehicles {
+  font-size: 11px;
+  color: #6b7280;
+  background: #eef2ff;
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+/* ---- Role badges: LF / TV ---- */
+.dagvy-role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  width: 26px;
+  height: 20px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.dagvy-role-lf {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.dagvy-role-tv {
+  background: #7c3aed;
+  color: #fff;
 }
 
 .dagvy-crew-person {
@@ -4317,25 +4333,29 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 .dark .dagvy-seg-rast .dagvy-seg-label { color: #4ade80; }
 .dark .dagvy-seg-disp .dagvy-seg-label { color: #fbbf24; }
 
-.dark .dagvy-crew-block {
-  background: #16162b;
+.dark .dagvy-seg-clickable:hover {
+  background: rgba(96, 165, 250, 0.06);
 }
 
-.dark .dagvy-crew-header:hover {
-  background: #1e1e3a;
-}
-
-.dark .dagvy-crew-train {
-  color: #e8e8e8;
-}
-
-.dark .dagvy-crew-vehicles {
-  background: #2d2d4e;
-  color: #999;
-}
-
-.dark .dagvy-crew-chevron {
+.dark .dagvy-seg-crew-hint {
   color: #666;
+}
+
+.dark .dagvy-inline-crew {
+  border-left-color: #2d2d4e;
+}
+
+.dark .dagvy-inline-vehicles {
+  background: #2d2d4e;
+  color: #aaa;
+}
+
+.dark .dagvy-role-lf {
+  background: #2563eb;
+}
+
+.dark .dagvy-role-tv {
+  background: #8b5cf6;
 }
 
 .dark .dagvy-crew-person {
