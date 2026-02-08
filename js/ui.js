@@ -636,24 +636,28 @@ async function fetchDagvyREST(employeeName) {
 
 /**
  * Fetch dagvy data for a given employee name
- * Uses REST API first (most reliable), falls back to SDK
+ * Trims names to avoid invisible whitespace mismatches
  */
 async function fetchDagvy(employeeName) {
+  // CRITICAL: trim whitespace — employee names may have trailing spaces
+  const trimmedName = employeeName.trim();
+
   // Check cache first (cache for 5 minutes)
-  const cached = dagvyCache[employeeName];
+  const cached = dagvyCache[trimmedName];
   if (cached && (Date.now() - cached.timestamp < 5 * 60 * 1000)) {
     return cached.data;
   }
 
   const debug = [];
+  debug.push('Söknamn: "' + trimmedName + '" (len=' + trimmedName.length + ', orig=' + employeeName.length + ')');
 
-  // Method 1: REST API (bypasses SDK/security rules)
+  // Method 1: REST API with trimmed name
   try {
     debug.push('REST: försöker...');
-    const restData = await fetchDagvyREST(employeeName);
+    const restData = await fetchDagvyREST(trimmedName);
     if (restData) {
       debug.push('REST: hittade data!');
-      dagvyCache[employeeName] = { data: restData, timestamp: Date.now() };
+      dagvyCache[trimmedName] = { data: restData, timestamp: Date.now() };
       return { ...restData, _debug: debug };
     }
     debug.push('REST: 404 (ej hittad)');
@@ -661,37 +665,38 @@ async function fetchDagvy(employeeName) {
     debug.push('REST-fel: ' + restErr.message);
   }
 
-  // Method 2: Firestore SDK direct doc
+  // Method 2: Firestore SDK direct doc with trimmed name
   try {
     debug.push('SDK: försöker doc...');
-    const doc = await db.collection('dagvy').doc(employeeName).get();
+    const doc = await db.collection('dagvy').doc(trimmedName).get();
     debug.push('SDK doc.exists: ' + doc.exists);
     if (doc.exists) {
       const data = doc.data();
-      dagvyCache[employeeName] = { data, timestamp: Date.now() };
+      dagvyCache[trimmedName] = { data, timestamp: Date.now() };
       return { ...data, _debug: debug };
     }
   } catch (sdkErr) {
     debug.push('SDK-fel: ' + (sdkErr.code || '') + ' ' + sdkErr.message);
   }
 
-  // Method 3: SDK list ALL dagvy docs and match
+  // Method 3: SDK list ALL dagvy docs and fuzzy match (trim both sides)
   try {
     debug.push('SDK: hämtar alla dagvy-docs...');
     const allDocs = await db.collection('dagvy').get();
     debug.push('Antal docs: ' + allDocs.size);
-    const lowerName = employeeName.toLowerCase();
+    const lowerName = trimmedName.toLowerCase();
     let foundData = null;
     allDocs.forEach(function(d) {
-      const docId = d.id;
+      const docId = d.id.trim();
       debug.push('Doc: "' + docId + '" (len=' + docId.length + ')');
       if (!foundData) {
-        if (docId === employeeName || docId.toLowerCase() === lowerName) {
+        if (docId === trimmedName || docId.toLowerCase() === lowerName) {
           foundData = d.data();
-          debug.push('MATCH på doc.id!');
+          debug.push('MATCH!');
         } else {
           const dData = d.data();
-          if (dData.personName && dData.personName.toLowerCase() === lowerName) {
+          const pn = dData.personName ? dData.personName.trim() : '';
+          if (pn.toLowerCase() === lowerName) {
             foundData = dData;
             debug.push('MATCH på personName!');
           }
@@ -699,7 +704,7 @@ async function fetchDagvy(employeeName) {
       }
     });
     if (foundData) {
-      dagvyCache[employeeName] = { data: foundData, timestamp: Date.now() };
+      dagvyCache[trimmedName] = { data: foundData, timestamp: Date.now() };
       return { ...foundData, _debug: debug };
     }
     debug.push('Ingen match bland ' + allDocs.size + ' docs');
@@ -726,7 +731,7 @@ async function showDagvyPopup(employeeId) {
       <div class="dagvy-header">
         <div class="dagvy-header-info">
           <h2 class="dagvy-name">${emp.name}</h2>
-          <div class="dagvy-loading">Hämtar dagvy... (v4.10.5)</div>
+          <div class="dagvy-loading">Hämtar dagvy... (v4.10.6)</div>
         </div>
         <button class="dagvy-close" onclick="closeDagvy()">✕</button>
       </div>
@@ -757,18 +762,18 @@ async function showDagvyPopup(employeeId) {
 
   // Get debug info from fetchDagvy
   const debugLines = (data && data._debug) ? data._debug : ['ingen debug'];
-  debugLines.unshift('v4.10.5 | Namn: "' + emp.name + '"');
+  debugLines.unshift('v4.10.6 | Namn: "' + emp.name + '"');
 
   if (!data || data._notFound || !data.days || data.days.length === 0) {
     if (loadingEl) loadingEl.textContent = 'Dagvy debug';
     body.innerHTML = `
       <div class="dagvy-empty">
         <div class="dagvy-empty-icon">🔍</div>
-        <p><strong>Debug-info (v4.10.5):</strong></p>
+        <p><strong>Debug-info (v4.10.6):</strong></p>
         <div style="font-size:12px;color:#333;margin-top:8px;text-align:left;padding:12px;background:#ffffcc;border:2px solid #cc0;border-radius:8px;line-height:1.8;">
           ${debugLines.map(function(l) { return '• ' + l; }).join('<br>')}
         </div>
-        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.5" ovan fungerar cachen rätt.</p>
+        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.6" ovan fungerar cachen rätt.</p>
       </div>
     `;
     return;
