@@ -611,18 +611,27 @@ function parseFirestoreDoc(doc) {
 }
 
 /**
- * Fetch dagvy data from Firestore REST API (bypasses SDK security rules issues)
+ * Fetch dagvy data from Firestore REST API with retry on 429
  */
 async function fetchDagvyREST(employeeName) {
   const encoded = encodeURIComponent(employeeName);
   const url = 'https://firestore.googleapis.com/v1/projects/vemjobbaridag/databases/(default)/documents/dagvy/' + encoded;
-  const resp = await fetch(url);
-  if (!resp.ok) {
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const resp = await fetch(url);
+    if (resp.ok) {
+      const json = await resp.json();
+      return parseFirestoreDoc(json);
+    }
     if (resp.status === 404) return null;
+    if (resp.status === 429) {
+      // Rate limited, wait and retry
+      await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      continue;
+    }
     throw new Error('REST ' + resp.status + ': ' + resp.statusText);
   }
-  const json = await resp.json();
-  return parseFirestoreDoc(json);
+  throw new Error('REST 429: rate limited efter 3 försök');
 }
 
 /**
@@ -666,21 +675,36 @@ async function fetchDagvy(employeeName) {
     debug.push('SDK-fel: ' + (sdkErr.code || '') + ' ' + sdkErr.message);
   }
 
-  // Method 3: SDK query by personName
+  // Method 3: SDK list ALL dagvy docs and match
   try {
-    debug.push('SDK: försöker query...');
-    const snapshot = await db.collection('dagvy')
-      .where('personName', '==', employeeName)
-      .limit(1)
-      .get();
-    if (!snapshot.empty) {
-      const data = snapshot.docs[0].data();
-      dagvyCache[employeeName] = { data, timestamp: Date.now() };
-      return { ...data, _debug: debug };
+    debug.push('SDK: hämtar alla dagvy-docs...');
+    const allDocs = await db.collection('dagvy').get();
+    debug.push('Antal docs: ' + allDocs.size);
+    const lowerName = employeeName.toLowerCase();
+    let foundData = null;
+    allDocs.forEach(function(d) {
+      const docId = d.id;
+      debug.push('Doc: "' + docId + '" (len=' + docId.length + ')');
+      if (!foundData) {
+        if (docId === employeeName || docId.toLowerCase() === lowerName) {
+          foundData = d.data();
+          debug.push('MATCH på doc.id!');
+        } else {
+          const dData = d.data();
+          if (dData.personName && dData.personName.toLowerCase() === lowerName) {
+            foundData = dData;
+            debug.push('MATCH på personName!');
+          }
+        }
+      }
+    });
+    if (foundData) {
+      dagvyCache[employeeName] = { data: foundData, timestamp: Date.now() };
+      return { ...foundData, _debug: debug };
     }
-    debug.push('SDK query: tom');
-  } catch (queryErr) {
-    debug.push('Query-fel: ' + queryErr.message);
+    debug.push('Ingen match bland ' + allDocs.size + ' docs');
+  } catch (listErr) {
+    debug.push('List-fel: ' + (listErr.code || '') + ' ' + listErr.message);
   }
 
   return { _notFound: true, _debug: debug };
@@ -702,7 +726,7 @@ async function showDagvyPopup(employeeId) {
       <div class="dagvy-header">
         <div class="dagvy-header-info">
           <h2 class="dagvy-name">${emp.name}</h2>
-          <div class="dagvy-loading">Hämtar dagvy... (v4.10.4)</div>
+          <div class="dagvy-loading">Hämtar dagvy... (v4.10.5)</div>
         </div>
         <button class="dagvy-close" onclick="closeDagvy()">✕</button>
       </div>
@@ -733,18 +757,18 @@ async function showDagvyPopup(employeeId) {
 
   // Get debug info from fetchDagvy
   const debugLines = (data && data._debug) ? data._debug : ['ingen debug'];
-  debugLines.unshift('v4.10.4 | Namn: "' + emp.name + '"');
+  debugLines.unshift('v4.10.5 | Namn: "' + emp.name + '"');
 
   if (!data || data._notFound || !data.days || data.days.length === 0) {
     if (loadingEl) loadingEl.textContent = 'Dagvy debug';
     body.innerHTML = `
       <div class="dagvy-empty">
         <div class="dagvy-empty-icon">🔍</div>
-        <p><strong>Debug-info (v4.10.4):</strong></p>
+        <p><strong>Debug-info (v4.10.5):</strong></p>
         <div style="font-size:12px;color:#333;margin-top:8px;text-align:left;padding:12px;background:#ffffcc;border:2px solid #cc0;border-radius:8px;line-height:1.8;">
           ${debugLines.map(function(l) { return '• ' + l; }).join('<br>')}
         </div>
-        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.4" ovan fungerar cachen rätt.</p>
+        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.5" ovan fungerar cachen rätt.</p>
       </div>
     `;
     return;
