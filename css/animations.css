@@ -194,6 +194,144 @@
 }
 
 /* ==========================================
+   NAME DAY (NAMNSDAG) STYLES
+   ========================================== */
+
+/* Name day banner below stats bar */
+.nameday-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin: 0 16px 8px;
+  background: linear-gradient(135deg, #ffd700 0%, #ffb347 50%, #ff8c00 100%);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  animation: nameDaySlide 0.4s ease-out;
+}
+
+.nameday-banner-icon {
+  font-size: 18px;
+  animation: crownBounce 2s ease-in-out infinite;
+}
+
+.nameday-banner-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #5a3e00;
+  letter-spacing: 0.3px;
+}
+
+@keyframes nameDaySlide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes crownBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Name day card highlight */
+.employee-card.nameday {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb347 50%, #ff8c00 100%);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 15px rgba(255, 165, 0, 0.3);
+}
+
+.employee-card.nameday .employee-name {
+  color: #3d2800;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.employee-card.nameday .employee-time {
+  color: rgba(61, 40, 0, 0.8);
+}
+
+.employee-card.nameday:hover {
+  transform: translateX(4px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(255, 165, 0, 0.4);
+}
+
+/* Both birthday + nameday (birthday takes priority for card color, add crown sparkle) */
+.employee-card.birthday.nameday {
+  box-shadow: 0 4px 15px rgba(196, 76, 255, 0.3), 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+/* Crown icon next to name */
+.nameday-crown {
+  font-size: 18px;
+  margin-left: 6px;
+  cursor: pointer;
+  display: inline-block;
+  transition: transform 0.2s ease;
+  animation: crownBounce 2s ease-in-out infinite;
+}
+
+.nameday-crown:hover {
+  transform: scale(1.3);
+}
+
+/* Name day modal overrides */
+.nameday-modal {
+  background: linear-gradient(135deg, #ffd700 0%, #ffb347 50%, #ff8c00 100%) !important;
+}
+
+.nameday-modal .birthday-modal-content {
+  color: #3d2800;
+}
+
+.nameday-modal .birthday-text {
+  color: #3d2800;
+}
+
+.nameday-name {
+  font-size: 42px !important;
+  color: #3d2800 !important;
+}
+
+.nameday-all-names {
+  font-size: 15px;
+  margin-top: 8px;
+  color: rgba(61, 40, 0, 0.7);
+  font-weight: 500;
+}
+
+.nameday-modal-btn {
+  background: #3d2800 !important;
+  color: #ffd700 !important;
+}
+
+.nameday-modal-btn:hover {
+  background: #5a3e00 !important;
+}
+
+/* Dark mode adjustments for name day */
+.dark .nameday-banner {
+  background: linear-gradient(135deg, #b8860b 0%, #cd853f 50%, #a0522d 100%);
+  box-shadow: 0 2px 8px rgba(184, 134, 11, 0.3);
+}
+
+.dark .nameday-banner-text {
+  color: #fff8dc;
+}
+
+.dark .employee-card.nameday {
+  background: linear-gradient(135deg, #b8860b 0%, #cd853f 50%, #a0522d 100%);
+  box-shadow: 0 4px 15px rgba(184, 134, 11, 0.3);
+}
+
+.dark .employee-card.nameday .employee-name {
+  color: #fff8dc;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.dark .employee-card.nameday .employee-time {
+  color: rgba(255, 248, 220, 0.8);
+}
+
+/* ==========================================
    FLOATING HOLIDAY ANIMATIONS
    ========================================== */
 
@@ -223,56 +361,7 @@
   }
 }
 
-/* Balloon - floats upward while moving */
-.float-balloon {
-  animation: balloonFloat 5s ease-out forwards;
-}
-
-@keyframes balloonFloat {
-  0% {
-    left: -60px;
-    transform: translateY(0) rotate(-5deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  50% {
-    transform: translateY(-30px) rotate(5deg);
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    left: calc(100% + 60px);
-    transform: translateY(-60px) rotate(-5deg);
-    opacity: 0;
-  }
-}
-
-/* Egg - rolls across */
-.float-egg {
-  animation: eggRoll 5s linear forwards;
-}
-
-@keyframes eggRoll {
-  0% {
-    left: -60px;
-    transform: rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    left: calc(100% + 60px);
-    transform: rotate(720deg);
-    opacity: 0;
-  }
-}
+/* (Balloon and Egg animations moved to bottom - updated for new style system) */
 
 /* Sun - glides smoothly with glow */
 .float-sun {
@@ -337,36 +426,7 @@
   }
 }
 
-/* Firework - pops and sparkles */
-.float-firework {
-  animation: fireworkPop 4s ease-out forwards;
-}
-
-@keyframes fireworkPop {
-  0% {
-    left: 20%;
-    transform: scale(0) translateY(50px);
-    opacity: 0;
-  }
-  20% {
-    transform: scale(1.5) translateY(0);
-    opacity: 1;
-  }
-  40% {
-    transform: scale(1) translateY(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.5) translateY(-30px);
-    opacity: 0;
-    left: 30%;
-  }
-}
-
-.float-firework:nth-child(2) {
-  animation-delay: 0.5s;
-  left: 60%;
-}
+/* (Firework animation moved to bottom - updated for new style system) */
 
 /* Flag - waves while moving */
 .float-flag {
@@ -438,7 +498,7 @@
 }
 
 /* ==========================================
-   ROLIGA DAGAR - NYA ANIMATIONER
+   ROLIGA DAGAR - UNIKA ANIMATIONER
    ========================================== */
 
 /* SVG floating elements */
@@ -452,231 +512,270 @@
   object-fit: contain;
 }
 
-/* Heart - pulserar och flyger (Alla hjärtans dag) */
+/* ❤️ Heart - REGNAR ner (Alla hjärtans dag) */
 .float-heart {
-  animation: heartFloat 5s ease-in-out forwards;
+  animation: heartRain 3.5s ease-in forwards;
 }
 
-@keyframes heartFloat {
+@keyframes heartRain {
   0% {
-    left: -60px;
-    transform: scale(0.8);
+    transform: translateY(0) scale(0.5) rotate(0deg);
     opacity: 0;
   }
-  10% {
+  8% {
     opacity: 1;
+    transform: translateY(10px) scale(1) rotate(5deg);
   }
-  25% {
-    transform: scale(1.2);
+  30% {
+    transform: translateY(30vh) scale(0.95) rotate(-8deg);
   }
-  50% {
-    transform: scale(0.9);
+  60% {
+    transform: translateY(60vh) scale(1.05) rotate(12deg);
   }
-  75% {
-    transform: scale(1.1);
-  }
-  90% {
-    opacity: 1;
+  85% {
+    opacity: 0.8;
   }
   100% {
-    left: calc(100% + 60px);
-    transform: scale(0.8);
+    transform: translateY(105vh) scale(0.8) rotate(-5deg);
     opacity: 0;
   }
 }
 
-/* Semla - gungar mjukt (Fettisdagen) */
+/* Semla - STUDSAR (Fettisdagen) */
 .float-semla {
-  animation: semlaFloat 5s ease-in-out forwards;
+  animation: semlaBounce 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
-@keyframes semlaFloat {
+@keyframes semlaBounce {
   0% {
-    left: -60px;
-    transform: rotate(-5deg);
+    transform: translateY(0) rotate(0deg);
     opacity: 0;
   }
-  10% {
-    opacity: 1;
+  5% { opacity: 1; }
+  15% {
+    transform: translateY(-120px) rotate(8deg);
   }
-  25% {
-    transform: rotate(5deg) translateY(-10px);
+  30% {
+    transform: translateY(0) rotate(-3deg);
   }
-  50% {
-    transform: rotate(-5deg) translateY(0);
+  42% {
+    transform: translateY(-70px) rotate(6deg);
+  }
+  55% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  65% {
+    transform: translateY(-35px) rotate(4deg);
   }
   75% {
-    transform: rotate(5deg) translateY(-10px);
+    transform: translateY(0) rotate(-1deg);
+  }
+  82% {
+    transform: translateY(-15px) rotate(2deg);
   }
   90% {
+    transform: translateY(0) rotate(0deg);
     opacity: 1;
   }
   100% {
-    left: calc(100% + 60px);
-    transform: rotate(-5deg);
+    transform: translateY(0) rotate(0deg);
     opacity: 0;
   }
 }
 
-/* Sausage - glider (Alla korvars dag) */
+/* 🌭 Sausage - STUDSAR och snurrar (Alla korvars dag) */
 .float-sausage {
-  animation: sausageGlide 5s ease-in-out forwards;
+  animation: sausageBounce 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
-@keyframes sausageGlide {
+@keyframes sausageBounce {
   0% {
-    left: -60px;
-    transform: rotate(-15deg);
+    transform: translateY(0) rotate(0deg);
     opacity: 0;
   }
-  10% {
-    opacity: 1;
+  5% { opacity: 1; }
+  15% {
+    transform: translateY(-100px) rotate(90deg);
   }
-  50% {
-    transform: rotate(15deg);
+  30% {
+    transform: translateY(0) rotate(180deg);
+  }
+  42% {
+    transform: translateY(-55px) rotate(270deg);
+  }
+  55% {
+    transform: translateY(0) rotate(360deg);
+  }
+  65% {
+    transform: translateY(-25px) rotate(405deg);
+  }
+  75% {
+    transform: translateY(0) rotate(440deg);
   }
   90% {
+    transform: translateY(0) rotate(450deg);
     opacity: 1;
   }
   100% {
-    left: calc(100% + 60px);
-    transform: rotate(-15deg);
+    transform: translateY(0) rotate(450deg);
     opacity: 0;
   }
 }
 
-/* Chokladboll - studsar (Chokladbollens dag) */
+/* Chokladboll - STUDSAR högt (Chokladbollens dag) */
 .float-chokladboll {
-  animation: chokladbollBounce 5s ease-in-out forwards;
+  animation: chokladbollBounce 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 @keyframes chokladbollBounce {
   0% {
-    left: -60px;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
     opacity: 0;
   }
-  10% {
-    opacity: 1;
-  }
-  20% {
-    transform: translateY(-30px);
-  }
-  30% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-20px);
-  }
-  50% {
-    transform: translateY(0);
-  }
-  60% {
-    transform: translateY(-15px);
-  }
-  70% {
-    transform: translateY(0);
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    left: calc(100% + 60px);
-    transform: translateY(0);
-    opacity: 0;
-  }
-}
-
-/* Flower - flyter mjukt (Mors dag) */
-.float-flower {
-  animation: flowerFloat 5s ease-in-out forwards;
-}
-
-@keyframes flowerFloat {
-  0% {
-    left: -60px;
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  33% {
-    transform: translateY(-20px) rotate(10deg);
-  }
-  66% {
-    transform: translateY(10px) rotate(-10deg);
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    left: calc(100% + 60px);
-    transform: translateY(0) rotate(0deg);
-    opacity: 0;
-  }
-}
-
-/* Kanelbulle - snurrar (Kanelbullens dag) */
-.float-kanelbulle {
-  animation: kanelbulleSpiral 5s ease-in-out forwards;
-}
-
-@keyframes kanelbulleSpiral {
-  0% {
-    left: -60px;
-    transform: rotate(0deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  90% {
-    opacity: 1;
-  }
-  100% {
-    left: calc(100% + 60px);
-    transform: rotate(360deg);
-    opacity: 0;
-  }
-}
-
-/* Tie - vajar (Fars dag) */
-.float-tie {
-  animation: tieWave 5s ease-in-out forwards;
-}
-
-@keyframes tieWave {
-  0% {
-    left: -60px;
-    transform: rotate(-10deg);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
+  5% { opacity: 1; }
+  12% {
+    transform: translateY(-140px) scale(0.9);
   }
   25% {
-    transform: rotate(10deg);
+    transform: translateY(0) scale(1.15, 0.85);
+  }
+  30% {
+    transform: translateY(-5px) scale(0.95, 1.05);
+  }
+  38% {
+    transform: translateY(-85px) scale(0.95);
   }
   50% {
-    transform: rotate(-10deg);
+    transform: translateY(0) scale(1.1, 0.9);
   }
-  75% {
-    transform: rotate(10deg);
+  55% {
+    transform: translateY(-5px) scale(0.97, 1.03);
   }
-  90% {
+  62% {
+    transform: translateY(-40px) scale(1);
+  }
+  72% {
+    transform: translateY(0) scale(1.05, 0.95);
+  }
+  80% {
+    transform: translateY(-15px) scale(1);
+  }
+  88% {
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
   100% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+}
+
+/* 💐 Flower - SNURRAR och flyter (Mors dag) */
+.float-flower {
+  animation: flowerSpin 6s linear forwards;
+}
+
+@keyframes flowerSpin {
+  0% {
+    left: -60px;
+    transform: rotate(0deg) translateY(0);
+    opacity: 0;
+  }
+  8% { opacity: 1; }
+  25% {
+    transform: rotate(180deg) translateY(-15px);
+  }
+  50% {
+    transform: rotate(360deg) translateY(10px);
+  }
+  75% {
+    transform: rotate(540deg) translateY(-10px);
+  }
+  90% { opacity: 1; }
+  100% {
     left: calc(100% + 60px);
-    transform: rotate(-10deg);
+    transform: rotate(720deg) translateY(0);
+    opacity: 0;
+  }
+}
+
+/* Kanelbulle - SNURRAR intensivt (Kanelbullens dag) */
+.float-kanelbulle {
+  animation: kanelbulleSpin 6s ease-in-out forwards;
+}
+
+@keyframes kanelbulleSpin {
+  0% {
+    left: -60px;
+    transform: rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  8% { opacity: 1; }
+  20% {
+    transform: rotate(240deg) scale(1.1);
+  }
+  40% {
+    transform: rotate(480deg) scale(0.9);
+  }
+  60% {
+    transform: rotate(720deg) scale(1.05);
+  }
+  80% {
+    transform: rotate(960deg) scale(0.95);
+  }
+  90% { opacity: 1; }
+  100% {
+    left: calc(100% + 60px);
+    transform: rotate(1080deg) scale(1);
+    opacity: 0;
+  }
+}
+
+/* 👔 Tie - HOPPAR på plats (Fars dag) */
+.float-tie {
+  animation: tieJump 3s ease-in-out forwards;
+}
+
+@keyframes tieJump {
+  0% {
+    transform: translateY(0) scaleY(1);
+    opacity: 0;
+  }
+  5% { opacity: 1; }
+  10% {
+    transform: translateY(0) scaleY(0.85) scaleX(1.1);
+  }
+  20% {
+    transform: translateY(-100px) scaleY(1.1) scaleX(0.9) rotate(-5deg);
+  }
+  35% {
+    transform: translateY(0) scaleY(0.85) scaleX(1.1) rotate(3deg);
+  }
+  40% {
+    transform: translateY(0) scaleY(0.9) scaleX(1.05);
+  }
+  50% {
+    transform: translateY(-60px) scaleY(1.05) scaleX(0.95) rotate(-3deg);
+  }
+  63% {
+    transform: translateY(0) scaleY(0.9) scaleX(1.05) rotate(2deg);
+  }
+  72% {
+    transform: translateY(-25px) scaleY(1) rotate(-1deg);
+  }
+  82% {
+    transform: translateY(0) scaleY(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
     opacity: 0;
   }
 }
 
 /* Smörgåstårta - glider stabilt (Smörgåstårtans dag) */
 .float-smorgastarta {
-  animation: smorgastartaGlide 6s ease-in-out forwards;
+  animation: smorgastartaGlide 7s ease-in-out forwards;
 }
 
 .float-smorgastarta img {
@@ -687,58 +786,175 @@
 @keyframes smorgastartaGlide {
   0% {
     left: -80px;
-    transform: translateY(0);
+    transform: translateY(0) rotate(-2deg);
     opacity: 0;
   }
-  10% {
-    opacity: 1;
+  8% { opacity: 1; }
+  25% {
+    transform: translateY(-8px) rotate(1deg);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translateY(5px) rotate(-1deg);
   }
-  90% {
-    opacity: 1;
+  75% {
+    transform: translateY(-5px) rotate(1deg);
   }
+  90% { opacity: 1; }
   100% {
     left: calc(100% + 80px);
-    transform: translateY(0);
+    transform: translateY(0) rotate(0deg);
     opacity: 0;
   }
 }
 
-/* Candle - glöder (Luciadagen) */
+/* 🕯️ Candle - SVÄVAR UPPÅT med glöd (Luciadagen) */
 .float-candle {
-  animation: candleGlow 5s ease-in-out forwards;
+  animation: candleRise 5s ease-out forwards;
   filter: drop-shadow(0 0 8px rgba(255, 200, 50, 0.8));
 }
 
-@keyframes candleGlow {
+@keyframes candleRise {
   0% {
-    left: -60px;
-    transform: scale(0.9);
+    transform: translateY(0) scale(0.7);
+    opacity: 0;
+    filter: drop-shadow(0 0 4px rgba(255, 200, 50, 0.4));
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1);
+    filter: drop-shadow(0 0 10px rgba(255, 200, 50, 0.8));
+  }
+  30% {
+    transform: translateY(-25vh) scale(1.05) translateX(5px);
+    filter: drop-shadow(0 0 14px rgba(255, 200, 50, 1));
+  }
+  50% {
+    transform: translateY(-45vh) scale(0.95) translateX(-5px);
+    filter: drop-shadow(0 0 8px rgba(255, 200, 50, 0.7));
+  }
+  70% {
+    transform: translateY(-65vh) scale(1.02) translateX(3px);
+    filter: drop-shadow(0 0 12px rgba(255, 200, 50, 0.9));
+  }
+  85% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(-100vh) scale(0.9) translateX(0);
+    filter: drop-shadow(0 0 6px rgba(255, 200, 50, 0.3));
+    opacity: 0;
+  }
+}
+
+/* Updated original animations for new style system */
+
+/* 🎈 Balloon - SVÄVAR UPPÅT (birthday) */
+.float-balloon {
+  animation: balloonRise 5s ease-out forwards;
+}
+
+@keyframes balloonRise {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(0.6);
     opacity: 0;
   }
   10% {
     opacity: 1;
+    transform: translateY(-5vh) rotate(-3deg) scale(1);
   }
-  25% {
-    transform: scale(1.1);
-    filter: drop-shadow(0 0 12px rgba(255, 200, 50, 1));
+  30% {
+    transform: translateY(-25vh) rotate(5deg) scale(1.02) translateX(8px);
   }
   50% {
-    transform: scale(0.95);
-    filter: drop-shadow(0 0 6px rgba(255, 200, 50, 0.6));
+    transform: translateY(-45vh) rotate(-4deg) scale(0.98) translateX(-5px);
+  }
+  70% {
+    transform: translateY(-65vh) rotate(3deg) scale(1.01) translateX(6px);
+  }
+  85% { opacity: 0.7; }
+  100% {
+    transform: translateY(-100vh) rotate(-2deg) scale(0.95) translateX(0);
+    opacity: 0;
+  }
+}
+
+/* 🥚 Egg - STUDSAR (easter) */
+.float-egg {
+  animation: eggBounce 3.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes eggBounce {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0;
+  }
+  5% { opacity: 1; }
+  15% {
+    transform: translateY(-110px) rotate(45deg);
+  }
+  30% {
+    transform: translateY(0) rotate(90deg);
+  }
+  42% {
+    transform: translateY(-60px) rotate(135deg);
+  }
+  55% {
+    transform: translateY(0) rotate(180deg);
+  }
+  65% {
+    transform: translateY(-30px) rotate(225deg);
   }
   75% {
-    transform: scale(1.05);
-    filter: drop-shadow(0 0 10px rgba(255, 200, 50, 0.9));
+    transform: translateY(0) rotate(270deg);
+  }
+  82% {
+    transform: translateY(-12px) rotate(300deg);
   }
   90% {
+    transform: translateY(0) rotate(340deg);
     opacity: 1;
   }
   100% {
-    left: calc(100% + 60px);
-    transform: scale(0.9);
+    transform: translateY(0) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* 🎆 Firework - HOPPAR & exploderar (newyear) */
+.float-firework {
+  animation: fireworkJump 3s ease-out forwards;
+}
+
+@keyframes fireworkJump {
+  0% {
+    transform: scale(0.3) translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+    transform: scale(0.5) translateY(0);
+  }
+  15% {
+    transform: scale(0.6) translateY(-120px);
+  }
+  25% {
+    transform: scale(1.8) translateY(-120px);
+    opacity: 1;
+  }
+  40% {
+    transform: scale(1.3) translateY(-100px);
+    opacity: 0.9;
+  }
+  55% {
+    transform: scale(0.9) translateY(-70px);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(0.6) translateY(-50px);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0.3) translateY(-30px);
     opacity: 0;
   }
 }

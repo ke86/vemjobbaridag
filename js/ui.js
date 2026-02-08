@@ -266,6 +266,39 @@ function toggleBadgeDisplay(event, element) {
 }
 
 // ==========================================
+// NAME DAY BANNER
+// ==========================================
+
+/**
+ * Update the name day banner below stats bar
+ * Shows today's namnsdagar from the Swedish calendar
+ */
+function updateNameDayBanner(date) {
+  const banner = document.getElementById('nameDayBanner');
+  const textEl = document.getElementById('nameDayText');
+  if (!banner || !textEl) return;
+
+  const names = getNameDayNames(date);
+  if (names.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  // Filter out non-personal day names (holidays etc)
+  const personalNames = names.filter(n =>
+    !n.includes('dagen') && !n.includes('afton') && !n.includes('mässo') && !n.includes('Första')
+  );
+
+  if (personalNames.length === 0) {
+    banner.style.display = 'none';
+    return;
+  }
+
+  textEl.textContent = personalNames.join(', ');
+  banner.style.display = 'flex';
+}
+
+// ==========================================
 // DAILY VIEW RENDERING
 // ==========================================
 
@@ -296,6 +329,24 @@ function renderEmployees() {
     }
   }
 
+  // Get name day employees for today
+  const nameDayEmployees = getNameDayEmployees(currentDate);
+
+  // Add name day employees who are not already in the list
+  const currentEmployeeIds = shifts.map(s => s.employeeId);
+  for (const ndEmp of nameDayEmployees) {
+    if (!currentEmployeeIds.includes(ndEmp.employeeId)) {
+      // Add as "ledig" name day person
+      shifts.push({
+        employeeId: ndEmp.employeeId,
+        badge: 'nameday-only',
+        badgeText: '',
+        time: '-',
+        isNameDayOnly: true
+      });
+    }
+  }
+
   if (currentDateEl) {
     currentDateEl.textContent = formatDate(currentDate);
     currentDateEl.style.transition = 'opacity 0.2s ease';
@@ -305,6 +356,9 @@ function renderEmployees() {
   // Start holiday animations if applicable
   startHolidayDateDisplay();
   startHolidayAnimations();
+
+  // Update name day banner
+  updateNameDayBanner(currentDate);
 
   // Update important date cards for current viewing date
   if (typeof renderImportantDateCards === 'function') {
@@ -323,16 +377,22 @@ function renderEmployees() {
     return;
   }
 
-  // Sort: birthday people first, then by time
+  // Sort: birthday people first, then name day people, then by time
   const sortedShifts = [...shifts].sort((a, b) => {
     const empA = registeredEmployees[a.employeeId];
     const empB = registeredEmployees[b.employeeId];
     const bdayA = empA ? getBirthdayInfo(empA.name, currentDate) : null;
     const bdayB = empB ? getBirthdayInfo(empB.name, currentDate) : null;
+    const ndayA = empA ? getNameDayInfo(empA.name, currentDate) : null;
+    const ndayB = empB ? getNameDayInfo(empB.name, currentDate) : null;
 
     // Birthday people first
     if (bdayA && !bdayB) return -1;
     if (!bdayA && bdayB) return 1;
+
+    // Then name day people
+    if (ndayA && !ndayB) return -1;
+    if (!ndayA && ndayB) return 1;
 
     // Then by time
     const timeA = a.time?.split('-')[0] || '99:99';
@@ -350,29 +410,45 @@ function renderEmployees() {
     // Check if birthday
     const birthdayInfo = getBirthdayInfo(emp.name, currentDate);
     const isBirthday = !!birthdayInfo;
-    const birthdayClass = isBirthday ? 'birthday' : '';
     const firstName = emp.name.split(' ')[0];
+
+    // Check if name day
+    const nameDayInfo = getNameDayInfo(emp.name, currentDate);
+    const isNameDay = !!nameDayInfo;
+
+    // Build combined card class
+    const cardClasses = [];
+    if (isBirthday) cardClasses.push('birthday');
+    if (isNameDay) cardClasses.push('nameday');
+    const extraClasses = cardClasses.join(' ');
 
     // Birthday cake icon (clickable)
     const cakeHtml = isBirthday
       ? `<span class="birthday-cake" onclick="event.stopPropagation(); showBirthdayPopup('${firstName}', ${birthdayInfo.age})">🎂</span>`
       : '';
 
+    // Name day crown icon (clickable)
+    const todaysNames = getNameDayNames(currentDate);
+    const allNamesStr = todaysNames.join(', ');
+    const crownHtml = isNameDay
+      ? `<span class="nameday-crown" onclick="event.stopPropagation(); showNameDayPopup('${firstName}', '${allNamesStr.replace(/'/g, "\\'")}')">👑</span>`
+      : '';
+
     // Determine time display
     let timeDisplay = shift.time || '-';
-    if (shift.isBirthdayOnly) {
+    if (shift.isBirthdayOnly || shift.isNameDayOnly) {
       timeDisplay = 'Ledig';
     } else if (nonWorkingTypes.includes(shift.badge)) {
       timeDisplay = 'Ledig';
     }
 
     // Build badge HTML with icon toggle support
-    const badgeHtml = shift.isBirthdayOnly ? '' : renderBadgeWithToggle(shift);
+    const badgeHtml = (shift.isBirthdayOnly || shift.isNameDayOnly) ? '' : renderBadgeWithToggle(shift);
 
     return `
-      <div class="employee-card ${birthdayClass}" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
+      <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
         <div class="employee-info">
-          <div class="employee-name">${emp.name}${cakeHtml}</div>
+          <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}</div>
           <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
@@ -566,10 +642,9 @@ function countFridagBadges(employeeId) {
   return { fp: fpCount, fpv: fpvCount };
 }
 
-// Swedish holidays for 2026 (including fun days)
+// Swedish official holidays for 2026 (shown in helgdagar modal)
 function getSwedishHolidays2026() {
   return [
-    // Officiella helgdagar
     { date: '2026-01-01', name: 'Nyårsdagen', type: 'newyear' },
     { date: '2026-01-06', name: 'Trettondedag jul', type: 'christmas' },
     { date: '2026-04-03', name: 'Långfredagen', type: 'easter' },
@@ -588,8 +663,13 @@ function getSwedishHolidays2026() {
     { date: '2026-12-25', name: 'Juldagen', type: 'christmas' },
     { date: '2026-12-26', name: 'Annandag jul', type: 'christmas' },
     { date: '2026-12-31', name: 'Nyårsafton', type: 'newyear' },
-    { date: '2027-01-01', name: 'Nyårsdagen 2027', type: 'newyear' },
-    // Roliga dagar
+    { date: '2027-01-01', name: 'Nyårsdagen 2027', type: 'newyear' }
+  ];
+}
+
+// Roliga dagar (fun days) — NOT shown in helgdagar modal, but trigger animations
+function getRoligaDagar2026() {
+  return [
     { date: '2026-02-14', name: 'Alla hjärtans dag', type: 'valentine' },
     { date: '2026-02-17', name: 'Fettisdagen', type: 'fattuesday' },
     { date: '2026-03-12', name: 'Alla korvars dag', type: 'sausage' },
@@ -601,6 +681,11 @@ function getSwedishHolidays2026() {
     { date: '2026-11-13', name: 'Smörgåstårtans dag', type: 'sandwichcake' },
     { date: '2026-12-13', name: 'Luciadagen', type: 'lucia' }
   ];
+}
+
+// All special days combined (used by animation system and date display)
+function getAllSpecialDays2026() {
+  return [...getSwedishHolidays2026(), ...getRoligaDagar2026()];
 }
 
 // Check if employee has FP or FPV on a specific date
@@ -897,8 +982,16 @@ function renderCalendarView(emp) {
       }
     }
 
+    // Build data attributes for expand popup
+    const badgeStr = shift ? (shift.badgeText || '').toString() : '';
+    const timeStr = shift ? (shift.hasOverlay ? shift.overlayTime : (shift.time || '')) : '';
+    const overlayBadge = shift && shift.hasOverlay ? (shift.overlayBadgeText || '') : '';
+    const shiftBadge = shift ? (shift.badge || '') : '';
+    const dateKey = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+
     calendarHTML += `
-      <div class="schedule-day ${typeClass} ${todayClass}">
+      <div class="schedule-day ${typeClass} ${todayClass}"
+           onclick="expandDayCell(this, ${currentDay}, '${dateKey}', '${badgeStr}', '${timeStr}', '${overlayBadge}', '${shiftBadge}')">
         <div class="day-top">
           <span class="day-num">${currentDay}</span>
           ${iconHtml}
@@ -927,6 +1020,135 @@ function renderCalendarView(emp) {
       </div>
     </div>
   `;
+}
+
+/**
+ * Expand a day cell in the calendar view to show full details.
+ * Shows a popup overlay anchored to the clicked cell.
+ */
+function expandDayCell(el, dayNum, dateKey, badgeText, timeStr, overlayBadge, shiftBadge) {
+  // Remove any existing popup
+  const existing = document.querySelector('.schedule-day-detail');
+  if (existing) {
+    const wasOnSame = existing.dataset.dateKey === dateKey;
+    existing.remove();
+    document.querySelectorAll('.schedule-day.expanded').forEach(d => d.classList.remove('expanded'));
+    if (wasOnSame) return; // Toggle off
+  }
+
+  // Don't expand empty cells
+  if (el.classList.contains('empty') || (!badgeText && !shiftBadge)) return;
+
+  el.classList.add('expanded');
+
+  // Build content
+  const dateObj = new Date(dateKey + 'T00:00:00');
+  const dayName = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'][dateObj.getDay()];
+  const monthName = monthNames[dateObj.getMonth()];
+
+  // Icons
+  const displayBadge = overlayBadge || badgeText;
+  const icons = getTurnIcons(displayBadge);
+  let iconsHtml = '';
+  if (icons.length > 0) {
+    iconsHtml = icons.map(icon =>
+      `<img class="detail-icon detail-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`
+    ).join('');
+  }
+
+  // Type label
+  let typeLabel = '';
+  const specialLabels = {
+    fp: 'Fridag (FP)', fpv: 'Fridag Vakanslista (FPV)',
+    semester: 'Semester', franvarande: 'Frånvarande',
+    foraldraledighet: 'Föräldraledighet', afd: 'AFD', vab: 'VAB', sjuk: 'Sjuk'
+  };
+  if (specialLabels[shiftBadge]) {
+    typeLabel = `<div class="detail-type">${specialLabels[shiftBadge]}</div>`;
+  }
+
+  // Time display
+  let timeHtml = '';
+  if (timeStr && timeStr !== '-') {
+    const { start, end } = parseTime(timeStr);
+    timeHtml = `<div class="detail-time">${start} – ${end}</div>`;
+  }
+
+  // Turn number
+  let turnHtml = '';
+  if (displayBadge && !specialLabels[shiftBadge]) {
+    turnHtml = `<div class="detail-turn">${displayBadge}</div>`;
+  }
+
+  // Overlay info (FP + work)
+  let overlayHtml = '';
+  if (overlayBadge) {
+    const fpLabel = shiftBadge === 'fpv' ? 'FPV' : 'FP';
+    overlayHtml = `<div class="detail-overlay">${fpLabel} + arbetspass</div>`;
+  }
+
+  // Create popup
+  const popup = document.createElement('div');
+  popup.className = 'schedule-day-detail';
+  popup.dataset.dateKey = dateKey;
+  popup.innerHTML = `
+    <div class="detail-header">
+      <span class="detail-date">${dayName} ${dayNum} ${monthName}</span>
+      <span class="detail-close" onclick="event.stopPropagation(); closeExpandedDay()">✕</span>
+    </div>
+    ${typeLabel}
+    ${overlayHtml}
+    <div class="detail-body">
+      ${iconsHtml ? `<div class="detail-icons">${iconsHtml}</div>` : ''}
+      ${turnHtml}
+      ${timeHtml}
+    </div>
+  `;
+
+  // Position the popup
+  const grid = el.closest('.schedule-grid');
+  if (!grid) return;
+  grid.style.position = 'relative';
+
+  const gridRect = grid.getBoundingClientRect();
+  const cellRect = el.getBoundingClientRect();
+
+  // Center popup horizontally on the cell, clamp to grid bounds
+  let left = cellRect.left - gridRect.left + (cellRect.width / 2) - 75;
+  left = Math.max(4, Math.min(left, gridRect.width - 154));
+
+  // Position below cell, or above if near bottom
+  let top = cellRect.bottom - gridRect.top + 6;
+  if (top + 120 > gridRect.height) {
+    top = cellRect.top - gridRect.top - 6;
+    popup.classList.add('above');
+  }
+
+  popup.style.left = `${left}px`;
+  popup.style.top = popup.classList.contains('above') ? 'auto' : `${top}px`;
+  if (popup.classList.contains('above')) {
+    popup.style.bottom = `${gridRect.height - (cellRect.top - gridRect.top)}px`;
+  }
+
+  grid.appendChild(popup);
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', closeExpandedDayOutside, { once: true });
+  }, 10);
+}
+
+function closeExpandedDay() {
+  const existing = document.querySelector('.schedule-day-detail');
+  if (existing) existing.remove();
+  document.querySelectorAll('.schedule-day.expanded').forEach(d => d.classList.remove('expanded'));
+}
+
+function closeExpandedDayOutside(e) {
+  const popup = document.querySelector('.schedule-day-detail');
+  if (popup && !popup.contains(e.target) && !e.target.closest('.schedule-day.expanded')) {
+    closeExpandedDay();
+  }
 }
 
 function renderListIcons(turnNumber) {

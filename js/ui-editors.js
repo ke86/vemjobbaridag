@@ -465,6 +465,136 @@ async function initImportantDates() {
 }
 
 /**
+ * Format description text for safe HTML display.
+ * - Escapes HTML entities to prevent XSS
+ * - Converts URLs (http/https) to clickable <a> links
+ * - Converts newlines to <br> for readability
+ */
+function formatDescription(text) {
+  if (!text) return '';
+
+  // 1. HTML-escape
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  // 2. Convert URLs to clickable links
+  const urlRegex = /(https?:\/\/[^\s<>"']+)/g;
+  const withLinks = escaped.replace(urlRegex, (url) => {
+    // Trim trailing punctuation that's likely not part of the URL
+    let cleanUrl = url;
+    const trailingPunct = /[.,;:!?)]+$/;
+    const match = cleanUrl.match(trailingPunct);
+    let suffix = '';
+    if (match) {
+      suffix = match[0];
+      cleanUrl = cleanUrl.slice(0, -suffix.length);
+    }
+    // Truncate display text if too long
+    const displayUrl = cleanUrl.length > 45
+      ? cleanUrl.substring(0, 42) + '...'
+      : cleanUrl;
+    return `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer" class="desc-link" onclick="event.stopPropagation()">${displayUrl}</a>${suffix}`;
+  });
+
+  // 3. Convert newlines to <br>
+  return withLinks.replace(/\n/g, '<br>');
+}
+
+// Temporary storage for compressed image data URL
+let pendingImageDataUrl = null;
+
+/**
+ * Handle image file selection and show preview
+ */
+function handleImagePreview(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    showToast('Välj en bildfil', 'error');
+    return;
+  }
+
+  // Validate file size (max 10MB before compression)
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Bilden är för stor (max 10MB)', 'error');
+    return;
+  }
+
+  compressImage(file, (dataUrl) => {
+    pendingImageDataUrl = dataUrl;
+    const previewImg = document.getElementById('imagePreviewImg');
+    const placeholder = document.getElementById('imageUploadPlaceholder');
+    const preview = document.getElementById('imageUploadPreview');
+    if (previewImg && placeholder && preview) {
+      previewImg.src = dataUrl;
+      placeholder.style.display = 'none';
+      preview.style.display = 'block';
+    }
+  });
+}
+
+/**
+ * Remove image preview and clear pending image
+ */
+function removeImagePreview() {
+  pendingImageDataUrl = null;
+  const input = document.getElementById('importantDateImage');
+  const placeholder = document.getElementById('imageUploadPlaceholder');
+  const preview = document.getElementById('imageUploadPreview');
+  if (input) input.value = '';
+  if (placeholder) placeholder.style.display = '';
+  if (preview) preview.style.display = 'none';
+}
+
+/**
+ * Compress image using canvas — max 800px wide, JPEG 0.7 quality
+ * Keeps output under ~200KB for Firestore compatibility
+ */
+function compressImage(file, callback) {
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      // Scale down if wider than 800px
+      const MAX_WIDTH = 800;
+      if (width > MAX_WIDTH) {
+        height = Math.round(height * (MAX_WIDTH / width));
+        width = MAX_WIDTH;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Try JPEG at 0.7 quality first
+      let dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+      // If still too large (>800KB), reduce quality further
+      if (dataUrl.length > 800000) {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.5);
+      }
+      if (dataUrl.length > 800000) {
+        dataUrl = canvas.toDataURL('image/jpeg', 0.3);
+      }
+
+      callback(dataUrl);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/**
  * Add a new important date to Firebase
  */
 async function addImportantDate() {
@@ -496,6 +626,11 @@ async function addImportantDate() {
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
 
+  // Add image if one was selected
+  if (pendingImageDataUrl) {
+    newDate.image = pendingImageDataUrl;
+  }
+
   try {
     updateSyncStatus('syncing');
     await db.collection('importantDates').add(newDate);
@@ -505,6 +640,7 @@ async function addImportantDate() {
     dateEl.value = '';
     timeEl.value = '';
     descEl.value = '';
+    removeImagePreview();
 
     showToast('Datum tillagt', 'success');
   } catch (e) {
@@ -556,12 +692,17 @@ function renderImportantDatesList() {
       month: 'short'
     });
 
+    const hasImage = d.image && d.image.length > 0;
+
     return `
       <div class="important-date-item" data-id="${d.id}">
         <div class="important-date-item-header" onclick="toggleImportantDateItem(this)">
-          <div class="date-icon">📌</div>
+          ${hasImage
+            ? `<img class="date-icon-img" src="${d.image}" alt="">`
+            : `<div class="date-icon">📌</div>`
+          }
           <div class="date-info">
-            <div class="date-title">${d.title}</div>
+            <div class="date-title"><span class="marquee-inner">${d.title}</span></div>
             <div class="date-subtitle">${dateStr}</div>
           </div>
           <span class="date-chevron">›</span>
@@ -572,7 +713,8 @@ function renderImportantDatesList() {
               <span>📅 ${dateStr}</span>
               ${d.time ? `<span>🕐 ${d.time}</span>` : ''}
             </div>
-            ${d.description ? `<div class="date-description">${d.description}</div>` : ''}
+            ${hasImage ? `<div class="date-detail-image"><img src="${d.image}" alt="${d.title}"></div>` : ''}
+            ${d.description ? `<div class="date-description">${formatDescription(d.description)}</div>` : ''}
             <button class="date-delete" onclick="deleteImportantDate('${d.id}')">
               🗑️ Radera
             </button>
@@ -581,6 +723,41 @@ function renderImportantDatesList() {
       </div>
     `;
   }).join('');
+
+  // Check for long titles that need marquee scrolling
+  requestAnimationFrame(() => initMarqueeScrolls(listEl));
+}
+
+/**
+ * Initialize marquee scrolling for titles that overflow their container.
+ * Checks each .marquee-inner element — if it's wider than its parent,
+ * adds the marquee-scroll class and sets CSS custom properties for distance/duration.
+ */
+function initMarqueeScrolls(container) {
+  if (!container) return;
+  const titles = container.querySelectorAll('.marquee-inner');
+  titles.forEach(inner => {
+    const parent = inner.parentElement;
+    if (!parent) return;
+
+    // Reset first
+    parent.classList.remove('marquee-scroll');
+    inner.style.removeProperty('--marquee-distance');
+    inner.style.removeProperty('--marquee-duration');
+
+    const innerWidth = inner.scrollWidth;
+    const parentWidth = parent.clientWidth;
+
+    if (innerWidth > parentWidth + 2) {
+      // Calculate how far to scroll (negative = scroll left)
+      const overflow = innerWidth - parentWidth;
+      parent.style.setProperty('--marquee-distance', `-${overflow + 40}px`);
+      // Speed: ~50px/s, min 4s, max 15s
+      const duration = Math.min(15, Math.max(4, (overflow + 40) / 50));
+      parent.style.setProperty('--marquee-duration', `${duration.toFixed(1)}s`);
+      parent.classList.add('marquee-scroll');
+    }
+  });
 }
 
 /**
@@ -628,23 +805,32 @@ function renderImportantDateCards() {
   container.innerHTML = relevantDates.map(d => {
     const timeStr = d.time ? `kl ${d.time}` : '';
     const hasDesc = d.description && d.description.trim().length > 0;
+    const hasImage = d.image && d.image.length > 0;
+    const hasContent = hasDesc || hasImage;
 
     return `
       <div class="important-date-card" onclick="toggleImportantDateCard(this)">
         <div class="important-date-card-header">
-          <span class="important-date-card-icon">📌</span>
-          <span class="important-date-card-title">${d.title}</span>
+          ${hasImage
+            ? `<img class="important-date-card-thumb" src="${d.image}" alt="">`
+            : `<span class="important-date-card-icon">📌</span>`
+          }
+          <span class="important-date-card-title"><span class="marquee-inner">${d.title}</span></span>
           ${timeStr ? `<span class="important-date-card-time">${timeStr}</span>` : ''}
-          ${hasDesc ? `<span class="important-date-card-chevron">▼</span>` : ''}
+          ${hasContent ? `<span class="important-date-card-chevron">▼</span>` : ''}
         </div>
-        ${hasDesc ? `
+        ${hasContent ? `
           <div class="important-date-card-content">
-            <div class="important-date-card-desc">${d.description}</div>
+            ${hasImage ? `<div class="important-date-card-image"><img src="${d.image}" alt="${d.title}"></div>` : ''}
+            ${hasDesc ? `<div class="important-date-card-desc">${formatDescription(d.description)}</div>` : ''}
           </div>
         ` : ''}
       </div>
     `;
   }).join('');
+
+  // Check for long titles that need marquee scrolling
+  requestAnimationFrame(() => initMarqueeScrolls(container));
 }
 
 /**

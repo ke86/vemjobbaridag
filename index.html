@@ -113,6 +113,12 @@
       </label>
     </div>
 
+    <!-- Name Day Banner -->
+    <div class="nameday-banner" id="nameDayBanner" style="display: none;">
+      <span class="nameday-banner-icon">👑</span>
+      <span class="nameday-banner-text" id="nameDayText"></span>
+    </div>
+
     <!-- Employee List -->
     <div class="employee-list" id="employeeList">
       <!-- Cards will be rendered here -->
@@ -255,6 +261,19 @@
               <label class="form-label">Beskrivning (valfritt)</label>
               <textarea class="form-textarea" id="importantDateDesc" placeholder="T.ex. Vägvägen 10, ta med laptop" rows="2"></textarea>
             </div>
+            <div class="form-group">
+              <label class="form-label">Bild (valfritt)</label>
+              <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('importantDateImage').click()">
+                <input type="file" accept="image/*" id="importantDateImage" style="display:none" onchange="handleImagePreview(this)">
+                <div class="image-upload-placeholder" id="imageUploadPlaceholder">
+                  <span>📷</span> Tryck för att välja bild
+                </div>
+                <div class="image-upload-preview" id="imageUploadPreview" style="display:none">
+                  <img id="imagePreviewImg" alt="Förhandsgranskning">
+                  <button type="button" class="image-remove-btn" onclick="event.stopPropagation(); removeImagePreview()">✕</button>
+                </div>
+              </div>
+            </div>
             <button class="important-date-add-btn" onclick="addImportantDate()">
               <span>➕</span> Lägg till datum
             </button>
@@ -336,7 +355,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.9.8</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.10.0</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

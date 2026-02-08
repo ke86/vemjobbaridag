@@ -1253,6 +1253,124 @@ html.dark .holiday-cell {
   box-shadow: inset 0 0 0 2px var(--accent-red);
 }
 
+/* Expanded day cell highlight */
+.schedule-day.expanded {
+  box-shadow: 0 0 0 2px var(--accent-blue);
+  z-index: 2;
+}
+
+/* ==========================================
+   DAY DETAIL POPUP (Calendar expand)
+   ========================================== */
+
+.schedule-day-detail {
+  position: absolute;
+  z-index: 20;
+  width: 150px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 10px 12px;
+  animation: popIn 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.schedule-day-detail.above {
+  /* When positioned above the cell */
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.detail-date {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.detail-close {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.detail-close:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.detail-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  margin-bottom: 4px;
+}
+
+.detail-overlay {
+  font-size: 10px;
+  font-weight: 500;
+  color: #22c55e;
+  margin-bottom: 4px;
+}
+
+.detail-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.detail-icon-flag {
+  width: 28px;
+  height: 28px;
+}
+
+.detail-turn {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: center;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.detail-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  text-align: center;
+}
+
+/* Dark mode shadow */
+html.dark .schedule-day-detail {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
 /* ==========================================
    LIST VIEW (Almanac)
    ========================================== */
@@ -2993,6 +3111,19 @@ html.dark .fridag-remove-error p {
   font-weight: 600;
   font-size: 15px;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+
+.important-date-item .date-title .marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.important-date-item .date-title.marquee-scroll .marquee-inner {
+  animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  padding-right: 3em;
 }
 
 .important-date-item .date-subtitle {
@@ -3045,6 +3176,10 @@ html.dark .fridag-remove-error p {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.4;
+  max-height: 35vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  word-break: break-word;
 }
 
 .important-date-item .date-delete {
@@ -3124,7 +3259,24 @@ html.dark .important-date-item .date-delete {
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  position: relative;
+}
+
+.important-date-card-title .marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.important-date-card-title.marquee-scroll .marquee-inner {
+  animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  padding-right: 3em;
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  10% { transform: translateX(0); }
+  90% { transform: translateX(var(--marquee-distance, -100%)); }
+  100% { transform: translateX(var(--marquee-distance, -100%)); }
 }
 
 .important-date-card-time {
@@ -3153,14 +3305,167 @@ html.dark .important-date-item .date-delete {
 }
 
 .important-date-card.expanded .important-date-card-content {
-  max-height: 150px;
+  max-height: 80vh;
 }
 
 .important-date-card-desc {
-  padding: 0 16px 16px 50px;
+  padding: 0 16px 16px 16px;
   font-size: 14px;
   color: var(--text-secondary);
   line-height: 1.5;
+  max-height: 40vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  word-break: break-word;
+}
+
+/* Scrollbar styling for descriptions */
+.important-date-card-desc::-webkit-scrollbar {
+  width: 4px;
+}
+
+.important-date-card-desc::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.important-date-card-desc::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+/* Clickable links in descriptions */
+.desc-link {
+  color: var(--accent-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  transition: opacity 0.15s;
+}
+
+.desc-link:hover {
+  opacity: 0.8;
+}
+
+.desc-link:active {
+  opacity: 0.6;
+}
+
+/* Thumbnail in card header */
+.important-date-card-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Full image in expanded card */
+.important-date-card-image {
+  padding: 0 16px 12px 16px;
+}
+
+.important-date-card-image img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+/* ==========================================
+   IMAGE UPLOAD (Settings form)
+   ========================================== */
+
+.image-upload-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.image-upload-area:hover {
+  border-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.image-upload-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.image-upload-placeholder span {
+  font-size: 20px;
+}
+
+.image-upload-preview {
+  position: relative;
+}
+
+.image-upload-preview img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.image-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+/* Thumbnail in settings list item */
+.date-icon-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Full image in settings expanded details */
+.date-detail-image {
+  margin-bottom: 10px;
+}
+
+.date-detail-image img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+/* Dark mode adjustments for image upload */
+html.dark .image-upload-area:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+html.dark .image-remove-btn {
+  background: rgba(0, 0, 0, 0.8);
 }
 
 /* ==========================================
