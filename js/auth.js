@@ -186,24 +186,34 @@ async function signInToFirebase() {
   // Already signed in?
   if (auth.currentUser) return true;
 
+  // Step 1: Try to sign in with existing account
   try {
-    // Try to sign in
     await auth.signInWithEmailAndPassword(FIREBASE_AUTH_EMAIL, FIREBASE_AUTH_PASSWORD);
     console.log('Firebase Auth: inloggad');
     return true;
-  } catch (err) {
-    if (err.code === 'auth/user-not-found') {
-      // First time — create the account
+  } catch (signInErr) {
+    console.log('Firebase Auth sign-in fel:', signInErr.code, signInErr.message);
+
+    // Step 2: Account doesn't exist — create it
+    // (auth/user-not-found in older SDK, auth/invalid-credential in newer)
+    if (signInErr.code === 'auth/user-not-found' ||
+        signInErr.code === 'auth/invalid-credential' ||
+        signInErr.code === 'auth/wrong-password') {
       try {
         await auth.createUserWithEmailAndPassword(FIREBASE_AUTH_EMAIL, FIREBASE_AUTH_PASSWORD);
         console.log('Firebase Auth: konto skapat och inloggat');
         return true;
       } catch (createErr) {
-        console.error('Firebase Auth: kunde inte skapa konto:', createErr.message);
+        // auth/email-already-in-use means account exists but password was wrong
+        if (createErr.code === 'auth/email-already-in-use') {
+          console.error('Firebase Auth: kontot finns men lösenordet stämmer inte');
+        } else {
+          console.error('Firebase Auth: kunde inte skapa konto:', createErr.code, createErr.message);
+        }
         return false;
       }
     }
-    console.error('Firebase Auth: inloggning misslyckades:', err.message);
+    console.error('Firebase Auth: oväntat fel:', signInErr.code);
     return false;
   }
 }
