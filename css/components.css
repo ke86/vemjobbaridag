@@ -3833,3 +3833,539 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
     font-size: 7px;
   }
 }
+
+/* ==========================================
+   DAGVY (DAY VIEW) POPUP
+   ========================================== */
+
+.dagvy-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: dagvyFadeIn 0.2s ease;
+}
+
+@keyframes dagvyFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes dagvySlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.dagvy-modal {
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 500px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: dagvySlideUp 0.3s ease;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
+}
+
+.dagvy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 20px 12px;
+  border-bottom: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.dagvy-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dagvy-name {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: #1a1a2e;
+}
+
+.dagvy-loading {
+  font-size: 13px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.dagvy-loading strong {
+  color: #1a1a2e;
+  font-size: 15px;
+}
+
+.dagvy-close {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.dagvy-close:hover {
+  background: #e0e0e0;
+}
+
+.dagvy-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dagvy-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dagvy-body::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.dagvy-footer {
+  padding: 12px 20px 20px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.dagvy-btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dagvy-btn-schedule {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.dagvy-btn-schedule:hover {
+  background: #2d2d4e;
+}
+
+/* Spinner */
+.dagvy-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #eee;
+  border-top-color: #1a1a2e;
+  border-radius: 50%;
+  animation: dagvySpin 0.7s linear infinite;
+  margin: 40px auto;
+}
+
+@keyframes dagvySpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.dagvy-empty {
+  text-align: center;
+  padding: 30px 0;
+  color: #888;
+}
+
+.dagvy-empty-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.dagvy-empty p {
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Section titles */
+.dagvy-section {
+  margin-bottom: 20px;
+}
+
+.dagvy-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---- Timeline (segments) ---- */
+.dagvy-timeline {
+  position: relative;
+  padding-left: 4px;
+}
+
+.dagvy-seg {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  position: relative;
+}
+
+.dagvy-seg-time {
+  width: 42px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+  text-align: right;
+  line-height: 1.3;
+  flex-shrink: 0;
+}
+
+.dagvy-seg-time-end {
+  font-weight: 400;
+  color: #999;
+  font-size: 11px;
+}
+
+.dagvy-seg-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ddd;
+  flex-shrink: 0;
+  margin-top: 3px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Line connecting dots */
+.dagvy-seg:not(:last-child) .dagvy-seg-dot::after {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 4px;
+  width: 2px;
+  height: calc(100% + 12px);
+  background: #e0e0e0;
+  z-index: 0;
+}
+
+.dagvy-seg-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.dagvy-seg-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.dagvy-seg-route {
+  font-size: 12px;
+  color: #888;
+  margin-top: 1px;
+}
+
+.dagvy-seg-vehicle {
+  display: inline-block;
+  background: #f0f0f0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #555;
+  margin-left: 4px;
+}
+
+/* Segment type colors */
+.dagvy-seg-train .dagvy-seg-dot { background: #2563eb; }
+.dagvy-seg-train .dagvy-seg-label { color: #2563eb; }
+
+.dagvy-seg-rast .dagvy-seg-dot { background: #22c55e; }
+.dagvy-seg-rast .dagvy-seg-label { color: #22c55e; }
+
+.dagvy-seg-disp .dagvy-seg-dot { background: #f59e0b; }
+.dagvy-seg-disp .dagvy-seg-label { color: #a16207; }
+
+.dagvy-seg-gang .dagvy-seg-dot { background: #a3a3a3; }
+.dagvy-seg-gang .dagvy-seg-label { color: #888; font-weight: 400; }
+
+/* ---- Crews per train ---- */
+.dagvy-crew-block {
+  background: #f8f9fa;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.dagvy-crew-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.dagvy-crew-header:hover {
+  background: #f0f1f3;
+}
+
+.dagvy-crew-train {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.dagvy-crew-vehicles {
+  font-size: 11px;
+  color: #888;
+  background: #e8e8e8;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.dagvy-crew-chevron {
+  margin-left: auto;
+  font-size: 18px;
+  color: #aaa;
+  transition: transform 0.2s;
+}
+
+.dagvy-crew-block.expanded .dagvy-crew-chevron {
+  transform: rotate(90deg);
+}
+
+.dagvy-crew-list {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.dagvy-crew-block.expanded .dagvy-crew-list {
+  max-height: 600px;
+}
+
+.dagvy-crew-person {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid #eee;
+}
+
+.dagvy-crew-me {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.dagvy-crew-person-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dagvy-crew-role {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.dagvy-crew-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dagvy-crew-me .dagvy-crew-name {
+  color: #2563eb;
+}
+
+.dagvy-crew-person-detail {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  padding-left: 26px;
+}
+
+.dagvy-crew-time {
+  font-size: 11px;
+  color: #888;
+  font-weight: 500;
+}
+
+.dagvy-crew-leg {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.dagvy-crew-phone {
+  font-size: 16px;
+  text-decoration: none;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.dagvy-crew-phone:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+/* ---- Dark mode ---- */
+.dark .dagvy-modal {
+  background: #1a1a2e;
+}
+
+.dark .dagvy-header {
+  border-bottom-color: #2d2d4e;
+}
+
+.dark .dagvy-name {
+  color: #e8e8e8;
+}
+
+.dark .dagvy-loading {
+  color: #999;
+}
+
+.dark .dagvy-loading strong {
+  color: #e8e8e8;
+}
+
+.dark .dagvy-close {
+  background: #2d2d4e;
+  color: #ccc;
+}
+
+.dark .dagvy-close:hover {
+  background: #3d3d5e;
+}
+
+.dark .dagvy-footer {
+  border-top-color: #2d2d4e;
+}
+
+.dark .dagvy-btn-schedule {
+  background: #4a4aff;
+}
+
+.dark .dagvy-btn-schedule:hover {
+  background: #5a5aff;
+}
+
+.dark .dagvy-spinner {
+  border-color: #2d2d4e;
+  border-top-color: #7a7aff;
+}
+
+.dark .dagvy-section-title {
+  color: #ccc;
+}
+
+.dark .dagvy-seg-time {
+  color: #ccc;
+}
+
+.dark .dagvy-seg-time-end {
+  color: #666;
+}
+
+.dark .dagvy-seg-dot {
+  background: #444;
+}
+
+.dark .dagvy-seg:not(:last-child) .dagvy-seg-dot::after {
+  background: #333;
+}
+
+.dark .dagvy-seg-label {
+  color: #ddd;
+}
+
+.dark .dagvy-seg-route {
+  color: #777;
+}
+
+.dark .dagvy-seg-vehicle {
+  background: #2d2d4e;
+  color: #aaa;
+}
+
+.dark .dagvy-seg-train .dagvy-seg-label { color: #60a5fa; }
+.dark .dagvy-seg-rast .dagvy-seg-label { color: #4ade80; }
+.dark .dagvy-seg-disp .dagvy-seg-label { color: #fbbf24; }
+
+.dark .dagvy-crew-block {
+  background: #16162b;
+}
+
+.dark .dagvy-crew-header:hover {
+  background: #1e1e3a;
+}
+
+.dark .dagvy-crew-train {
+  color: #e8e8e8;
+}
+
+.dark .dagvy-crew-vehicles {
+  background: #2d2d4e;
+  color: #999;
+}
+
+.dark .dagvy-crew-chevron {
+  color: #666;
+}
+
+.dark .dagvy-crew-person {
+  border-top-color: #2d2d4e;
+}
+
+.dark .dagvy-crew-me {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.dark .dagvy-crew-name {
+  color: #ddd;
+}
+
+.dark .dagvy-crew-me .dagvy-crew-name {
+  color: #60a5fa;
+}
+
+.dark .dagvy-crew-time {
+  color: #777;
+}
+
+.dark .dagvy-crew-leg {
+  color: #555;
+}
+
+.dark .dagvy-crew-phone:hover {
+  background: rgba(96, 165, 250, 0.15);
+}
+
+.dark .dagvy-empty {
+  color: #777;
+}

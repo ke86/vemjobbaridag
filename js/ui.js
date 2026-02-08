@@ -410,7 +410,7 @@ function renderEmployees() {
     const badgeHtml = (shift.isBirthdayOnly || shift.isNameDayOnly) ? '' : renderBadgeWithToggle(shift);
 
     return `
-      <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="goToPersonSchedule('${shift.employeeId}')">
+      <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
           <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}</div>
           <div class="employee-time">${timeDisplay}</div>
@@ -564,6 +564,232 @@ function goToPersonSchedule(employeeId) {
   headerTitle.textContent = 'Schema';
   closeSidebarMenu();
   showPersonScheduleView(employeeId);
+}
+
+// ==========================================
+// DAGVY (DAY VIEW) - DETAILED SHIFT INFO
+// ==========================================
+
+// Cache for dagvy data per employee
+const dagvyCache = {};
+
+/**
+ * Fetch dagvy data from Firestore for a given employee name
+ */
+async function fetchDagvy(employeeName) {
+  // Check cache first (cache for 5 minutes)
+  const cached = dagvyCache[employeeName];
+  if (cached && (Date.now() - cached.timestamp < 5 * 60 * 1000)) {
+    return cached.data;
+  }
+
+  try {
+    const doc = await db.collection('dagvy').doc(employeeName).get();
+    if (doc.exists) {
+      const data = doc.data();
+      dagvyCache[employeeName] = { data, timestamp: Date.now() };
+      return data;
+    }
+    return null;
+  } catch (err) {
+    console.log('Dagvy fetch error: ' + err.message);
+    return null;
+  }
+}
+
+/**
+ * Show dagvy popup when clicking on an employee card
+ */
+async function showDagvyPopup(employeeId) {
+  const emp = registeredEmployees[employeeId];
+  if (!emp) return;
+
+  // Create loading modal
+  const overlay = document.createElement('div');
+  overlay.className = 'dagvy-overlay';
+  overlay.id = 'dagvyOverlay';
+  overlay.innerHTML = `
+    <div class="dagvy-modal">
+      <div class="dagvy-header">
+        <div class="dagvy-header-info">
+          <h2 class="dagvy-name">${emp.name}</h2>
+          <div class="dagvy-loading">Hämtar dagvy...</div>
+        </div>
+        <button class="dagvy-close" onclick="closeDagvy()">✕</button>
+      </div>
+      <div class="dagvy-body" id="dagvyBody">
+        <div class="dagvy-spinner"></div>
+      </div>
+      <div class="dagvy-footer">
+        <button class="dagvy-btn dagvy-btn-schedule" onclick="closeDagvy(); goToPersonSchedule('${employeeId}')">
+          📅 Visa schema
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Close on overlay click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeDagvy();
+  });
+
+  // Fetch data
+  const data = await fetchDagvy(emp.name);
+  const body = document.getElementById('dagvyBody');
+  const loadingEl = overlay.querySelector('.dagvy-loading');
+  if (!body) return;
+
+  if (!data || !data.days || data.days.length === 0) {
+    if (loadingEl) loadingEl.textContent = 'Ingen dagvy tillgänglig';
+    body.innerHTML = `
+      <div class="dagvy-empty">
+        <div class="dagvy-empty-icon">🚫</div>
+        <p>Ingen dagvy hittades för ${emp.name}</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Find today's dagvy (match currentDate)
+  const dateKey = getDateKey(currentDate);
+  const todayDagvy = data.days.find(d => d.date === dateKey);
+
+  if (!todayDagvy || todayDagvy.notFound) {
+    if (loadingEl) loadingEl.textContent = todayDagvy ? 'Turdatan saknas' : 'Ingen tur idag';
+    body.innerHTML = `
+      <div class="dagvy-empty">
+        <div class="dagvy-empty-icon">📋</div>
+        <p>Ingen turdata för ${formatDate(currentDate)}</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Update header with turn info
+  if (loadingEl) {
+    loadingEl.innerHTML = `Tur <strong>${todayDagvy.turnr}</strong> &nbsp;·&nbsp; ${todayDagvy.start} – ${todayDagvy.end}`;
+  }
+
+  // Build the dagvy content
+  body.innerHTML = buildDagvyContent(todayDagvy, emp.name);
+}
+
+/**
+ * Build dagvy HTML content from a day's data
+ */
+function buildDagvyContent(dayData, employeeName) {
+  let html = '';
+
+  // === SEGMENTS TIMELINE ===
+  if (dayData.segments && dayData.segments.length > 0) {
+    html += '<div class="dagvy-section">';
+    html += '<h3 class="dagvy-section-title">🚂 Tidslinje</h3>';
+    html += '<div class="dagvy-timeline">';
+
+    for (const seg of dayData.segments) {
+      const isTrain = seg.trainNr && seg.trainNr.length > 0;
+      const isRast = seg.activity && (seg.activity.includes('Rast') || seg.activity === 'Rasto');
+      const isDisp = seg.activity === 'Disponibel';
+      const isGang = seg.activity === 'Gångtid';
+
+      let segClass = 'dagvy-seg-activity';
+      if (isTrain) segClass = 'dagvy-seg-train';
+      else if (isRast) segClass = 'dagvy-seg-rast';
+      else if (isDisp) segClass = 'dagvy-seg-disp';
+      else if (isGang) segClass = 'dagvy-seg-gang';
+
+      const label = isTrain
+        ? `${seg.trainType === 'Växling' ? '🔀' : '🚆'} Tåg ${seg.trainNr}`
+        : (seg.activity || '–');
+
+      const route = (seg.fromStation !== seg.toStation)
+        ? `${seg.fromStation} → ${seg.toStation}`
+        : seg.fromStation;
+
+      const vehicleStr = seg.vehicles && seg.vehicles.length > 0
+        ? `<span class="dagvy-seg-vehicle">${seg.vehicles.join(', ')}</span>`
+        : '';
+
+      html += `
+        <div class="dagvy-seg ${segClass}">
+          <div class="dagvy-seg-time">${seg.timeStart}<br><span class="dagvy-seg-time-end">${seg.timeEnd}</span></div>
+          <div class="dagvy-seg-dot"></div>
+          <div class="dagvy-seg-content">
+            <div class="dagvy-seg-label">${label}</div>
+            <div class="dagvy-seg-route">${route} ${vehicleStr}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    html += '</div></div>';
+  }
+
+  // === CREWS PER TRAIN ===
+  if (dayData.crews && dayData.crews.length > 0) {
+    html += '<div class="dagvy-section">';
+    html += '<h3 class="dagvy-section-title">👥 Personal på tågen</h3>';
+
+    for (const trainCrew of dayData.crews) {
+      const vehicleStr = trainCrew.vehicles && trainCrew.vehicles.length > 0
+        ? `<span class="dagvy-crew-vehicles">${trainCrew.vehicles.join(', ')}</span>`
+        : '';
+
+      html += `<div class="dagvy-crew-block">`;
+      html += `<div class="dagvy-crew-header" onclick="this.parentElement.classList.toggle('expanded')">`;
+      html += `<span class="dagvy-crew-train">🚆 Tåg ${trainCrew.trainNr}</span>`;
+      html += vehicleStr;
+      html += `<span class="dagvy-crew-chevron">›</span>`;
+      html += `</div>`;
+      html += `<div class="dagvy-crew-list">`;
+
+      // Group by unique persons
+      const personMap = {};
+      for (const c of trainCrew.crew) {
+        const key = c.name;
+        if (!personMap[key]) {
+          personMap[key] = { ...c, legs: [] };
+        }
+        personMap[key].legs.push({ from: c.fromStation, to: c.toStation, start: c.timeStart, end: c.timeEnd });
+      }
+
+      for (const person of Object.values(personMap)) {
+        const isMe = person.name === employeeName;
+        const roleIcon = person.role === 'Lokförare' ? '🚂' : '🎫';
+        const legSummary = person.legs.map(l => `${l.from}→${l.to}`).join(', ');
+        const timeRange = `${person.legs[0].start}–${person.legs[person.legs.length - 1].end}`;
+
+        html += `
+          <div class="dagvy-crew-person ${isMe ? 'dagvy-crew-me' : ''}">
+            <div class="dagvy-crew-person-main">
+              <span class="dagvy-crew-role">${roleIcon}</span>
+              <span class="dagvy-crew-name">${person.name}</span>
+            </div>
+            <div class="dagvy-crew-person-detail">
+              <span class="dagvy-crew-time">${timeRange}</span>
+              <span class="dagvy-crew-leg">${legSummary}</span>
+            </div>
+            ${person.phone ? `<a href="tel:${person.phone}" class="dagvy-crew-phone" onclick="event.stopPropagation()">📞</a>` : ''}
+          </div>
+        `;
+      }
+
+      html += '</div></div>';
+    }
+
+    html += '</div>';
+  }
+
+  return html;
+}
+
+/**
+ * Close dagvy popup
+ */
+function closeDagvy() {
+  const overlay = document.getElementById('dagvyOverlay');
+  if (overlay) overlay.remove();
 }
 
 // Count FP and FPV badges for an employee within the calendar year (Jan 1 - Dec 31)
