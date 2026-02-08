@@ -763,7 +763,7 @@ const SWEDISH_NAME_DAYS = {
   '07-16': ['Reinhold', 'Reine'],
   '07-17': ['Bruno', 'Brynolf'],
   '07-18': ['Fredrik', 'Fritz'],
-  '07-19': ['Sara', 'Sally'],
+  '07-19': ['Sara', 'Sally', 'Zara'],
   '07-20': ['Margareta', 'Greta'],
   '07-21': ['Johanna', 'Jane'],
   '07-22': ['Magdalena', 'Madeleine'],
