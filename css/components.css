@@ -4027,12 +4027,26 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 }
 
 /* Zebra striping */
+.dagvy-seg:nth-child(odd) {
+  background: #fff;
+}
+
 .dagvy-seg:nth-child(even) {
   background: #f4f5f7;
 }
 
-.dagvy-seg:nth-child(odd) {
-  background: #fff;
+/* Train number badge */
+.dagvy-train-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .dagvy-seg-time {
@@ -4080,34 +4094,36 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 }
 
 .dagvy-seg-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 600;
   color: #333;
-  line-height: 1.3;
+  line-height: 1.4;
+  flex-wrap: wrap;
 }
 
-.dagvy-train-badge {
-  display: inline-block;
-  background: #e0e7ff;
-  color: #3b53c6;
-  padding: 1px 7px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  margin-left: 6px;
-  vertical-align: middle;
+.dagvy-seg-route-text {
+  white-space: nowrap;
+}
+
+.dagvy-seg-route {
+  font-size: 12px;
+  color: #888;
+  margin-top: 1px;
 }
 
 .dagvy-seg-vehicle {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   background: #f0f0f0;
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
+  flex-shrink: 0;
   color: #555;
-  margin-left: 4px;
-  vertical-align: middle;
 }
 
 /* Segment type colors */
@@ -4135,14 +4151,15 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 }
 
 .dagvy-seg-crew-hint {
-  margin-left: 8px;
+  margin-left: auto;
   font-size: 12px;
   color: #aaa;
   transition: transform 0.2s;
+  flex-shrink: 0;
 }
 
 .dagvy-seg-clickable.crew-open .dagvy-seg-crew-hint {
-  display: inline-block;
+  display: inline-flex;
   transform: rotate(90deg);
 }
 
@@ -4151,14 +4168,16 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   overflow: hidden;
   transition: max-height 0.35s ease;
   margin-top: 0;
-  margin-left: 38px;
+  margin-left: 62px;
   border-left: 2px solid #dbe4f0;
   padding-left: 10px;
+  width: calc(100% - 74px);
 }
 
 .dagvy-seg-clickable.crew-open .dagvy-inline-crew {
   max-height: 800px;
-  margin-top: 8px;
+  margin-top: 6px;
+  padding-bottom: 4px;
 }
 
 .dagvy-inline-vehicles {
@@ -4337,23 +4356,25 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   color: #ddd;
 }
 
-/* Dark zebra striping */
-.dark .dagvy-seg:nth-child(even) {
-  background: rgba(255, 255, 255, 0.03);
+.dark .dagvy-seg-route {
+  color: #777;
+}
+
+.dark .dagvy-seg-vehicle {
+  background: #2d2d4e;
+  color: #aaa;
 }
 
 .dark .dagvy-seg:nth-child(odd) {
   background: transparent;
 }
 
-.dark .dagvy-train-badge {
-  background: #1e2a5e;
-  color: #93b4ff;
+.dark .dagvy-seg:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.dark .dagvy-seg-vehicle {
-  background: #2d2d4e;
-  color: #aaa;
+.dark .dagvy-train-badge {
+  background: #3b82f6;
 }
 
 .dark .dagvy-seg-train .dagvy-seg-label { color: #60a5fa; }

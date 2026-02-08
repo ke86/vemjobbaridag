@@ -834,20 +834,26 @@ function buildDagvyContent(dayData, employeeName) {
         ? `${seg.fromStation} → ${seg.toStation}`
         : seg.fromStation;
 
-      const trainBadge = isTrain
-        ? `<span class="dagvy-train-badge">${seg.trainType === 'Växling' ? '🔀 ' : ''}${seg.trainNr}</span>`
-        : '';
-
-      const label = isTrain ? route : (seg.activity || '–');
-
-      const vehicleStr = seg.vehicles && seg.vehicles.length > 0
-        ? `<span class="dagvy-seg-vehicle">${seg.vehicles.join(', ')}</span>`
-        : '';
-
       // Check if this train has crew data
       const hasCrew = isTrain && crewByTrain[seg.trainNr];
       const clickAttr = hasCrew ? `onclick="this.classList.toggle('crew-open')"` : '';
       const clickableClass = hasCrew ? ' dagvy-seg-clickable' : '';
+
+      // Build the label content
+      let labelHtml = '';
+      if (isTrain) {
+        // Train: route + badge + vehicle + crew hint — all on one line
+        const vxIcon = seg.trainType === 'Växling' ? '🔀 ' : '';
+        const vehBadge = seg.vehicles && seg.vehicles.length > 0
+          ? `<span class="dagvy-seg-vehicle">${seg.vehicles.join(', ')}</span>` : '';
+        const crewHint = hasCrew ? '<span class="dagvy-seg-crew-hint">👥 ›</span>' : '';
+        labelHtml = `<span class="dagvy-seg-route-text">${route}</span>`
+          + `<span class="dagvy-train-badge">${vxIcon}${seg.trainNr}</span>`
+          + vehBadge + crewHint;
+      } else {
+        // Non-train: activity name, station below
+        labelHtml = seg.activity || '–';
+      }
 
       // Build inline crew HTML for this train
       let crewHtml = '';
@@ -900,7 +906,8 @@ function buildDagvyContent(dayData, employeeName) {
           <div class="dagvy-seg-time">${seg.timeStart}<br><span class="dagvy-seg-time-end">${seg.timeEnd}</span></div>
           <div class="dagvy-seg-dot"></div>
           <div class="dagvy-seg-content">
-            <div class="dagvy-seg-label">${label} ${trainBadge} ${vehicleStr}${hasCrew ? '<span class="dagvy-seg-crew-hint">👥 ›</span>' : ''}</div>
+            <div class="dagvy-seg-label">${labelHtml}</div>
+            ${!isTrain ? '<div class="dagvy-seg-route">' + route + '</div>' : ''}
           </div>
           ${crewHtml}
         </div>
