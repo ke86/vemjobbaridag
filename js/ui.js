@@ -635,81 +635,72 @@ async function fetchDagvyREST(employeeName) {
 }
 
 /**
+ * Normalize a name string: replace ALL unicode whitespace with regular space,
+ * collapse multiple spaces, trim, and NFC normalize
+ */
+function normalizeName(str) {
+  return str
+    .normalize('NFC')
+    .replace(/[\s\u00A0\u2000-\u200B\u202F\u205F\u3000\uFEFF]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * Fetch dagvy data for a given employee name
- * Trims names to avoid invisible whitespace mismatches
+ * Uses aggressive normalization to handle invisible character mismatches
  */
 async function fetchDagvy(employeeName) {
-  // CRITICAL: trim whitespace — employee names may have trailing spaces
-  const trimmedName = employeeName.trim();
+  const normalizedSearch = normalizeName(employeeName);
 
   // Check cache first (cache for 5 minutes)
-  const cached = dagvyCache[trimmedName];
+  const cached = dagvyCache[normalizedSearch];
   if (cached && (Date.now() - cached.timestamp < 5 * 60 * 1000)) {
     return cached.data;
   }
 
   const debug = [];
-  debug.push('Söknamn: "' + trimmedName + '" (len=' + trimmedName.length + ', orig=' + employeeName.length + ')');
+  // Show char codes to identify invisible character differences
+  const searchCodes = Array.from(employeeName).map(function(c) { return c.charCodeAt(0); }).join(',');
+  debug.push('Sök: "' + employeeName + '" codes=[' + searchCodes + ']');
 
-  // Method 1: REST API with trimmed name
+  // Method 1: REST API
   try {
     debug.push('REST: försöker...');
-    const restData = await fetchDagvyREST(trimmedName);
+    const restData = await fetchDagvyREST(employeeName.trim());
     if (restData) {
       debug.push('REST: hittade data!');
-      dagvyCache[trimmedName] = { data: restData, timestamp: Date.now() };
+      dagvyCache[normalizedSearch] = { data: restData, timestamp: Date.now() };
       return { ...restData, _debug: debug };
     }
-    debug.push('REST: 404 (ej hittad)');
+    debug.push('REST: 404');
   } catch (restErr) {
     debug.push('REST-fel: ' + restErr.message);
   }
 
-  // Method 2: Firestore SDK direct doc with trimmed name
+  // Method 2: SDK list ALL dagvy docs and normalize-match
   try {
-    debug.push('SDK: försöker doc...');
-    const doc = await db.collection('dagvy').doc(trimmedName).get();
-    debug.push('SDK doc.exists: ' + doc.exists);
-    if (doc.exists) {
-      const data = doc.data();
-      dagvyCache[trimmedName] = { data, timestamp: Date.now() };
-      return { ...data, _debug: debug };
-    }
-  } catch (sdkErr) {
-    debug.push('SDK-fel: ' + (sdkErr.code || '') + ' ' + sdkErr.message);
-  }
-
-  // Method 3: SDK list ALL dagvy docs and fuzzy match (trim both sides)
-  try {
-    debug.push('SDK: hämtar alla dagvy-docs...');
+    debug.push('SDK: hämtar alla docs...');
     const allDocs = await db.collection('dagvy').get();
-    debug.push('Antal docs: ' + allDocs.size);
-    const lowerName = trimmedName.toLowerCase();
+    debug.push('Antal: ' + allDocs.size);
     let foundData = null;
     allDocs.forEach(function(d) {
-      const docId = d.id.trim();
-      debug.push('Doc: "' + docId + '" (len=' + docId.length + ')');
-      if (!foundData) {
-        if (docId === trimmedName || docId.toLowerCase() === lowerName) {
-          foundData = d.data();
-          debug.push('MATCH!');
-        } else {
-          const dData = d.data();
-          const pn = dData.personName ? dData.personName.trim() : '';
-          if (pn.toLowerCase() === lowerName) {
-            foundData = dData;
-            debug.push('MATCH på personName!');
-          }
-        }
+      const docCodes = Array.from(d.id).map(function(c) { return c.charCodeAt(0); }).join(',');
+      debug.push('Doc: "' + d.id + '" codes=[' + docCodes + ']');
+      const normalizedDoc = normalizeName(d.id);
+      debug.push('Norm: "' + normalizedDoc + '" vs "' + normalizedSearch + '" → ' + (normalizedDoc === normalizedSearch));
+      if (!foundData && normalizedDoc === normalizedSearch) {
+        foundData = d.data();
+        debug.push('MATCH!');
       }
     });
     if (foundData) {
-      dagvyCache[trimmedName] = { data: foundData, timestamp: Date.now() };
+      dagvyCache[normalizedSearch] = { data: foundData, timestamp: Date.now() };
       return { ...foundData, _debug: debug };
     }
-    debug.push('Ingen match bland ' + allDocs.size + ' docs');
+    debug.push('Ingen match');
   } catch (listErr) {
-    debug.push('List-fel: ' + (listErr.code || '') + ' ' + listErr.message);
+    debug.push('Fel: ' + (listErr.code || '') + ' ' + listErr.message);
   }
 
   return { _notFound: true, _debug: debug };
@@ -731,7 +722,7 @@ async function showDagvyPopup(employeeId) {
       <div class="dagvy-header">
         <div class="dagvy-header-info">
           <h2 class="dagvy-name">${emp.name}</h2>
-          <div class="dagvy-loading">Hämtar dagvy... (v4.10.6)</div>
+          <div class="dagvy-loading">Hämtar dagvy... (v4.10.7)</div>
         </div>
         <button class="dagvy-close" onclick="closeDagvy()">✕</button>
       </div>
@@ -762,18 +753,18 @@ async function showDagvyPopup(employeeId) {
 
   // Get debug info from fetchDagvy
   const debugLines = (data && data._debug) ? data._debug : ['ingen debug'];
-  debugLines.unshift('v4.10.6 | Namn: "' + emp.name + '"');
+  debugLines.unshift('v4.10.7 | Namn: "' + emp.name + '"');
 
   if (!data || data._notFound || !data.days || data.days.length === 0) {
     if (loadingEl) loadingEl.textContent = 'Dagvy debug';
     body.innerHTML = `
       <div class="dagvy-empty">
         <div class="dagvy-empty-icon">🔍</div>
-        <p><strong>Debug-info (v4.10.6):</strong></p>
+        <p><strong>Debug-info (v4.10.7):</strong></p>
         <div style="font-size:12px;color:#333;margin-top:8px;text-align:left;padding:12px;background:#ffffcc;border:2px solid #cc0;border-radius:8px;line-height:1.8;">
           ${debugLines.map(function(l) { return '• ' + l; }).join('<br>')}
         </div>
-        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.6" ovan fungerar cachen rätt.</p>
+        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.7" ovan fungerar cachen rätt.</p>
       </div>
     `;
     return;
