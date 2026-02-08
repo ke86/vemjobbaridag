@@ -173,6 +173,42 @@ async function loadSetting(key) {
 }
 
 // ==========================================
+// FIREBASE AUTH FUNCTIONS
+// ==========================================
+
+/**
+ * Sign in to Firebase Auth with shared service account.
+ * Creates the account automatically on first use.
+ */
+async function signInToFirebase() {
+  const auth = firebase.auth();
+
+  // Already signed in?
+  if (auth.currentUser) return true;
+
+  try {
+    // Try to sign in
+    await auth.signInWithEmailAndPassword(FIREBASE_AUTH_EMAIL, FIREBASE_AUTH_PASSWORD);
+    console.log('Firebase Auth: inloggad');
+    return true;
+  } catch (err) {
+    if (err.code === 'auth/user-not-found') {
+      // First time — create the account
+      try {
+        await auth.createUserWithEmailAndPassword(FIREBASE_AUTH_EMAIL, FIREBASE_AUTH_PASSWORD);
+        console.log('Firebase Auth: konto skapat och inloggat');
+        return true;
+      } catch (createErr) {
+        console.error('Firebase Auth: kunde inte skapa konto:', createErr.message);
+        return false;
+      }
+    }
+    console.error('Firebase Auth: inloggning misslyckades:', err.message);
+    return false;
+  }
+}
+
+// ==========================================
 // AUTH FUNCTIONS
 // ==========================================
 
@@ -189,6 +225,9 @@ async function initAuth() {
     loginLoading.classList.remove('active');
 
     try {
+      // Sign in to Firebase Auth first
+      await signInToFirebase();
+
       await loadDataFromFirebase();
       setupRealtimeListeners();
       isLoggedIn = true;
@@ -243,6 +282,15 @@ async function handleLogin() {
   loginLoading.classList.add('active');
 
   try {
+    // Sign in to Firebase Auth
+    const authOk = await signInToFirebase();
+    if (!authOk) {
+      showLoginError('Kunde inte autentisera med Firebase');
+      loginBtn.style.display = 'block';
+      loginLoading.classList.remove('active');
+      return;
+    }
+
     // Load data from Firebase
     await loadDataFromFirebase();
 

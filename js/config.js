@@ -16,6 +16,11 @@ const firebaseConfig = {
 // App Password
 const APP_PASSWORD = 'Gnällsoffan2026!';
 
+// Firebase Auth - shared service account
+// Used by both the main app and the dagvy scraper
+const FIREBASE_AUTH_EMAIL = 'app@vemjobbaridag.se';
+const FIREBASE_AUTH_PASSWORD = APP_PASSWORD;
+
 // Available colors for employee avatars
 const employeeColors = ['green', 'blue', 'purple', 'orange', 'pink', 'teal'];
 
