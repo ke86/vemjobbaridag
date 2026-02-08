@@ -574,8 +574,60 @@ function goToPersonSchedule(employeeId) {
 const dagvyCache = {};
 
 /**
- * Fetch dagvy data from Firestore for a given employee name
- * Tries exact match first, then case-insensitive search
+ * Parse Firestore REST API response value into plain JS object
+ */
+function parseFirestoreValue(val) {
+  if (!val) return null;
+  if ('stringValue' in val) return val.stringValue;
+  if ('integerValue' in val) return Number(val.integerValue);
+  if ('doubleValue' in val) return val.doubleValue;
+  if ('booleanValue' in val) return val.booleanValue;
+  if ('nullValue' in val) return null;
+  if ('timestampValue' in val) return val.timestampValue;
+  if ('arrayValue' in val) {
+    return (val.arrayValue.values || []).map(parseFirestoreValue);
+  }
+  if ('mapValue' in val) {
+    const obj = {};
+    const fields = val.mapValue.fields || {};
+    for (const key of Object.keys(fields)) {
+      obj[key] = parseFirestoreValue(fields[key]);
+    }
+    return obj;
+  }
+  return null;
+}
+
+/**
+ * Parse full Firestore REST document into plain JS object
+ */
+function parseFirestoreDoc(doc) {
+  const result = {};
+  const fields = doc.fields || {};
+  for (const key of Object.keys(fields)) {
+    result[key] = parseFirestoreValue(fields[key]);
+  }
+  return result;
+}
+
+/**
+ * Fetch dagvy data from Firestore REST API (bypasses SDK security rules issues)
+ */
+async function fetchDagvyREST(employeeName) {
+  const encoded = encodeURIComponent(employeeName);
+  const url = 'https://firestore.googleapis.com/v1/projects/vemjobbaridag/databases/(default)/documents/dagvy/' + encoded;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    if (resp.status === 404) return null;
+    throw new Error('REST ' + resp.status + ': ' + resp.statusText);
+  }
+  const json = await resp.json();
+  return parseFirestoreDoc(json);
+}
+
+/**
+ * Fetch dagvy data for a given employee name
+ * Uses REST API first (most reliable), falls back to SDK
  */
 async function fetchDagvy(employeeName) {
   // Check cache first (cache for 5 minutes)
@@ -584,44 +636,54 @@ async function fetchDagvy(employeeName) {
     return cached.data;
   }
 
+  const debug = [];
+
+  // Method 1: REST API (bypasses SDK/security rules)
   try {
-    // Try exact match first
+    debug.push('REST: försöker...');
+    const restData = await fetchDagvyREST(employeeName);
+    if (restData) {
+      debug.push('REST: hittade data!');
+      dagvyCache[employeeName] = { data: restData, timestamp: Date.now() };
+      return { ...restData, _debug: debug };
+    }
+    debug.push('REST: 404 (ej hittad)');
+  } catch (restErr) {
+    debug.push('REST-fel: ' + restErr.message);
+  }
+
+  // Method 2: Firestore SDK direct doc
+  try {
+    debug.push('SDK: försöker doc...');
     const doc = await db.collection('dagvy').doc(employeeName).get();
+    debug.push('SDK doc.exists: ' + doc.exists);
     if (doc.exists) {
       const data = doc.data();
       dagvyCache[employeeName] = { data, timestamp: Date.now() };
-      return data;
+      return { ...data, _debug: debug };
     }
+  } catch (sdkErr) {
+    debug.push('SDK-fel: ' + (sdkErr.code || '') + ' ' + sdkErr.message);
+  }
 
-    // If not found, search by personName field
+  // Method 3: SDK query by personName
+  try {
+    debug.push('SDK: försöker query...');
     const snapshot = await db.collection('dagvy')
       .where('personName', '==', employeeName)
       .limit(1)
       .get();
-
     if (!snapshot.empty) {
       const data = snapshot.docs[0].data();
       dagvyCache[employeeName] = { data, timestamp: Date.now() };
-      return data;
+      return { ...data, _debug: debug };
     }
-
-    // Last resort: fetch all dagvy docs and do case-insensitive match
-    const allDocs = await db.collection('dagvy').get();
-    const lowerName = employeeName.toLowerCase();
-    for (const d of allDocs.docs) {
-      const dData = d.data();
-      if (d.id.toLowerCase() === lowerName ||
-          (dData.personName && dData.personName.toLowerCase() === lowerName)) {
-        dagvyCache[employeeName] = { data: dData, timestamp: Date.now() };
-        return dData;
-      }
-    }
-
-    return null;
-  } catch (err) {
-    // Return error info so the UI can show it
-    return { _error: err.message || 'Okänt fel' };
+    debug.push('SDK query: tom');
+  } catch (queryErr) {
+    debug.push('Query-fel: ' + queryErr.message);
   }
+
+  return { _notFound: true, _debug: debug };
 }
 
 /**
@@ -640,12 +702,13 @@ async function showDagvyPopup(employeeId) {
       <div class="dagvy-header">
         <div class="dagvy-header-info">
           <h2 class="dagvy-name">${emp.name}</h2>
-          <div class="dagvy-loading">Hämtar dagvy...</div>
+          <div class="dagvy-loading">Hämtar dagvy... (v4.10.4)</div>
         </div>
         <button class="dagvy-close" onclick="closeDagvy()">✕</button>
       </div>
       <div class="dagvy-body" id="dagvyBody">
         <div class="dagvy-spinner"></div>
+        <p style="text-align:center;font-size:11px;color:#999;margin-top:8px;">Laddar från Firestore REST API...</p>
       </div>
       <div class="dagvy-footer">
         <button class="dagvy-btn dagvy-btn-schedule" onclick="closeDagvy(); goToPersonSchedule('${employeeId}')">
@@ -661,43 +724,27 @@ async function showDagvyPopup(employeeId) {
     if (e.target === overlay) closeDagvy();
   });
 
-  // Fetch data with debug info
-  let data = null;
-  let debugInfo = '';
-  try {
-    debugInfo += 'Sökt: "' + emp.name + '" | ';
-    const doc = await db.collection('dagvy').doc(emp.name).get();
-    debugInfo += 'Hittad: ' + doc.exists + ' | ';
-    if (doc.exists) {
-      data = doc.data();
-      const keys = data ? Object.keys(data) : [];
-      debugInfo += 'Fält: ' + keys.join(', ') + ' | ';
-      if (data && data.days) {
-        debugInfo += 'days typ: ' + (Array.isArray(data.days) ? 'array' : typeof data.days) + ', längd: ' + (data.days.length || '?');
-      } else {
-        debugInfo += 'days saknas';
-      }
-    } else {
-      // List all dagvy docs to debug
-      const allDocs = await db.collection('dagvy').get();
-      debugInfo += 'Antal docs: ' + allDocs.size + ' | IDs: ';
-      allDocs.forEach(function(d) { debugInfo += '"' + d.id + '" '; });
-    }
-  } catch (err) {
-    debugInfo += 'FEL: ' + err.code + ' - ' + err.message;
-  }
+  // Fetch data using fetchDagvy (REST API first, then SDK fallback)
+  const data = await fetchDagvy(emp.name);
 
   const body = document.getElementById('dagvyBody');
   const loadingEl = overlay.querySelector('.dagvy-loading');
   if (!body) return;
 
-  if (!data || !data.days || data.days.length === 0) {
-    if (loadingEl) loadingEl.textContent = 'Debug-info';
+  // Get debug info from fetchDagvy
+  const debugLines = (data && data._debug) ? data._debug : ['ingen debug'];
+  debugLines.unshift('v4.10.4 | Namn: "' + emp.name + '"');
+
+  if (!data || data._notFound || !data.days || data.days.length === 0) {
+    if (loadingEl) loadingEl.textContent = 'Dagvy debug';
     body.innerHTML = `
       <div class="dagvy-empty">
         <div class="dagvy-empty-icon">🔍</div>
-        <p>Ingen dagvy hittades</p>
-        <p style="font-size:10px;color:#999;margin-top:12px;word-break:break-all;text-align:left;padding:8px;background:#f5f5f5;border-radius:8px;">${debugInfo}</p>
+        <p><strong>Debug-info (v4.10.4):</strong></p>
+        <div style="font-size:12px;color:#333;margin-top:8px;text-align:left;padding:12px;background:#ffffcc;border:2px solid #cc0;border-radius:8px;line-height:1.8;">
+          ${debugLines.map(function(l) { return '• ' + l; }).join('<br>')}
+        </div>
+        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.4" ovan fungerar cachen rätt.</p>
       </div>
     `;
     return;
@@ -709,10 +756,12 @@ async function showDagvyPopup(employeeId) {
 
   if (!todayDagvy || todayDagvy.notFound) {
     if (loadingEl) loadingEl.textContent = todayDagvy ? 'Turdatan saknas' : 'Ingen tur idag';
+    const availDates = data.days ? data.days.map(d => d.date).join(', ') : 'inga';
     body.innerHTML = `
       <div class="dagvy-empty">
         <div class="dagvy-empty-icon">📋</div>
         <p>Ingen turdata för ${formatDate(currentDate)}</p>
+        <p style="font-size:11px;color:#999;margin-top:8px;">Sökte: ${dateKey}<br>Tillgängliga: ${availDates}</p>
       </div>
     `;
     return;
