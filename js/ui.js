@@ -619,8 +619,8 @@ async function fetchDagvy(employeeName) {
 
     return null;
   } catch (err) {
-    console.log('Dagvy fetch error: ' + err.message);
-    return null;
+    // Return error info so the UI can show it
+    return { _error: err.message || 'Okänt fel' };
   }
 }
 
@@ -666,6 +666,19 @@ async function showDagvyPopup(employeeId) {
   const body = document.getElementById('dagvyBody');
   const loadingEl = overlay.querySelector('.dagvy-loading');
   if (!body) return;
+
+  // Check for fetch error
+  if (data && data._error) {
+    if (loadingEl) loadingEl.textContent = 'Fel vid hämtning';
+    body.innerHTML = `
+      <div class="dagvy-empty">
+        <div class="dagvy-empty-icon">⚠️</div>
+        <p>Kunde inte hämta dagvy</p>
+        <p style="font-size:11px;color:#999;margin-top:8px;">${data._error}</p>
+      </div>
+    `;
+    return;
+  }
 
   if (!data || !data.days || data.days.length === 0) {
     if (loadingEl) loadingEl.textContent = 'Ingen dagvy tillgänglig';
