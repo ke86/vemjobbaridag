@@ -4164,7 +4164,6 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 /* Segment type colors */
 .dagvy-seg-train .dagvy-seg-middle { color: #1d4ed8; }
 .dagvy-seg-rast .dagvy-seg-middle { color: #16a34a; }
-.dagvy-seg-disp .dagvy-seg-middle { color: #a16207; }
 .dagvy-seg-gang .dagvy-seg-middle { color: #888; font-weight: 400; }
 
 /* --- Clickable train rows --- */
@@ -4377,7 +4376,6 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 
 .dark .dagvy-seg-train .dagvy-seg-middle { color: #60a5fa; }
 .dark .dagvy-seg-rast .dagvy-seg-middle { color: #4ade80; }
-.dark .dagvy-seg-disp .dagvy-seg-middle { color: #fbbf24; }
 .dark .dagvy-seg-gang .dagvy-seg-middle { color: #666; }
 
 .dark .dagvy-seg-station-text {

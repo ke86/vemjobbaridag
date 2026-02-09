@@ -884,7 +884,7 @@ function isSimpleSegment(seg) {
   if (act.includes('rast')) return true;
 
   // Passresa
-  if (act.includes('passresa') || act.includes('pass')) return true;
+  if (act.includes('passresa')) return true;
 
   // Reserv (all forms)
   if (act.includes('reserv')) return true;
@@ -921,13 +921,11 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       const isActivityTrain = !isTrain && isTrainLikeActivity(seg.activity);
       const isAnyTrain = isTrain || isActivityTrain;
       const isRast = seg.activity && (seg.activity.includes('Rast') || seg.activity === 'Rasto');
-      const isDisp = seg.activity === 'Disponibel';
       const isGang = seg.activity === 'Gångtid';
 
       let segClass = 'dagvy-seg-activity';
       if (isAnyTrain) segClass = 'dagvy-seg-train';
       else if (isRast) segClass = 'dagvy-seg-rast';
-      else if (isDisp) segClass = 'dagvy-seg-disp';
       else if (isGang) segClass = 'dagvy-seg-gang';
 
       const route = (seg.fromStation !== seg.toStation)
