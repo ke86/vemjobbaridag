@@ -3998,6 +3998,40 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   left: 2px;
 }
 
+/* --- Med dig / Alla crew toggle --- */
+.dagvy-crew-switch.alla-active {
+  background: #2563eb;
+}
+
+.dagvy-crew-switch.med-active {
+  background: #f59e0b;
+}
+
+.dagvy-crew-switch.alla-active .dagvy-mode-thumb {
+  left: 18px;
+}
+
+.dagvy-crew-switch.med-active .dagvy-mode-thumb {
+  left: 2px;
+}
+
+/* --- Crew dimmed + separator --- */
+.dagvy-crew-dimmed {
+  opacity: 0.4;
+}
+
+.dagvy-crew-separator {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  padding: 6px 0 2px 0;
+  margin-top: 4px;
+  border-top: 1px solid rgba(128, 128, 128, 0.2);
+}
+
 /* --- Content area --- */
 .dagvy-content {
   overflow-y: auto;
@@ -4361,6 +4395,14 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 
 .dark .dagvy-mode-switch.enkel-active {
   background: #16a34a;
+}
+
+.dark .dagvy-crew-switch.alla-active {
+  background: #3b82f6;
+}
+
+.dark .dagvy-crew-switch.med-active {
+  background: #d97706;
 }
 
 .dark .dagvy-bottom-bar {

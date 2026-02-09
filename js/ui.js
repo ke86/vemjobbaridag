@@ -590,6 +590,7 @@ const dagvyCache = {};
 let dagvyActive = false;
 let dagvyPreviousTitle = '';
 let dagvySimpleMode = false;
+let dagvyCrewFilter = false; // false = Alla, true = Med dig
 let dagvyCurrentData = null;
 let dagvyCurrentName = '';
 
@@ -746,6 +747,7 @@ async function showDagvyPopup(employeeId) {
   }
 
   dagvySimpleMode = false;
+  dagvyCrewFilter = false;
   dagvyCurrentData = null;
   dagvyCurrentName = emp.name;
 
@@ -757,6 +759,13 @@ async function showDagvyPopup(employeeId) {
         <div class="dagvy-person-turn">Hämtar turdata...</div>
       </div>
       <div class="dagvy-bar-actions">
+        <div class="dagvy-mode-toggle" id="dagvyCrewToggle" onclick="toggleDagvyCrewFilter()">
+          <span class="dagvy-mode-label dagvy-crew-med active">Med dig</span>
+          <div class="dagvy-mode-switch dagvy-crew-switch alla-active">
+            <div class="dagvy-mode-thumb"></div>
+          </div>
+          <span class="dagvy-mode-label dagvy-crew-alla">Alla</span>
+        </div>
         <div class="dagvy-mode-toggle" id="dagvyModeToggle" onclick="toggleDagvyMode()">
           <span class="dagvy-mode-label dagvy-mode-enkel">Enkel</span>
           <div class="dagvy-mode-switch allt-active">
@@ -932,6 +941,40 @@ function toggleDagvyMode() {
 }
 
 /**
+ * Toggle between Med dig / Alla crew filter and re-render
+ */
+function toggleDagvyCrewFilter() {
+  dagvyCrewFilter = !dagvyCrewFilter;
+
+  // Update switch visual
+  const toggle = document.getElementById('dagvyCrewToggle');
+  if (toggle) {
+    const sw = toggle.querySelector('.dagvy-crew-switch');
+    const medLabel = toggle.querySelector('.dagvy-crew-med');
+    const allaLabel = toggle.querySelector('.dagvy-crew-alla');
+    if (dagvyCrewFilter) {
+      sw.classList.remove('alla-active');
+      sw.classList.add('med-active');
+      medLabel.classList.add('active');
+      allaLabel.classList.remove('active');
+    } else {
+      sw.classList.remove('med-active');
+      sw.classList.add('alla-active');
+      medLabel.classList.remove('active');
+      allaLabel.classList.add('active');
+    }
+  }
+
+  // Re-render timeline
+  if (dagvyCurrentData) {
+    const contentEl = document.getElementById('dagvyContent');
+    if (contentEl) {
+      contentEl.innerHTML = buildDagvyContent(dagvyCurrentData, dagvyCurrentName, dagvySimpleMode);
+    }
+  }
+}
+
+/**
  * Check if an activity string looks like a train number
  * e.g. "11002 m1", "1071 m1", "845", "20160", "1007 tv", "1039 tv ags"
  */
@@ -1051,15 +1094,53 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
           personMap[key].legs.push({ from: c.fromStation, to: c.toStation, start: c.timeStart, end: c.timeEnd });
         }
 
-        for (const person of Object.values(personMap)) {
+        // Determine overlap with owner's segment time
+        const ownerStart = seg.timeStart;
+        const ownerEnd = seg.timeEnd;
+        const persons = Object.values(personMap).map(function(person) {
           const isMe = normalizeName(person.name) === normalizeName(employeeName);
+          // Check if any of person's legs overlap with owner's segment
+          const overlaps = person.legs.some(function(l) {
+            return l.start < ownerEnd && l.end > ownerStart;
+          });
+          return { person: person, isMe: isMe, overlaps: overlaps };
+        });
+
+        // Sort: owner first, then overlapping, then rest
+        persons.sort(function(a, b) {
+          if (a.isMe && !b.isMe) return -1;
+          if (!a.isMe && b.isMe) return 1;
+          if (a.overlaps && !b.overlaps) return -1;
+          if (!a.overlaps && b.overlaps) return 1;
+          return 0;
+        });
+
+        // In "Med dig" mode, filter to only owner + overlapping
+        const visiblePersons = dagvyCrewFilter
+          ? persons.filter(function(p) { return p.isMe || p.overlaps; })
+          : persons;
+
+        let hasAddedSeparator = false;
+        for (const entry of visiblePersons) {
+          const person = entry.person;
+          const isMe = entry.isMe;
+          const overlaps = entry.overlaps;
+          const isDimmed = !isMe && !overlaps;
+
+          // Add separator before "Övrig bemanning" group
+          if (isDimmed && !hasAddedSeparator && !dagvyCrewFilter) {
+            crewHtml += '<div class="dagvy-crew-separator">Övrig bemanning</div>';
+            hasAddedSeparator = true;
+          }
+
           const roleBadge = person.role === 'Lokförare'
             ? '<span class="dagvy-role-badge dagvy-role-lf">LF</span>'
             : '<span class="dagvy-role-badge dagvy-role-tv">TV</span>';
           const legSummary = person.legs.map(function(l) { return l.from + '→' + l.to; }).join(', ');
           const timeRange = person.legs[0].start + '–' + person.legs[person.legs.length - 1].end;
 
-          crewHtml += '<div class="dagvy-crew-person ' + (isMe ? 'dagvy-crew-me' : '') + '">'
+          const dimClass = isDimmed ? ' dagvy-crew-dimmed' : '';
+          crewHtml += '<div class="dagvy-crew-person ' + (isMe ? 'dagvy-crew-me' : '') + dimClass + '">'
             + '<div class="dagvy-crew-person-main">'
             + roleBadge
             + '<span class="dagvy-crew-name">' + person.name + '</span>'
