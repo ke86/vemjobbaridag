@@ -878,6 +878,14 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
 
   if (!turnChanged && !timeChanged) return;
 
+  // DEBUG: Log what's being updated
+  var empName = registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : employeeId;
+  console.log('[DAGVY-UPDATE] ' + empName + ' dateKey=' + dateKey +
+    ' | dagvyDate=' + (dayData.date || '?') +
+    ' | turn: "' + currentTurn + '" → "' + dagvyTurn + '"' +
+    ' | time: "' + currentTime + '" → "' + dagvyTime + '"' +
+    ' | currentDate=' + getDateKey(currentDate));
+
   // Update the shift data
   if (turnChanged) {
     shift.badgeText = dagvyTurn;
@@ -912,6 +920,13 @@ function applyDagvyToSchedule(empName, dagvyData) {
   // Check current date
   var dateKey = getDateKey(currentDate);
   var dayData = dagvyData.days.find(function(d) { return d.date === dateKey; });
+
+  // DEBUG: Log dagvy matching
+  var allDates = dagvyData.days.map(function(d) { return d.date; });
+  console.log('[DAGVY-APPLY] ' + empName + ' | viewDate=' + dateKey +
+    ' | matchFound=' + (dayData ? 'YES (' + dayData.date + ' tur=' + dayData.turnr + ')' : 'NO') +
+    ' | dagvyDates=' + JSON.stringify(allDates));
+
   if (!dayData || dayData.notFound) return;
 
   updateScheduleFromDagvy(employeeId, dayData, dateKey);
@@ -924,6 +939,7 @@ function applyDagvyToSchedule(empName, dagvyData) {
  */
 function reapplyDagvyCorrections() {
   var dateKey = getDateKey(currentDate);
+  console.log('[DAGVY-REAPPLY] currentDate=' + currentDate.toString() + ' → dateKey=' + dateKey);
   var allShifts = employeesData[dateKey];
   if (!allShifts || allShifts.length === 0) return;
 
