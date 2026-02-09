@@ -586,6 +586,9 @@ const dagvyCache = {};
 // Track if dagvy page is currently shown
 let dagvyActive = false;
 let dagvyPreviousTitle = '';
+let dagvySimpleMode = false;
+let dagvyCurrentData = null;
+let dagvyCurrentName = '';
 
 /**
  * Parse Firestore REST API response value into plain JS object
@@ -739,6 +742,10 @@ async function showDagvyPopup(employeeId) {
     document.querySelector('.main-content').parentNode.insertBefore(dagvyPage, document.querySelector('.main-content').nextSibling);
   }
 
+  dagvySimpleMode = false;
+  dagvyCurrentData = null;
+  dagvyCurrentName = emp.name;
+
   dagvyPage.classList.add('active');
   dagvyPage.innerHTML = `
     <div class="dagvy-person-bar">
@@ -746,7 +753,16 @@ async function showDagvyPopup(employeeId) {
         <h2 class="dagvy-person-name">${emp.name}</h2>
         <div class="dagvy-person-turn">Hämtar turdata...</div>
       </div>
-      <button class="dagvy-close-btn" onclick="closeDagvy()">✕</button>
+      <div class="dagvy-bar-actions">
+        <div class="dagvy-mode-toggle" id="dagvyModeToggle" onclick="toggleDagvyMode()">
+          <span class="dagvy-mode-label dagvy-mode-enkel">Enkel</span>
+          <div class="dagvy-mode-switch allt-active">
+            <div class="dagvy-mode-thumb"></div>
+          </div>
+          <span class="dagvy-mode-label dagvy-mode-allt active">Allt</span>
+        </div>
+        <button class="dagvy-close-btn" onclick="closeDagvy()">✕</button>
+      </div>
     </div>
     <div class="dagvy-content" id="dagvyContent">
       <div class="dagvy-loading-state">
@@ -801,16 +817,76 @@ async function showDagvyPopup(employeeId) {
     turnEl.innerHTML = 'Tur <strong>' + todayDagvy.turnr + '</strong> &middot; ' + todayDagvy.start + ' – ' + todayDagvy.end;
   }
 
+  // Store for re-render on mode toggle
+  dagvyCurrentData = todayDagvy;
+
   // Build the dagvy content
-  contentEl.innerHTML = buildDagvyContent(todayDagvy, emp.name);
+  contentEl.innerHTML = buildDagvyContent(todayDagvy, emp.name, dagvySimpleMode);
+}
+
+/**
+ * Toggle between Enkel/Allt dagvy modes and re-render
+ */
+function toggleDagvyMode() {
+  dagvySimpleMode = !dagvySimpleMode;
+
+  // Update switch visual
+  const toggle = document.getElementById('dagvyModeToggle');
+  if (toggle) {
+    const sw = toggle.querySelector('.dagvy-mode-switch');
+    const enkelLabel = toggle.querySelector('.dagvy-mode-enkel');
+    const alltLabel = toggle.querySelector('.dagvy-mode-allt');
+    if (dagvySimpleMode) {
+      sw.classList.remove('allt-active');
+      sw.classList.add('enkel-active');
+      enkelLabel.classList.add('active');
+      alltLabel.classList.remove('active');
+    } else {
+      sw.classList.remove('enkel-active');
+      sw.classList.add('allt-active');
+      enkelLabel.classList.remove('active');
+      alltLabel.classList.add('active');
+    }
+  }
+
+  // Re-render timeline
+  if (dagvyCurrentData) {
+    const contentEl = document.getElementById('dagvyContent');
+    if (contentEl) {
+      contentEl.innerHTML = buildDagvyContent(dagvyCurrentData, dagvyCurrentName, dagvySimpleMode);
+    }
+  }
+}
+
+/**
+ * Check if a segment should be shown in "Enkel" (simple) mode
+ * Keeps: Tåg, Passresa, Reserv (all forms), Rast/Rasto
+ */
+function isSimpleSegment(seg) {
+  // Trains always shown
+  if (seg.trainNr && seg.trainNr.length > 0) return true;
+
+  const act = (seg.activity || '').toLowerCase();
+
+  // Rast and Rasto
+  if (act.includes('rast')) return true;
+
+  // Passresa
+  if (act.includes('passresa') || act.includes('pass')) return true;
+
+  // Reserv (all forms)
+  if (act.includes('reserv')) return true;
+
+  return false;
 }
 
 /**
  * Build dagvy HTML content from a day's data
  * Layout: Time | Route/Activity | TrainNr — all on one row
  * Crew expands directly under the train row
+ * @param {boolean} simpleMode - If true, only show key segments
  */
-function buildDagvyContent(dayData, employeeName) {
+function buildDagvyContent(dayData, employeeName, simpleMode) {
   let html = '';
 
   // Build a crew lookup by trainNr for inline expansion
@@ -826,6 +902,9 @@ function buildDagvyContent(dayData, employeeName) {
     html += '<div class="dagvy-timeline">';
 
     for (const seg of dayData.segments) {
+      // Filter in simple mode
+      if (simpleMode && !isSimpleSegment(seg)) continue;
+
       const isTrain = seg.trainNr && seg.trainNr.length > 0;
       const isRast = seg.activity && (seg.activity.includes('Rast') || seg.activity === 'Rasto');
       const isDisp = seg.activity === 'Disponibel';
