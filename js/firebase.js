@@ -141,6 +141,11 @@ function setupRealtimeListeners() {
         // Re-render if logged in
         if (isLoggedIn) {
           renderEmployees();
+          // Re-apply dagvy corrections after schedule update
+          // (fixes timing issue: dagvy arriving before schedule data)
+          if (typeof reapplyDagvyCorrections === 'function') {
+            reapplyDagvyCorrections();
+          }
           // Also update schedule view if a person is selected
           if (selectedEmployeeId) {
             renderPersonSchedule();
@@ -162,6 +167,11 @@ function setupRealtimeListeners() {
             const empName = change.doc.id;
             const dagvyData = change.doc.data();
 
+            // Store in global dagvyAllData so corrections survive schedule reloads
+            if (typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
+              dagvyAllData[normalizeName(empName)] = dagvyData;
+            }
+
             // Populate dagvyCache so popup doesn't need to re-fetch
             if (typeof dagvyCache !== 'undefined' && typeof normalizeName === 'function') {
               dagvyCache[normalizeName(empName)] = { data: dagvyData, timestamp: Date.now() };
@@ -170,6 +180,11 @@ function setupRealtimeListeners() {
             // Auto-update schedule if possible
             if (typeof applyDagvyToSchedule === 'function') {
               applyDagvyToSchedule(empName, dagvyData);
+            }
+          } else if (change.type === 'removed') {
+            // Clean up removed dagvy data
+            if (typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
+              delete dagvyAllData[normalizeName(change.doc.id)];
             }
           }
         });

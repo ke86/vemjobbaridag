@@ -591,6 +591,10 @@ function goToPersonSchedule(employeeId) {
 // Cache for dagvy data per employee
 const dagvyCache = {};
 
+// Global store for ALL dagvy data from Firebase listener
+// Keyed by normalized employee name → full dagvy document
+const dagvyAllData = {};
+
 // Track if dagvy page is currently shown
 let dagvyActive = false;
 let dagvyPreviousTitle = '';
@@ -911,6 +915,65 @@ function applyDagvyToSchedule(empName, dagvyData) {
   if (!dayData || dayData.notFound) return;
 
   updateScheduleFromDagvy(employeeId, dayData, dateKey);
+}
+
+/**
+ * Re-apply ALL dagvy corrections to current schedule data.
+ * Called after schedule listener fires, so dagvy updates are never lost
+ * due to timing (dagvy arriving before schedule).
+ */
+function reapplyDagvyCorrections() {
+  var dateKey = getDateKey(currentDate);
+  var allShifts = employeesData[dateKey];
+  if (!allShifts || allShifts.length === 0) return;
+
+  var appliedAny = false;
+
+  // Iterate all employees in dagvyAllData
+  for (var normalizedName in dagvyAllData) {
+    var dagvyDoc = dagvyAllData[normalizedName];
+    if (!dagvyDoc || !dagvyDoc.days) continue;
+
+    // Find matching employeeId
+    var employeeId = null;
+    for (var id in registeredEmployees) {
+      if (normalizeName(registeredEmployees[id].name) === normalizedName) {
+        employeeId = id;
+        break;
+      }
+    }
+    if (!employeeId) continue;
+
+    // Find day data for current date
+    var dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+    if (!dayData || dayData.notFound) continue;
+
+    // Find the shift for this employee
+    var shift = allShifts.find(function(s) { return s.employeeId === employeeId; });
+    if (!shift) continue;
+    if (nonWorkingTypes.includes(shift.badge)) continue;
+
+    var dagvyTurn = (dayData.turnr || '').trim();
+    var dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
+    var dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : '';
+    var currentTurn = (shift.badgeText || '').trim();
+    var currentTime = (shift.time || '').trim();
+
+    var turnChanged = dagvyTurn && dagvyTurn !== currentTurn;
+    var timeChanged = dagvyTime && dagvyTime !== currentTime;
+
+    if (!turnChanged && !timeChanged) continue;
+
+    if (turnChanged) shift.badgeText = dagvyTurn;
+    if (timeChanged) shift.time = dagvyTime;
+    shift.updatedFromDagvy = true;
+    appliedAny = true;
+  }
+
+  // Only re-render once if any corrections were applied
+  if (appliedAny) {
+    renderEmployees();
+  }
 }
 
 /**
