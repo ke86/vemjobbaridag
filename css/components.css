@@ -80,6 +80,32 @@
   text-overflow: ellipsis;
 }
 
+.dagvy-updated-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  background: #dcfce7;
+  color: #15803d;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: dagvyUpdatedPulse 0.4s ease-out;
+}
+
+.dark .dagvy-updated-badge {
+  background: #14532d;
+  color: #4ade80;
+}
+
+@keyframes dagvyUpdatedPulse {
+  0% { opacity: 0; transform: scale(0.8); }
+  60% { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
 .employee-time {
   color: var(--text-secondary);
   font-size: 14px;

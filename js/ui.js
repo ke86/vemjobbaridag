@@ -409,10 +409,13 @@ function renderEmployees() {
     // Build badge HTML with icon toggle support
     const badgeHtml = (shift.isBirthdayOnly || shift.isNameDayOnly) ? '' : renderBadgeWithToggle(shift);
 
+    // "Uppdaterad" badge if schedule was updated from dagvy
+    const updatedBadge = shift.updatedFromDagvy ? '<span class="dagvy-updated-badge">Uppdaterad</span>' : '';
+
     return `
       <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
-          <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}</div>
+          <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}</div>
           <div class="employee-time">${timeDisplay}</div>
         </div>
         <div class="employee-badge">
@@ -820,8 +823,49 @@ async function showDagvyPopup(employeeId) {
   // Store for re-render on mode toggle
   dagvyCurrentData = todayDagvy;
 
+  // Update schedule card if dagvy has different info
+  updateScheduleFromDagvy(employeeId, todayDagvy, dateKey);
+
   // Build the dagvy content
   contentEl.innerHTML = buildDagvyContent(todayDagvy, emp.name, dagvySimpleMode);
+}
+
+/**
+ * Compare dagvy data with schedule and update if different
+ */
+function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
+  if (!dayData || !dayData.turnr || dayData.notFound) return;
+
+  const allShifts = employeesData[dateKey];
+  if (!allShifts) return;
+
+  const shift = allShifts.find(function(s) { return s.employeeId === employeeId; });
+  if (!shift) return;
+
+  // Skip non-working types (FP, semester, etc.)
+  if (nonWorkingTypes.includes(shift.badge)) return;
+
+  const dagvyTurn = (dayData.turnr || '').trim();
+  const dagvyTime = dayData.start + '-' + dayData.end;
+  const currentTurn = (shift.badgeText || '').trim();
+  const currentTime = (shift.time || '').trim();
+
+  const turnChanged = dagvyTurn && currentTurn && dagvyTurn !== currentTurn;
+  const timeChanged = dagvyTime && currentTime && dagvyTime !== currentTime;
+
+  if (!turnChanged && !timeChanged) return;
+
+  // Update the shift data
+  if (turnChanged) {
+    shift.badgeText = dagvyTurn;
+  }
+  if (timeChanged) {
+    shift.time = dagvyTime;
+  }
+  shift.updatedFromDagvy = true;
+
+  // Re-render the schedule list to reflect changes
+  renderEmployees();
 }
 
 /**
@@ -860,11 +904,11 @@ function toggleDagvyMode() {
 
 /**
  * Check if an activity string looks like a train number
- * e.g. "11002 m1", "1071 m1", "845", "20160"
+ * e.g. "11002 m1", "1071 m1", "845", "20160", "1007 tv", "1039 tv ags"
  */
 function isTrainLikeActivity(activity) {
   if (!activity) return false;
-  return /^\d{3,5}(\s*m\d+)?$/i.test(activity.trim());
+  return /^\d{3,5}(\s+\S+)*$/i.test(activity.trim());
 }
 
 /**
