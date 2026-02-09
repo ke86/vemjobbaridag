@@ -505,6 +505,11 @@ function showPage(pageId) {
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
+  // Stop AW party when leaving schedule page
+  if (pageId !== 'schedule' && typeof stopAWParty === 'function') {
+    stopAWParty();
+  }
+
   if (pageId === 'schedule') {
     schedulePage.classList.add('active');
     headerTitle.textContent = 'Vem jobbar idag?';

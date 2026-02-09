@@ -825,6 +825,61 @@ function renderImportantDateCards() {
 
   // Check for long titles that need marquee scrolling
   requestAnimationFrame(() => initMarqueeScrolls(container));
+
+  // AW party mode!
+  const hasAW = relevantDates.some(function(d) { return /\bAW\b/i.test(d.title); });
+  if (hasAW) {
+    startAWParty();
+  } else {
+    stopAWParty();
+  }
+}
+
+/**
+ * Start the AW party — floating beer and drink emojis
+ */
+function startAWParty() {
+  // Don't duplicate
+  if (document.getElementById('awPartyOverlay')) return;
+
+  var overlay = document.createElement('div');
+  overlay.id = 'awPartyOverlay';
+  overlay.className = 'aw-party-overlay';
+
+  var emojis = ['🍺', '🍻', '🍹', '🥂', '🎉', '🥳', '🍾', '🍸'];
+  var count = 18;
+
+  for (var i = 0; i < count; i++) {
+    var span = document.createElement('span');
+    span.className = 'aw-emoji';
+    span.textContent = emojis[i % emojis.length];
+
+    // Randomize position, size, speed, delay
+    var left = Math.random() * 100;
+    var size = 20 + Math.random() * 18;
+    var duration = 6 + Math.random() * 8;
+    var delay = Math.random() * duration;
+    var swayAmount = 30 + Math.random() * 60;
+    var swayDir = Math.random() > 0.5 ? 1 : -1;
+
+    span.style.cssText = 'left:' + left + '%;'
+      + 'font-size:' + size + 'px;'
+      + 'animation-duration:' + duration + 's;'
+      + 'animation-delay:-' + delay + 's;'
+      + '--aw-sway:' + (swayAmount * swayDir) + 'px;';
+
+    overlay.appendChild(span);
+  }
+
+  document.body.appendChild(overlay);
+}
+
+/**
+ * Stop the AW party — remove overlay
+ */
+function stopAWParty() {
+  var overlay = document.getElementById('awPartyOverlay');
+  if (overlay) overlay.remove();
 }
 
 /**
