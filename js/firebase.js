@@ -153,6 +153,32 @@ function setupRealtimeListeners() {
       }
     );
 
+    // Listen for dagvy changes — auto-update schedule from dagvy
+    db.collection('dagvy').onSnapshot(
+      { includeMetadataChanges: false },
+      (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            const empName = change.doc.id;
+            const dagvyData = change.doc.data();
+
+            // Populate dagvyCache so popup doesn't need to re-fetch
+            if (typeof dagvyCache !== 'undefined' && typeof normalizeName === 'function') {
+              dagvyCache[normalizeName(empName)] = { data: dagvyData, timestamp: Date.now() };
+            }
+
+            // Auto-update schedule if possible
+            if (typeof applyDagvyToSchedule === 'function') {
+              applyDagvyToSchedule(empName, dagvyData);
+            }
+          }
+        });
+      },
+      (error) => {
+        console.error('Dagvy listener error:', error);
+      }
+    );
+
     console.log('Realtime listeners active - auto-sync enabled');
   } catch (error) {
     console.error('Failed to setup realtime listeners:', error);

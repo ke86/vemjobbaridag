@@ -846,12 +846,15 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
   if (nonWorkingTypes.includes(shift.badge)) return;
 
   const dagvyTurn = (dayData.turnr || '').trim();
-  const dagvyTime = dayData.start + '-' + dayData.end;
+  const dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
+  const dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : '';
   const currentTurn = (shift.badgeText || '').trim();
   const currentTime = (shift.time || '').trim();
 
-  const turnChanged = dagvyTurn && currentTurn && dagvyTurn !== currentTurn;
-  const timeChanged = dagvyTime && currentTime && dagvyTime !== currentTime;
+  // Update turn if dagvy has one and it differs (or current is missing)
+  const turnChanged = dagvyTurn && dagvyTurn !== currentTurn;
+  // Update time if dagvy has valid times and they differ (or current is missing)
+  const timeChanged = dagvyTime && dagvyTime !== currentTime;
 
   if (!turnChanged && !timeChanged) return;
 
@@ -866,6 +869,32 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
 
   // Re-render the schedule list to reflect changes
   renderEmployees();
+}
+
+/**
+ * Auto-update schedule from dagvy data (called by Firebase listener)
+ * Maps employee name → employeeId, finds matching day, then updates schedule
+ */
+function applyDagvyToSchedule(empName, dagvyData) {
+  if (!dagvyData || !dagvyData.days) return;
+
+  // Find employeeId by name
+  const normalizedName = normalizeName(empName);
+  let employeeId = null;
+  for (var id in registeredEmployees) {
+    if (normalizeName(registeredEmployees[id].name) === normalizedName) {
+      employeeId = id;
+      break;
+    }
+  }
+  if (!employeeId) return;
+
+  // Check current date
+  var dateKey = getDateKey(currentDate);
+  var dayData = dagvyData.days.find(function(d) { return d.date === dateKey; });
+  if (!dayData || dayData.notFound) return;
+
+  updateScheduleFromDagvy(employeeId, dayData, dateKey);
 }
 
 /**
