@@ -490,6 +490,16 @@ function closeSidebarMenu() {
 // ==========================================
 
 function showPage(pageId) {
+  // Close dagvy if open
+  if (dagvyActive) {
+    dagvyActive = false;
+    const dagvyPage = document.getElementById('dagvyPage');
+    if (dagvyPage) {
+      dagvyPage.classList.remove('active');
+      dagvyPage.innerHTML = '';
+    }
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
   if (pageId === 'schedule') {
@@ -573,6 +583,10 @@ function goToPersonSchedule(employeeId) {
 // Cache for dagvy data per employee
 const dagvyCache = {};
 
+// Track if dagvy page is currently shown
+let dagvyActive = false;
+let dagvyPreviousTitle = '';
+
 /**
  * Parse Firestore REST API response value into plain JS object
  */
@@ -625,7 +639,6 @@ async function fetchDagvyREST(employeeName) {
     }
     if (resp.status === 404) return null;
     if (resp.status === 429) {
-      // Rate limited, wait and retry
       await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
       continue;
     }
@@ -648,7 +661,6 @@ function normalizeName(str) {
 
 /**
  * Fetch dagvy data for a given employee name
- * Uses aggressive normalization to handle invisible character mismatches
  */
 async function fetchDagvy(employeeName) {
   const normalizedSearch = normalizeName(employeeName);
@@ -659,112 +671,109 @@ async function fetchDagvy(employeeName) {
     return cached.data;
   }
 
-  const debug = [];
-  // Show char codes to identify invisible character differences
-  const searchCodes = Array.from(employeeName).map(function(c) { return c.charCodeAt(0); }).join(',');
-  debug.push('Sök: "' + employeeName + '" codes=[' + searchCodes + ']');
-
   // Method 1: REST API
   try {
-    debug.push('REST: försöker...');
     const restData = await fetchDagvyREST(employeeName.trim());
     if (restData) {
-      debug.push('REST: hittade data!');
       dagvyCache[normalizedSearch] = { data: restData, timestamp: Date.now() };
-      return { ...restData, _debug: debug };
+      return restData;
     }
-    debug.push('REST: 404');
   } catch (restErr) {
-    debug.push('REST-fel: ' + restErr.message);
+    console.log('Dagvy REST error:', restErr.message);
   }
 
   // Method 2: SDK list ALL dagvy docs and normalize-match
   try {
-    debug.push('SDK: hämtar alla docs...');
     const allDocs = await db.collection('dagvy').get();
-    debug.push('Antal: ' + allDocs.size);
     let foundData = null;
     allDocs.forEach(function(d) {
-      const docCodes = Array.from(d.id).map(function(c) { return c.charCodeAt(0); }).join(',');
-      debug.push('Doc: "' + d.id + '" codes=[' + docCodes + ']');
       const normalizedDoc = normalizeName(d.id);
-      debug.push('Norm: "' + normalizedDoc + '" vs "' + normalizedSearch + '" → ' + (normalizedDoc === normalizedSearch));
       if (!foundData && normalizedDoc === normalizedSearch) {
         foundData = d.data();
-        debug.push('MATCH!');
       }
     });
     if (foundData) {
       dagvyCache[normalizedSearch] = { data: foundData, timestamp: Date.now() };
-      return { ...foundData, _debug: debug };
+      return foundData;
     }
-    debug.push('Ingen match');
   } catch (listErr) {
-    debug.push('Fel: ' + (listErr.code || '') + ' ' + listErr.message);
+    console.log('Dagvy SDK error:', listErr.message);
   }
 
-  return { _notFound: true, _debug: debug };
+  return null;
 }
 
 /**
- * Show dagvy popup when clicking on an employee card
+ * Get Swedish weekday name from date
+ */
+function getSwedishWeekday(date) {
+  const days = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
+  return days[date.getDay()];
+}
+
+/**
+ * Show dagvy as full page when clicking on an employee card
  */
 async function showDagvyPopup(employeeId) {
   const emp = registeredEmployees[employeeId];
   if (!emp) return;
 
-  // Create loading modal
-  const overlay = document.createElement('div');
-  overlay.className = 'dagvy-overlay';
-  overlay.id = 'dagvyOverlay';
-  overlay.innerHTML = `
-    <div class="dagvy-modal">
-      <div class="dagvy-header">
-        <div class="dagvy-header-info">
-          <h2 class="dagvy-name">${emp.name}</h2>
-          <div class="dagvy-loading">Hämtar dagvy... (v4.10.7)</div>
-        </div>
-        <button class="dagvy-close" onclick="closeDagvy()">✕</button>
+  dagvyActive = true;
+
+  // Save current header title & update to weekday + date
+  dagvyPreviousTitle = headerTitle.textContent;
+  const weekday = getSwedishWeekday(currentDate);
+  const dayNum = currentDate.getDate();
+  const monthNum = currentDate.getMonth() + 1;
+  headerTitle.textContent = weekday + ' ' + dayNum + '/' + monthNum;
+
+  // Hide current page content, show dagvy page
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+
+  // Create or get dagvy page container
+  let dagvyPage = document.getElementById('dagvyPage');
+  if (!dagvyPage) {
+    dagvyPage = document.createElement('main');
+    dagvyPage.className = 'dagvy-page page';
+    dagvyPage.id = 'dagvyPage';
+    document.querySelector('.main-content').parentNode.insertBefore(dagvyPage, document.querySelector('.main-content').nextSibling);
+  }
+
+  dagvyPage.classList.add('active');
+  dagvyPage.innerHTML = `
+    <div class="dagvy-person-bar">
+      <div class="dagvy-person-info">
+        <h2 class="dagvy-person-name">${emp.name}</h2>
+        <div class="dagvy-person-turn">Hämtar turdata...</div>
       </div>
-      <div class="dagvy-body" id="dagvyBody">
+      <button class="dagvy-close-btn" onclick="closeDagvy()">✕</button>
+    </div>
+    <div class="dagvy-content" id="dagvyContent">
+      <div class="dagvy-loading-state">
         <div class="dagvy-spinner"></div>
-        <p style="text-align:center;font-size:11px;color:#999;margin-top:8px;">Laddar från Firestore REST API...</p>
-      </div>
-      <div class="dagvy-footer">
-        <button class="dagvy-btn dagvy-btn-schedule" onclick="closeDagvy(); goToPersonSchedule('${employeeId}')">
-          📅 Visa schema
-        </button>
+        <p>Laddar dagvy...</p>
       </div>
     </div>
+    <div class="dagvy-bottom-bar">
+      <button class="dagvy-btn dagvy-btn-schedule" onclick="closeDagvy(); goToPersonSchedule('${employeeId}')">
+        📅 Visa schema
+      </button>
+    </div>
   `;
-  document.body.appendChild(overlay);
 
-  // Close on overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) closeDagvy();
-  });
-
-  // Fetch data using fetchDagvy (REST API first, then SDK fallback)
+  // Fetch data
   const data = await fetchDagvy(emp.name);
 
-  const body = document.getElementById('dagvyBody');
-  const loadingEl = overlay.querySelector('.dagvy-loading');
-  if (!body) return;
+  const contentEl = document.getElementById('dagvyContent');
+  const turnEl = dagvyPage.querySelector('.dagvy-person-turn');
+  if (!contentEl) return;
 
-  // Get debug info from fetchDagvy
-  const debugLines = (data && data._debug) ? data._debug : ['ingen debug'];
-  debugLines.unshift('v4.10.7 | Namn: "' + emp.name + '"');
-
-  if (!data || data._notFound || !data.days || data.days.length === 0) {
-    if (loadingEl) loadingEl.textContent = 'Dagvy debug';
-    body.innerHTML = `
+  if (!data || !data.days || data.days.length === 0) {
+    if (turnEl) turnEl.textContent = 'Ingen dagvy hittades';
+    contentEl.innerHTML = `
       <div class="dagvy-empty">
-        <div class="dagvy-empty-icon">🔍</div>
-        <p><strong>Debug-info (v4.10.7):</strong></p>
-        <div style="font-size:12px;color:#333;margin-top:8px;text-align:left;padding:12px;background:#ffffcc;border:2px solid #cc0;border-radius:8px;line-height:1.8;">
-          ${debugLines.map(function(l) { return '• ' + l; }).join('<br>')}
-        </div>
-        <p style="margin-top:12px;font-size:11px;color:#999;">Om du ser "v4.10.7" ovan fungerar cachen rätt.</p>
+        <div class="dagvy-empty-icon">📋</div>
+        <p>Ingen dagvy tillgänglig för ${emp.name}</p>
       </div>
     `;
     return;
@@ -772,33 +781,34 @@ async function showDagvyPopup(employeeId) {
 
   // Find today's dagvy (match currentDate)
   const dateKey = getDateKey(currentDate);
-  const todayDagvy = data.days.find(d => d.date === dateKey);
+  const todayDagvy = data.days.find(function(d) { return d.date === dateKey; });
 
   if (!todayDagvy || todayDagvy.notFound) {
-    if (loadingEl) loadingEl.textContent = todayDagvy ? 'Turdatan saknas' : 'Ingen tur idag';
-    const availDates = data.days ? data.days.map(d => d.date).join(', ') : 'inga';
-    body.innerHTML = `
+    if (turnEl) turnEl.textContent = 'Ingen tur denna dag';
+    const availDates = data.days ? data.days.map(function(d) { return d.date; }).join(', ') : 'inga';
+    contentEl.innerHTML = `
       <div class="dagvy-empty">
         <div class="dagvy-empty-icon">📋</div>
         <p>Ingen turdata för ${formatDate(currentDate)}</p>
-        <p style="font-size:11px;color:#999;margin-top:8px;">Sökte: ${dateKey}<br>Tillgängliga: ${availDates}</p>
+        <p class="dagvy-empty-sub">Tillgängliga dagar: ${availDates}</p>
       </div>
     `;
     return;
   }
 
-  // Update header with turn info
-  if (loadingEl) {
-    loadingEl.innerHTML = `Tur <strong>${todayDagvy.turnr}</strong> &nbsp;·&nbsp; ${todayDagvy.start} – ${todayDagvy.end}`;
+  // Update turn info
+  if (turnEl) {
+    turnEl.innerHTML = 'Tur <strong>' + todayDagvy.turnr + '</strong> &middot; ' + todayDagvy.start + ' – ' + todayDagvy.end;
   }
 
   // Build the dagvy content
-  body.innerHTML = buildDagvyContent(todayDagvy, emp.name);
+  contentEl.innerHTML = buildDagvyContent(todayDagvy, emp.name);
 }
 
 /**
  * Build dagvy HTML content from a day's data
- * Train segments are clickable — tapping shows crew inline
+ * Layout: Time | Route/Activity | TrainNr — all on one row
+ * Crew expands directly under the train row
  */
 function buildDagvyContent(dayData, employeeName) {
   let html = '';
@@ -812,10 +822,7 @@ function buildDagvyContent(dayData, employeeName) {
     }
   }
 
-  // === SEGMENTS TIMELINE ===
   if (dayData.segments && dayData.segments.length > 0) {
-    html += '<div class="dagvy-section">';
-    html += '<h3 class="dagvy-section-title">Tidslinje</h3>';
     html += '<div class="dagvy-timeline">';
 
     for (const seg of dayData.segments) {
@@ -831,40 +838,41 @@ function buildDagvyContent(dayData, employeeName) {
       else if (isGang) segClass = 'dagvy-seg-gang';
 
       const route = (seg.fromStation !== seg.toStation)
-        ? `${seg.fromStation} → ${seg.toStation}`
+        ? seg.fromStation + ' → ' + seg.toStation
         : seg.fromStation;
 
       // Check if this train has crew data
       const hasCrew = isTrain && crewByTrain[seg.trainNr];
-      const clickAttr = hasCrew ? `onclick="this.classList.toggle('crew-open')"` : '';
+      const clickAttr = hasCrew ? 'onclick="this.classList.toggle(\'crew-open\')"' : '';
       const clickableClass = hasCrew ? ' dagvy-seg-clickable' : '';
 
-      // Build the label content
-      let labelHtml = '';
+      // Build row: Time | Route/Activity | TrainNr
+      let middleHtml = '';
+      let trainBadgeHtml = '';
+
       if (isTrain) {
-        // Train: route + badge + vehicle + crew hint — all on one line
+        middleHtml = '<span class="dagvy-seg-route-text">' + route + '</span>';
         const vxIcon = seg.trainType === 'Växling' ? '🔀 ' : '';
-        const vehBadge = seg.vehicles && seg.vehicles.length > 0
-          ? `<span class="dagvy-seg-vehicle">${seg.vehicles.join(', ')}</span>` : '';
-        const crewHint = hasCrew ? '<span class="dagvy-seg-crew-hint">👥 ›</span>' : '';
-        labelHtml = `<span class="dagvy-seg-route-text">${route}</span>`
-          + `<span class="dagvy-train-badge">${vxIcon}${seg.trainNr}</span>`
-          + vehBadge + crewHint;
+        trainBadgeHtml = '<span class="dagvy-train-badge">' + vxIcon + seg.trainNr + '</span>';
+        if (hasCrew) {
+          trainBadgeHtml += '<span class="dagvy-seg-crew-hint">👥 ›</span>';
+        }
       } else {
-        // Non-train: activity name, station below
-        labelHtml = seg.activity || '–';
+        middleHtml = '<span class="dagvy-seg-activity-text">' + (seg.activity || '–') + '</span>';
+        if (route && seg.activity !== route) {
+          middleHtml += '<span class="dagvy-seg-station-text">' + route + '</span>';
+        }
       }
 
-      // Build inline crew HTML for this train
+      // Build inline crew HTML
       let crewHtml = '';
       if (hasCrew) {
         const trainCrew = crewByTrain[seg.trainNr];
-        const vehStr = trainCrew.vehicles && trainCrew.vehicles.length > 0
-          ? `<div class="dagvy-inline-vehicles">${trainCrew.vehicles.join(' · ')}</div>`
-          : '';
+        crewHtml += '<div class="dagvy-inline-crew">';
 
-        crewHtml += `<div class="dagvy-inline-crew">`;
-        crewHtml += vehStr;
+        if (trainCrew.vehicles && trainCrew.vehicles.length > 0) {
+          crewHtml += '<div class="dagvy-inline-vehicles">' + trainCrew.vehicles.join(' · ') + '</div>';
+        }
 
         // Group by unique persons
         const personMap = {};
@@ -881,51 +889,56 @@ function buildDagvyContent(dayData, employeeName) {
           const roleBadge = person.role === 'Lokförare'
             ? '<span class="dagvy-role-badge dagvy-role-lf">LF</span>'
             : '<span class="dagvy-role-badge dagvy-role-tv">TV</span>';
-          const legSummary = person.legs.map(l => `${l.from}→${l.to}`).join(', ');
-          const timeRange = `${person.legs[0].start}–${person.legs[person.legs.length - 1].end}`;
+          const legSummary = person.legs.map(function(l) { return l.from + '→' + l.to; }).join(', ');
+          const timeRange = person.legs[0].start + '–' + person.legs[person.legs.length - 1].end;
 
-          crewHtml += `
-            <div class="dagvy-crew-person ${isMe ? 'dagvy-crew-me' : ''}">
-              <div class="dagvy-crew-person-main">
-                ${roleBadge}
-                <span class="dagvy-crew-name">${person.name}</span>
-                ${person.phone ? `<a href="tel:${person.phone}" class="dagvy-crew-phone" onclick="event.stopPropagation()">📞</a>` : ''}
-              </div>
-              <div class="dagvy-crew-person-detail">
-                <span class="dagvy-crew-time">${timeRange}</span>
-                <span class="dagvy-crew-leg">${legSummary}</span>
-              </div>
-            </div>
-          `;
+          crewHtml += '<div class="dagvy-crew-person ' + (isMe ? 'dagvy-crew-me' : '') + '">'
+            + '<div class="dagvy-crew-person-main">'
+            + roleBadge
+            + '<span class="dagvy-crew-name">' + person.name + '</span>'
+            + (person.phone ? '<a href="tel:' + person.phone + '" class="dagvy-crew-phone" onclick="event.stopPropagation()">📞</a>' : '')
+            + '</div>'
+            + '<div class="dagvy-crew-person-detail">'
+            + '<span class="dagvy-crew-time">' + timeRange + '</span>'
+            + '<span class="dagvy-crew-leg">' + legSummary + '</span>'
+            + '</div>'
+            + '</div>';
         }
         crewHtml += '</div>';
       }
 
-      html += `
-        <div class="dagvy-seg ${segClass}${clickableClass}" ${clickAttr}>
-          <div class="dagvy-seg-time">${seg.timeStart}<br><span class="dagvy-seg-time-end">${seg.timeEnd}</span></div>
-          <div class="dagvy-seg-dot"></div>
-          <div class="dagvy-seg-content">
-            <div class="dagvy-seg-label">${labelHtml}</div>
-            ${!isTrain ? '<div class="dagvy-seg-route">' + route + '</div>' : ''}
-          </div>
-          ${crewHtml}
-        </div>
-      `;
+      html += '<div class="dagvy-seg ' + segClass + clickableClass + '" ' + clickAttr + '>'
+        + '<div class="dagvy-seg-time">' + seg.timeStart + '</div>'
+        + '<div class="dagvy-seg-middle">' + middleHtml + '</div>'
+        + '<div class="dagvy-seg-right">' + trainBadgeHtml + '</div>'
+        + crewHtml
+        + '</div>';
     }
 
-    html += '</div></div>';
+    html += '</div>';
   }
 
   return html;
 }
 
 /**
- * Close dagvy popup
+ * Close dagvy page and return to schedule view
  */
 function closeDagvy() {
-  const overlay = document.getElementById('dagvyOverlay');
-  if (overlay) overlay.remove();
+  dagvyActive = false;
+
+  // Remove dagvy page
+  const dagvyPage = document.getElementById('dagvyPage');
+  if (dagvyPage) {
+    dagvyPage.classList.remove('active');
+    dagvyPage.innerHTML = '';
+  }
+
+  // Restore header title
+  headerTitle.textContent = 'Vem jobbar idag?';
+
+  // Re-show schedule page
+  schedulePage.classList.add('active');
 }
 
 // Count FP and FPV badges for an employee within the calendar year (Jan 1 - Dec 31)
