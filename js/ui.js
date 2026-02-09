@@ -759,19 +759,21 @@ async function showDagvyPopup(employeeId) {
         <div class="dagvy-person-turn">Hämtar turdata...</div>
       </div>
       <div class="dagvy-bar-actions">
-        <div class="dagvy-mode-toggle" id="dagvyCrewToggle" onclick="toggleDagvyCrewFilter()">
-          <span class="dagvy-mode-label dagvy-crew-med active">Med dig</span>
-          <div class="dagvy-mode-switch dagvy-crew-switch alla-active">
-            <div class="dagvy-mode-thumb"></div>
+        <div class="dagvy-toggles-stack">
+          <div class="dagvy-mode-toggle" id="dagvyModeToggle" onclick="toggleDagvyMode()">
+            <span class="dagvy-mode-label dagvy-mode-enkel">Enkel</span>
+            <div class="dagvy-mode-switch allt-active">
+              <div class="dagvy-mode-thumb"></div>
+            </div>
+            <span class="dagvy-mode-label dagvy-mode-allt active">Allt</span>
           </div>
-          <span class="dagvy-mode-label dagvy-crew-alla">Alla</span>
-        </div>
-        <div class="dagvy-mode-toggle" id="dagvyModeToggle" onclick="toggleDagvyMode()">
-          <span class="dagvy-mode-label dagvy-mode-enkel">Enkel</span>
-          <div class="dagvy-mode-switch allt-active">
-            <div class="dagvy-mode-thumb"></div>
+          <div class="dagvy-mode-toggle" id="dagvyCrewToggle" onclick="toggleDagvyCrewFilter()">
+            <span class="dagvy-mode-label dagvy-crew-med active">Med dig</span>
+            <div class="dagvy-mode-switch dagvy-crew-switch alla-active">
+              <div class="dagvy-mode-thumb"></div>
+            </div>
+            <span class="dagvy-mode-label dagvy-crew-alla">Alla</span>
           </div>
-          <span class="dagvy-mode-label dagvy-mode-allt active">Allt</span>
         </div>
         <button class="dagvy-close-btn" onclick="closeDagvy()">✕</button>
       </div>

@@ -3938,6 +3938,14 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   background: var(--border-color);
 }
 
+/* --- Toggles stack (vertical layout) --- */
+.dagvy-toggles-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
 /* --- Enkel/Allt toggle --- */
 .dagvy-mode-toggle {
   display: flex;
