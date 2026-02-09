@@ -1075,9 +1075,25 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
           trainBadgeHtml += '<span class="dagvy-seg-crew-hint">👥 ›</span>';
         }
       } else {
-        middleHtml = '<span class="dagvy-seg-activity-text">' + (seg.activity || '–') + '</span>';
+        // Rename Rast/Rasto for display
+        let activityDisplay = seg.activity || '–';
+        if (seg.activity === 'Rasto') activityDisplay = 'Rast obetald';
+        else if (seg.activity === 'Rast') activityDisplay = 'Rast betald';
+
+        middleHtml = '<span class="dagvy-seg-activity-text">' + activityDisplay + '</span>';
         if (route && seg.activity !== route) {
           middleHtml += '<span class="dagvy-seg-station-text">' + route + '</span>';
+        }
+
+        // Show duration in minutes for rast segments
+        if (isRast && seg.timeStart && seg.timeEnd) {
+          var startParts = seg.timeStart.split(':');
+          var endParts = seg.timeEnd.split(':');
+          var mins = (parseInt(endParts[0]) * 60 + parseInt(endParts[1]))
+                   - (parseInt(startParts[0]) * 60 + parseInt(startParts[1]));
+          if (mins > 0) {
+            trainBadgeHtml = '<span class="dagvy-rast-minutes">' + mins + ' min</span>';
+          }
         }
       }
 
