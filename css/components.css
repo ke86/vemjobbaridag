@@ -4094,6 +4094,20 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   font-weight: 600;
   color: #555;
   flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Simple mode: wider time showing start–end */
+.dagvy-seg-time-full {
+  width: auto;
+  min-width: 46px;
+  font-size: 12px;
+}
+
+.dagvy-seg-time-sep {
+  color: #aaa;
+  margin: 0 1px;
+  font-weight: 400;
 }
 
 /* Middle column: route or activity */
@@ -4339,6 +4353,10 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 
 .dark .dagvy-seg-time {
   color: #ccc;
+}
+
+.dark .dagvy-seg-time-sep {
+  color: #666;
 }
 
 .dark .dagvy-seg-middle {

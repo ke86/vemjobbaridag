@@ -1003,8 +1003,13 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
         crewHtml += '</div>';
       }
 
+      // Time display: simple mode shows start–end, allt mode shows only start
+      const timeHtml = simpleMode
+        ? seg.timeStart + '<span class="dagvy-seg-time-sep">–</span>' + seg.timeEnd
+        : seg.timeStart;
+
       html += '<div class="dagvy-seg ' + segClass + clickableClass + '" ' + clickAttr + '>'
-        + '<div class="dagvy-seg-time">' + seg.timeStart + '</div>'
+        + '<div class="dagvy-seg-time' + (simpleMode ? ' dagvy-seg-time-full' : '') + '">' + timeHtml + '</div>'
         + '<div class="dagvy-seg-middle">' + middleHtml + '</div>'
         + '<div class="dagvy-seg-right">' + trainBadgeHtml + '</div>'
         + crewHtml
