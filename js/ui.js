@@ -859,14 +859,26 @@ function toggleDagvyMode() {
 }
 
 /**
+ * Check if an activity string looks like a train number
+ * e.g. "11002 m1", "1071 m1", "845", "20160"
+ */
+function isTrainLikeActivity(activity) {
+  if (!activity) return false;
+  return /^\d{3,5}(\s*m\d+)?$/i.test(activity.trim());
+}
+
+/**
  * Check if a segment should be shown in "Enkel" (simple) mode
- * Keeps: Tåg, Passresa, Reserv (all forms), Rast/Rasto
+ * Keeps: Tåg (med och utan trainNr), Passresa, Reserv (all forms), Rast/Rasto
  */
 function isSimpleSegment(seg) {
-  // Trains always shown
+  // Trains with trainNr field
   if (seg.trainNr && seg.trainNr.length > 0) return true;
 
   const act = (seg.activity || '').toLowerCase();
+
+  // Train-like activities (e.g. "11002 m1", "1071 m1")
+  if (isTrainLikeActivity(seg.activity)) return true;
 
   // Rast and Rasto
   if (act.includes('rast')) return true;
@@ -906,12 +918,14 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       if (simpleMode && !isSimpleSegment(seg)) continue;
 
       const isTrain = seg.trainNr && seg.trainNr.length > 0;
+      const isActivityTrain = !isTrain && isTrainLikeActivity(seg.activity);
+      const isAnyTrain = isTrain || isActivityTrain;
       const isRast = seg.activity && (seg.activity.includes('Rast') || seg.activity === 'Rasto');
       const isDisp = seg.activity === 'Disponibel';
       const isGang = seg.activity === 'Gångtid';
 
       let segClass = 'dagvy-seg-activity';
-      if (isTrain) segClass = 'dagvy-seg-train';
+      if (isAnyTrain) segClass = 'dagvy-seg-train';
       else if (isRast) segClass = 'dagvy-seg-rast';
       else if (isDisp) segClass = 'dagvy-seg-disp';
       else if (isGang) segClass = 'dagvy-seg-gang';
@@ -919,6 +933,9 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       const route = (seg.fromStation !== seg.toStation)
         ? seg.fromStation + ' → ' + seg.toStation
         : seg.fromStation;
+
+      // Determine the train number to display
+      const displayTrainNr = isTrain ? seg.trainNr : (isActivityTrain ? seg.activity.trim() : '');
 
       // Check if this train has crew data
       const hasCrew = isTrain && crewByTrain[seg.trainNr];
@@ -929,10 +946,10 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       let middleHtml = '';
       let trainBadgeHtml = '';
 
-      if (isTrain) {
+      if (isAnyTrain) {
         middleHtml = '<span class="dagvy-seg-route-text">' + route + '</span>';
-        const vxIcon = seg.trainType === 'Växling' ? '🔀 ' : '';
-        trainBadgeHtml = '<span class="dagvy-train-badge">' + vxIcon + seg.trainNr + '</span>';
+        const vxIcon = seg.trainType === 'Växling' ? 'VXL ' : '';
+        trainBadgeHtml = '<span class="dagvy-train-badge">' + vxIcon + displayTrainNr + '</span>';
         if (hasCrew) {
           trainBadgeHtml += '<span class="dagvy-seg-crew-hint">👥 ›</span>';
         }
