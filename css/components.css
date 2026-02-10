@@ -4027,10 +4027,11 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
    DAGVY - FULL PAGE VIEW
    ========================================== */
 
-/* --- Page container --- */
+/* --- Page container — own scroll context so sticky header works --- */
 .dagvy-page {
   padding-bottom: 80px;
   animation: dagvyPageIn 0.25s ease;
+  height: 100vh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
