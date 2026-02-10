@@ -333,6 +333,39 @@
         </div>
       </div>
 
+      <!-- Dagvy-import (collapsible) -->
+      <div class="settings-section collapsible" id="dagvyImportSection">
+        <div class="collapsible-header" id="dagvyImportHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">📋 Dagvy-import</h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="dagvyImportContent">
+          <div class="dagvy-upload-zone" id="dagvyUploadZone">
+            <div class="dagvy-upload-icon">📁</div>
+            <p class="dagvy-upload-text">Välj dagvy JSON-fil</p>
+            <p class="dagvy-upload-hint">eller dra och släpp här</p>
+            <input type="file" id="dagvyFileInput" accept=".json,application/json" style="display:none">
+          </div>
+          <div class="dagvy-upload-preview" id="dagvyUploadPreview">
+            <div class="dagvy-file-info">
+              <span class="dagvy-file-icon">📄</span>
+              <div class="dagvy-file-details">
+                <span class="dagvy-file-name" id="dagvyFileName"></span>
+                <span class="dagvy-file-meta" id="dagvyFileMeta"></span>
+              </div>
+              <button class="dagvy-file-remove" id="dagvyFileRemove">✕</button>
+            </div>
+            <button class="dagvy-upload-btn" id="dagvyUploadBtn">Ladda upp till Firebase</button>
+            <div class="dagvy-upload-progress" id="dagvyUploadProgress">
+              <div class="dagvy-progress-bar">
+                <div class="dagvy-progress-fill" id="dagvyProgressFill"></div>
+              </div>
+              <span class="dagvy-progress-text" id="dagvyProgressText"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Radera data (collapsible) -->
       <div class="settings-section collapsible" id="deleteDataSection">
         <div class="collapsible-header" id="deleteDataHeader">
@@ -350,7 +383,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.12.6</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.12.8</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

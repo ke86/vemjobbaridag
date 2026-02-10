@@ -432,12 +432,20 @@ function renderEmployees() {
 
 function goToPrevDay() {
   currentDate.setDate(currentDate.getDate() - 1);
+  // Switch realtime listener to new date (single-doc for quota optimization)
+  if (typeof switchScheduleListener === 'function') {
+    switchScheduleListener(getDateKey(currentDate));
+  }
   renderEmployees();
   updateNativeDatePicker();
 }
 
 function goToNextDay() {
   currentDate.setDate(currentDate.getDate() + 1);
+  // Switch realtime listener to new date (single-doc for quota optimization)
+  if (typeof switchScheduleListener === 'function') {
+    switchScheduleListener(getDateKey(currentDate));
+  }
   renderEmployees();
   updateNativeDatePicker();
 }
@@ -447,6 +455,10 @@ function goToNextDay() {
  */
 function goToToday() {
   currentDate = new Date();
+  // Switch realtime listener to today's date (single-doc for quota optimization)
+  if (typeof switchScheduleListener === 'function') {
+    switchScheduleListener(getDateKey(currentDate));
+  }
   renderEmployees();
   updateNativeDatePicker();
 
@@ -466,6 +478,10 @@ function goToToday() {
 function goToDate(dateString) {
   const [year, month, day] = dateString.split('-').map(Number);
   currentDate = new Date(year, month - 1, day);
+  // Switch realtime listener to new date (single-doc for quota optimization)
+  if (typeof switchScheduleListener === 'function') {
+    switchScheduleListener(getDateKey(currentDate));
+  }
   renderEmployees();
 }
 
@@ -2468,6 +2484,207 @@ function removeFile() {
   uploadZone.style.display = 'block';
   filePreview.classList.remove('active');
   processBtn.classList.remove('active');
+}
+
+// ==========================================
+// DAGVY IMPORT (Settings)
+// ==========================================
+
+var dagvySelectedFile = null;
+
+/**
+ * Initialize dagvy upload event listeners
+ */
+function initDagvyUpload() {
+  var zone = document.getElementById('dagvyUploadZone');
+  var fileInput = document.getElementById('dagvyFileInput');
+  var removeBtn = document.getElementById('dagvyFileRemove');
+  var uploadBtn = document.getElementById('dagvyUploadBtn');
+
+  if (!zone || !fileInput) return;
+
+  // Click zone to open file picker
+  zone.addEventListener('click', function() {
+    fileInput.click();
+  });
+
+  // File selected
+  fileInput.addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+      handleDagvyFile(e.target.files[0]);
+    }
+  });
+
+  // Drag & drop
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.classList.remove('dragover');
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleDagvyFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  // Remove file
+  if (removeBtn) {
+    removeBtn.addEventListener('click', function() {
+      resetDagvyUpload();
+    });
+  }
+
+  // Upload button
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', function() {
+      uploadDagvyFile();
+    });
+  }
+}
+
+/**
+ * Handle a selected dagvy JSON file
+ */
+function handleDagvyFile(file) {
+  if (!file) return;
+
+  // Validate it's a JSON file
+  var name = file.name.toLowerCase();
+  if (!name.endsWith('.json')) {
+    showToast('Välj en JSON-fil', 'error');
+    return;
+  }
+
+  // Read and validate contents
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var json = JSON.parse(e.target.result);
+
+      // Validate structure: should be { "Name": { days: [...] }, ... }
+      var names = Object.keys(json);
+      if (names.length === 0) {
+        showToast('Filen innehåller ingen data', 'error');
+        return;
+      }
+
+      // Count valid employees (those with days array)
+      var validCount = 0;
+      var totalDays = 0;
+      for (var i = 0; i < names.length; i++) {
+        var emp = json[names[i]];
+        if (emp && emp.days && Array.isArray(emp.days)) {
+          validCount++;
+          totalDays += emp.days.length;
+        }
+      }
+
+      if (validCount === 0) {
+        showToast('Filen innehåller inga giltiga dagvy-poster', 'error');
+        return;
+      }
+
+      // Store for upload
+      dagvySelectedFile = { file: file, json: json, validCount: validCount, totalDays: totalDays };
+
+      // Show preview
+      var zone = document.getElementById('dagvyUploadZone');
+      var preview = document.getElementById('dagvyUploadPreview');
+      var nameEl = document.getElementById('dagvyFileName');
+      var metaEl = document.getElementById('dagvyFileMeta');
+
+      if (zone) zone.style.display = 'none';
+      if (preview) preview.classList.add('active');
+      if (nameEl) nameEl.textContent = file.name;
+      if (metaEl) metaEl.textContent = validCount + ' anställda · ' + totalDays + ' dagar';
+
+      // Reset progress state
+      var progressEl = document.getElementById('dagvyUploadProgress');
+      var uploadBtn = document.getElementById('dagvyUploadBtn');
+      if (progressEl) progressEl.style.display = 'none';
+      if (uploadBtn) {
+        uploadBtn.style.display = 'block';
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Ladda upp till Firebase';
+      }
+
+    } catch (err) {
+      showToast('Kunde inte läsa JSON: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+/**
+ * Reset dagvy upload UI
+ */
+function resetDagvyUpload() {
+  dagvySelectedFile = null;
+
+  var zone = document.getElementById('dagvyUploadZone');
+  var preview = document.getElementById('dagvyUploadPreview');
+  var fileInput = document.getElementById('dagvyFileInput');
+
+  if (zone) zone.style.display = '';
+  if (preview) preview.classList.remove('active');
+  if (fileInput) fileInput.value = '';
+}
+
+/**
+ * Upload the selected dagvy file to Firebase
+ */
+async function uploadDagvyFile() {
+  if (!dagvySelectedFile) return;
+
+  var uploadBtn = document.getElementById('dagvyUploadBtn');
+  var progressEl = document.getElementById('dagvyUploadProgress');
+  var fillEl = document.getElementById('dagvyProgressFill');
+  var textEl = document.getElementById('dagvyProgressText');
+
+  // Disable button, show progress
+  if (uploadBtn) {
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Laddar upp...';
+  }
+  if (progressEl) progressEl.style.display = 'block';
+  if (fillEl) fillEl.style.width = '0%';
+  if (textEl) textEl.textContent = 'Startar...';
+
+  try {
+    await saveDagvyToFirebase(dagvySelectedFile.json, function(current, total, name) {
+      var pct = Math.round((current / total) * 100);
+      if (fillEl) fillEl.style.width = pct + '%';
+      if (textEl) textEl.textContent = current + ' / ' + total + ' — ' + name;
+    });
+
+    // Done!
+    if (fillEl) fillEl.style.width = '100%';
+    if (textEl) textEl.textContent = 'Klart! ' + dagvySelectedFile.validCount + ' anställda uppladdade';
+    if (uploadBtn) {
+      uploadBtn.textContent = '✓ Uppladdning klar';
+      uploadBtn.classList.add('done');
+    }
+
+    showToast('Dagvy uppladdad till Firebase', 'success');
+
+    // Auto-reset after 3 seconds
+    setTimeout(function() {
+      resetDagvyUpload();
+    }, 3000);
+
+  } catch (err) {
+    console.error('Dagvy upload error:', err);
+    if (textEl) textEl.textContent = 'Fel: ' + err.message;
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = 'Försök igen';
+    }
+    showToast('Uppladdning misslyckades: ' + err.message, 'error');
+  }
 }
 
 // ==========================================

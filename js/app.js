@@ -199,6 +199,18 @@ function setupEventListeners() {
     fridagsHeader.addEventListener('click', toggleFridagsSection);
   }
 
+  // Dagvy import section (collapsible)
+  const dagvyImportHeader = document.getElementById('dagvyImportHeader');
+  const dagvyImportSection = document.getElementById('dagvyImportSection');
+  if (dagvyImportHeader && dagvyImportSection) {
+    dagvyImportHeader.addEventListener('click', function() {
+      dagvyImportSection.classList.toggle('expanded');
+    });
+  }
+
+  // Dagvy file upload listeners
+  initDagvyUpload();
+
   // Utseende section (collapsible)
   const appearanceHeader = document.getElementById('appearanceHeader');
   const appearanceSection = document.getElementById('appearanceSection');
