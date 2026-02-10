@@ -133,10 +133,19 @@ function setupRealtimeListeners() {
     db.collection('dagvy').onSnapshot(
       { includeMetadataChanges: false },
       (snapshot) => {
+        let latestScrapedAt = null;
+
         snapshot.docChanges().forEach((change) => {
           if (change.type === 'added' || change.type === 'modified') {
             const empName = change.doc.id;
             const dagvyData = change.doc.data();
+
+            // Track the latest scrapedAt timestamp
+            if (dagvyData.scrapedAt) {
+              if (!latestScrapedAt || dagvyData.scrapedAt > latestScrapedAt) {
+                latestScrapedAt = dagvyData.scrapedAt;
+              }
+            }
 
             // Store in global dagvyAllData so corrections survive schedule reloads
             if (typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
@@ -159,6 +168,11 @@ function setupRealtimeListeners() {
             }
           }
         });
+
+        // Update dagvy timestamp display
+        if (typeof updateDagvyTimestamp === 'function') {
+          updateDagvyTimestamp(latestScrapedAt);
+        }
       },
       (error) => {
         console.error('Dagvy listener error:', error);

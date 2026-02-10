@@ -619,6 +619,47 @@ let dagvyCrewFilter = false; // false = Alla, true = Med dig
 let dagvyCurrentData = null;
 let dagvyCurrentName = '';
 
+// Latest known dagvy scrapedAt timestamp
+let dagvyLatestScrapedAt = null;
+
+/**
+ * Update the dagvy timestamp display on the schedule page.
+ * Called from firebase.js dagvy listener.
+ * @param {string|null} scrapedAt - ISO string or similar from dagvy doc
+ */
+function updateDagvyTimestamp(scrapedAt) {
+  // Keep the latest known timestamp
+  if (scrapedAt && (!dagvyLatestScrapedAt || scrapedAt > dagvyLatestScrapedAt)) {
+    dagvyLatestScrapedAt = scrapedAt;
+  }
+
+  var el = document.getElementById('dagvyTimestamp');
+  if (!el) return;
+
+  var ts = dagvyLatestScrapedAt;
+  if (!ts) {
+    el.textContent = '';
+    return;
+  }
+
+  // Parse the timestamp and format nicely in Swedish
+  try {
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) {
+      el.textContent = 'Dagvy uppdaterad: ' + ts;
+      return;
+    }
+    var day = d.getDate();
+    var monthIdx = d.getMonth();
+    var months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    var h = String(d.getHours()).padStart(2, '0');
+    var m = String(d.getMinutes()).padStart(2, '0');
+    el.textContent = 'Dagvy uppdaterad ' + day + ' ' + months[monthIdx] + ' ' + h + ':' + m;
+  } catch (err) {
+    el.textContent = 'Dagvy uppdaterad: ' + ts;
+  }
+}
+
 /**
  * Parse Firestore REST API response value into plain JS object
  */
@@ -793,11 +834,11 @@ async function showDagvyPopup(employeeId) {
             <span class="dagvy-mode-label dagvy-mode-allt active">Allt</span>
           </div>
           <div class="dagvy-mode-toggle" id="dagvyCrewToggle" onclick="toggleDagvyCrewFilter()">
-            <span class="dagvy-mode-label dagvy-crew-med active">Med dig</span>
+            <span class="dagvy-mode-label dagvy-crew-med">Med dig</span>
             <div class="dagvy-mode-switch dagvy-crew-switch alla-active">
               <div class="dagvy-mode-thumb"></div>
             </div>
-            <span class="dagvy-mode-label dagvy-crew-alla">Alla</span>
+            <span class="dagvy-mode-label dagvy-crew-alla active">Alla</span>
           </div>
         </div>
         <button class="dagvy-close-btn" onclick="closeDagvy()">✕</button>

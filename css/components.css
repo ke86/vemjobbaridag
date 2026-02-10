@@ -26,6 +26,24 @@
   gap: 6px;
 }
 
+/* --- Dagvy timestamp at bottom of schedule page --- */
+.dagvy-timestamp {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  padding: 14px 0 6px;
+  letter-spacing: 0.02em;
+}
+
+.dagvy-timestamp:empty {
+  display: none;
+}
+
+.dark .dagvy-timestamp {
+  opacity: 0.45;
+}
+
 .employee-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -4013,6 +4031,8 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 .dagvy-page {
   padding-bottom: 80px;
   animation: dagvyPageIn 0.25s ease;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes dagvyPageIn {
@@ -4020,7 +4040,7 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* --- Person bar (name + close) --- */
+/* --- Person bar (name + close) — sticky at top --- */
 .dagvy-person-bar {
   display: flex;
   align-items: flex-start;
@@ -4028,8 +4048,11 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   padding: 16px 16px 12px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: 0 0 12px 12px;
   margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .dagvy-person-info {
@@ -4064,9 +4087,9 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 }
 
 .dagvy-close-btn {
-  background: var(--bg-secondary);
-  border: none;
-  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
   width: 36px;
   height: 36px;
   font-size: 18px;
@@ -4076,11 +4099,13 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   justify-content: center;
   color: var(--text-secondary);
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .dagvy-close-btn:hover {
-  background: var(--border-color);
+  background: var(--bg-secondary);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
 }
 
 /* --- Toggles stack (vertical layout) --- */
@@ -4548,11 +4573,13 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 
 .dark .dagvy-close-btn {
   background: #2d2d4e;
+  border-color: transparent;
   color: #ccc;
 }
 
 .dark .dagvy-close-btn:hover {
   background: #3d3d5e;
+  color: #fff;
 }
 
 .dark .dagvy-mode-switch {
