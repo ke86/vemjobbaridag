@@ -7,8 +7,8 @@
 .departure-page.active {
   display: flex !important;
   flex-direction: column;
-  height: calc(100vh - 53px);
-  height: calc(100dvh - 53px);
+  height: calc(100vh - var(--dep-header-height, 53px));
+  height: calc(100dvh - var(--dep-header-height, 53px));
   overflow: hidden;
   margin-top: 0;
 }

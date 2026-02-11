@@ -115,9 +115,24 @@ function populateEmployeeSelect() {
 }
 
 /**
+ * Measure header height and set CSS variable for departure page layout
+ */
+function updateDepHeaderHeight() {
+  var header = document.querySelector('.header');
+  if (header) {
+    var h = header.offsetHeight;
+    document.documentElement.style.setProperty('--dep-header-height', h + 'px');
+  }
+}
+
+/**
  * Initialize the departure page: event listeners
  */
 function initDeparturePage() {
+  // Measure header for correct layout height
+  updateDepHeaderHeight();
+  window.addEventListener('resize', updateDepHeaderHeight);
+
   var stationSelect = document.getElementById('departureStation');
   var btnAvgang = document.getElementById('depToggleAvgang');
   var btnAnkomst = document.getElementById('depToggleAnkomst');
