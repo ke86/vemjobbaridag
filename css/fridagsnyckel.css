@@ -1,0 +1,488 @@
+/* ==========================================
+   FRIDAGSNYCKEL SETTINGS
+   ========================================== */
+.fridag-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.fridag-employee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fridag-employee-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Compact design */
+.fridag-employee-item.compact {
+  padding: 0;
+}
+
+.fridag-employee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fridag-employee-row:hover {
+  background: var(--bg-primary);
+}
+
+/* Locked state - has key, can't expand */
+.fridag-employee-row.locked {
+  cursor: default;
+}
+
+.fridag-employee-row.locked:hover {
+  background: transparent;
+}
+
+.fridag-employee-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.fridag-employee-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fridag-employee-info .name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.fridag-key-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fridag-key-status.has-key {
+  color: var(--accent-blue);
+  font-weight: 500;
+}
+
+.fridag-key-status.no-key {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.fridag-key-status .expand-icon {
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.fridag-employee-item.expanded .expand-icon {
+  transform: rotate(180deg);
+}
+
+.fridag-remove-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.fridag-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+html.dark .fridag-remove-btn {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+html.dark .fridag-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* Expandable content */
+.fridag-expand-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out;
+  padding: 0 14px;
+  background: var(--bg-primary);
+  border-top: 1px solid transparent;
+}
+
+.fridag-employee-item.expanded .fridag-expand-content {
+  max-height: 300px;
+  padding: 14px;
+  border-top-color: var(--border-color);
+}
+
+.fridag-employee-item.removing {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Legacy header style (fallback) */
+.fridag-employee-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fridag-employee-header .avatar,
+.fridag-employee-row .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.fridag-employee-header .name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.fridag-selects {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fridag-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.fridag-select-row label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  min-width: 55px;
+}
+
+.fridag-select-row select {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236e6e73' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+html.dark .fridag-select-row select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888aa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
+.fridag-select-row select:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.fridag-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fridag-apply-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-blue);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fridag-apply-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.fridag-apply-btn:active {
+  transform: translateY(0);
+}
+
+.fridag-apply-btn:disabled {
+  background: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.fridag-apply-btn.loading {
+  position: relative;
+  color: transparent;
+}
+
+.fridag-apply-btn.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.fridag-status {
+  font-size: 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: none;
+}
+
+.fridag-status.success {
+  display: block;
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+html.dark .fridag-status.success {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.fridag-status.error {
+  display: block;
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
+html.dark .fridag-status.error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.fridag-current {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+}
+
+.fridag-current strong {
+  color: var(--text-primary);
+}
+
+/* Empty state */
+.fridag-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Fridagsnyckel removal modal */
+.fridag-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.fridag-modal {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease-out;
+}
+
+.fridag-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.fridag-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fridag-modal-body {
+  padding: 20px;
+}
+
+.fridag-modal-body p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.fridag-modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.fridag-modal-note {
+  font-size: 12px !important;
+  color: var(--text-secondary) !important;
+  padding: 10px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+}
+
+.fridag-modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.fridag-modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.fridag-modal-btn.cancel {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.fridag-modal-btn.cancel:hover {
+  background: var(--border-color);
+}
+
+.fridag-modal-btn.confirm {
+  background: #dc2626;
+  color: white;
+}
+
+.fridag-modal-btn.confirm:hover {
+  background: #b91c1c;
+}
+
+/* Remove progress */
+.fridag-remove-progress {
+  text-align: center;
+}
+
+.fridag-remove-progress p {
+  margin: 0 0 12px 0;
+}
+
+.fridag-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.fridag-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-blue);
+  border-radius: 4px;
+  transition: width 0.15s ease-out;
+}
+
+.fridag-progress-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.fridag-remove-success {
+  text-align: center;
+  padding: 10px;
+}
+
+.fridag-remove-success p {
+  margin: 0;
+  color: #16a34a;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+html.dark .fridag-remove-success p {
+  color: #4ade80;
+}
+
+.fridag-remove-error {
+  text-align: center;
+  padding: 10px;
+}
+
+.fridag-remove-error p {
+  margin: 0;
+  color: #dc2626;
+}
+
+html.dark .fridag-remove-error p {
+  color: #f87171;
+}
+

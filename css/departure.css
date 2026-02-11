@@ -1,0 +1,310 @@
+/* ==========================================
+   DEPARTURE BOARD - Avgång/Ankomst
+   ========================================== */
+
+/* --- Controls bar (station + toggle) --- */
+.departure-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  flex-wrap: wrap;
+}
+
+.departure-select {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+.departure-toggle {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.dep-toggle-btn {
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dep-toggle-btn.active {
+  background: #1a6b3c;
+  color: #fff;
+}
+
+/* --- The board itself --- */
+.departure-board {
+  background: #111;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid #333;
+  margin-top: 4px;
+}
+
+.departure-board-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #e0e0e0;
+  padding: 12px 12px 8px;
+  letter-spacing: 0.04em;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.departure-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+}
+
+.departure-table thead th {
+  background: #1a1a1a;
+  color: #fbbf24;
+  font-weight: 700;
+  padding: 6px 6px;
+  text-align: left;
+  border-bottom: 2px solid #333;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.departure-table tbody tr {
+  border-bottom: 1px solid #222;
+  transition: background 0.1s;
+}
+
+.departure-table tbody tr:hover {
+  background: #1a1a1a;
+}
+
+.departure-table tbody td {
+  padding: 5px 6px;
+  color: #fbbf24;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Tid column */
+.dep-col-time {
+  color: #4ade80;
+  font-weight: 600;
+}
+
+/* Till / Från column */
+.dep-col-dest {
+  color: #e0e0e0;
+  font-weight: 500;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ny tid column - delay highlight */
+.dep-col-newtime {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.dep-col-newtime.no-delay {
+  color: transparent;
+}
+
+/* Spår column */
+.dep-col-track {
+  color: #fbbf24;
+  text-align: center;
+}
+
+/* Tåg column */
+.dep-col-train {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+/* Anmärkning column */
+.dep-col-note {
+  color: #fbbf24;
+  font-size: 11px;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Cancelled row */
+.departure-table tbody tr.dep-cancelled td {
+  color: #ef4444;
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+.departure-table tbody tr.dep-cancelled .dep-col-note {
+  text-decoration: none;
+  color: #ef4444;
+  font-weight: 700;
+}
+
+/* --- Status messages --- */
+.departure-status {
+  text-align: center;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.departure-status.error {
+  color: #ef4444;
+}
+
+.departure-status .dep-loading-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-color);
+  border-top-color: #fbbf24;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.departure-status .dep-refresh-time {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+/* Empty state */
+.dep-no-key {
+  text-align: center;
+  padding: 32px 16px;
+  color: #aaa;
+}
+
+.dep-no-key .dep-no-key-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.dep-no-key p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+
+.dep-no-key .dep-go-settings {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 8px 18px;
+  background: #1a6b3c;
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+}
+
+/* --- API key input in settings --- */
+.settings-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.settings-hint a {
+  color: var(--accent-blue, #3b82f6);
+  text-decoration: underline;
+}
+
+.api-key-input-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.api-key-input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: 'Courier New', monospace;
+}
+
+.api-key-save-btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #1a6b3c;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.api-key-save-btn:hover {
+  background: #22884c;
+}
+
+.api-key-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.api-key-status.saved {
+  color: #22c55e;
+}
+
+/* --- Dark mode adjustments --- */
+.dark .departure-select {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
+.dark .dep-toggle-btn {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+
+.dark .dep-toggle-btn.active {
+  background: #1a6b3c;
+  color: #fff;
+}
+
+.dark .api-key-input {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}

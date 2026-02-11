@@ -1,0 +1,550 @@
+/* ==========================================
+   VIKTIGA DATUM (Important Dates)
+   ========================================== */
+
+/* Form styling */
+.important-date-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-row {
+  display: flex;
+  gap: 8px;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.form-row .form-input {
+  padding: 10px 8px;
+  font-size: 15px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.important-date-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.important-date-add-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.important-date-add-btn:active {
+  transform: scale(0.98);
+}
+
+/* Saved dates collapsible sub-section */
+.important-dates-sub {
+  margin-top: 16px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.collapsible-sub-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.collapsible-sub-header:hover {
+  opacity: 0.7;
+}
+
+.saved-dates-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.saved-dates-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.important-dates-sub .collapsible-arrow {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+
+.important-dates-sub.expanded .collapsible-arrow {
+  transform: rotate(90deg);
+}
+
+.collapsible-sub-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out;
+}
+
+.important-dates-sub.expanded .collapsible-sub-content {
+  max-height: 1000px;
+}
+
+/* List of saved dates (collapsible items) */
+.important-dates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.important-date-item {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.important-date-item-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.important-date-item-header:hover {
+  background: var(--bg-secondary);
+}
+
+.important-date-item .date-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.important-date-item .date-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.important-date-item .date-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+
+.important-date-item .date-title .marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.important-date-item .date-title.marquee-scroll .marquee-inner {
+  animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  padding-right: 3em;
+}
+
+.important-date-item .date-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.important-date-item .date-chevron {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.important-date-item.expanded .date-chevron {
+  transform: rotate(90deg);
+}
+
+.important-date-item-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+
+.important-date-item.expanded .important-date-item-content {
+  max-height: 200px;
+}
+
+.important-date-item-details {
+  padding: 0 14px 14px 46px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.important-date-item .date-time-row {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.important-date-item .date-time-row span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.important-date-item .date-description {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  max-height: 35vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  word-break: break-word;
+}
+
+.important-date-item .date-delete {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+
+.important-date-item .date-delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+html.dark .important-date-item .date-delete {
+  color: #f87171;
+}
+
+.important-dates-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ==========================================
+   VIKTIGT DATUM KORT (Main page card)
+   ========================================== */
+
+.important-date-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-blue);
+  border-radius: 14px;
+  margin-bottom: 12px;
+  animation: slideIn 0.3s ease-out;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.important-date-card:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.important-date-card:active {
+  transform: scale(0.98);
+}
+
+.important-date-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  min-height: 60px;
+}
+
+.important-date-card-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.important-date-card-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+
+.important-date-card-title .marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.important-date-card-title.marquee-scroll .marquee-inner {
+  animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  padding-right: 3em;
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  10% { transform: translateX(0); }
+  90% { transform: translateX(var(--marquee-distance, -100%)); }
+  100% { transform: translateX(var(--marquee-distance, -100%)); }
+}
+
+.important-date-card-time {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
+.important-date-card-chevron {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.important-date-card.expanded .important-date-card-chevron {
+  transform: rotate(180deg);
+}
+
+/* Expandable content */
+.important-date-card-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out;
+}
+
+.important-date-card.expanded .important-date-card-content {
+  max-height: 80vh;
+}
+
+.important-date-card-desc {
+  padding: 0 16px 16px 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 40vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  word-break: break-word;
+}
+
+/* Scrollbar styling for descriptions */
+.important-date-card-desc::-webkit-scrollbar {
+  width: 4px;
+}
+
+.important-date-card-desc::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.important-date-card-desc::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+/* Clickable links in descriptions */
+.desc-link {
+  color: var(--accent-blue);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  transition: opacity 0.15s;
+}
+
+.desc-link:hover {
+  opacity: 0.8;
+}
+
+.desc-link:active {
+  opacity: 0.6;
+}
+
+/* Thumbnail in card header */
+.important-date-card-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Full image in expanded card */
+.important-date-card-image {
+  padding: 0 16px 12px 16px;
+}
+
+.important-date-card-image img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+/* ==========================================
+   IMAGE UPLOAD (Settings form)
+   ========================================== */
+
+.image-upload-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.image-upload-area:hover {
+  border-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.image-upload-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.image-upload-placeholder span {
+  font-size: 20px;
+}
+
+.image-upload-preview {
+  position: relative;
+}
+
+.image-upload-preview img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+}
+
+.image-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.image-remove-btn:hover {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+/* Thumbnail in settings list item */
+.date-icon-img {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+/* Full image in settings expanded details */
+.date-detail-image {
+  margin-bottom: 10px;
+}
+
+.date-detail-image img {
+  width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+/* Dark mode adjustments for image upload */
+html.dark .image-upload-area:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+html.dark .image-remove-btn {
+  background: rgba(0, 0, 0, 0.8);
+}
+

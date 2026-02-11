@@ -27,6 +27,14 @@
   <!-- Application Styles -->
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/schedule.css">
+  <link rel="stylesheet" href="css/editors.css">
+  <link rel="stylesheet" href="css/fridagsnyckel.css">
+  <link rel="stylesheet" href="css/viktiga-datum.css">
+  <link rel="stylesheet" href="css/shadow.css">
+  <link rel="stylesheet" href="css/dagvy.css">
+  <link rel="stylesheet" href="css/departure.css">
+  <link rel="stylesheet" href="css/aw-mode.css">
   <link rel="stylesheet" href="css/animations.css">
 </head>
 <body>
@@ -69,6 +77,7 @@
       <li><a href="#" data-page="schedule" id="menuTodayLink"><span class="icon">📅</span> Dagens schema</a></li>
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
       <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema</a></li>
+      <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
       <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
@@ -227,6 +236,54 @@
     </div>
   </main>
 
+  <!-- Departure/Arrival Page -->
+  <main class="departure-page page" id="departurePage">
+    <div class="departure-controls">
+      <select class="departure-select" id="departureStation">
+        <option value="Ml" selected>Malmö C</option>
+        <option value="Hie">Hyllie</option>
+        <option value="Tri">Triangeln</option>
+        <option value="Lu">Lund C</option>
+        <option value="Klv">Kävlinge</option>
+        <option value="Lkr">Landskrona</option>
+        <option value="Hb">Helsingborg C</option>
+        <option value="Åp">Åstorp</option>
+        <option value="Elv">Eslöv</option>
+        <option value="Hör">Höör</option>
+        <option value="Hm">Hässleholm C</option>
+        <option value="Kr">Kristianstad C</option>
+        <option value="Tb">Trelleborg</option>
+        <option value="Ys">Ystad</option>
+        <option value="Sim">Simrishamn</option>
+        <option value="G">Göteborg C</option>
+        <option value="Cst">Stockholm C</option>
+      </select>
+      <div class="departure-toggle">
+        <button class="dep-toggle-btn active" id="depToggleAvgang" data-type="Avgang">Avgång</button>
+        <button class="dep-toggle-btn" id="depToggleAnkomst" data-type="Ankomst">Ankomst</button>
+      </div>
+    </div>
+    <div class="departure-board" id="departureBoard">
+      <div class="departure-board-title" id="departureBoardTitle">Avgående tåg från Malmö C</div>
+      <table class="departure-table">
+        <thead>
+          <tr>
+            <th>Tid</th>
+            <th>Till</th>
+            <th>Ny tid</th>
+            <th>Spår</th>
+            <th>Tåg</th>
+            <th>Anmärkning</th>
+          </tr>
+        </thead>
+        <tbody id="departureTableBody">
+          <!-- Rows rendered here by JS -->
+        </tbody>
+      </table>
+    </div>
+    <div class="departure-status" id="departureStatus"></div>
+  </main>
+
   <!-- Settings Page -->
   <main class="settings-page page" id="settingsPage">
     <div class="settings-container">
@@ -334,6 +391,22 @@
         </div>
       </div>
 
+      <!-- Trafikverket API-nyckel (collapsible) -->
+      <div class="settings-section collapsible" id="trafikverketSection">
+        <div class="collapsible-header" id="trafikverketHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">🚆 Trafikverket API</h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="trafikverketContent">
+          <p class="settings-hint">Krävs för Avgång/Ankomst. Registrera gratis på <a href="https://api.trafikinfo.trafikverket.se/" target="_blank" rel="noopener">trafikinfo.trafikverket.se</a></p>
+          <div class="api-key-input-group">
+            <input type="text" class="api-key-input" id="trafikverketApiKeyInput" placeholder="Klistra in din API-nyckel" autocomplete="off" spellcheck="false">
+            <button class="api-key-save-btn" id="trafikverketApiKeySave">Spara</button>
+          </div>
+          <p class="api-key-status" id="trafikverketApiKeyStatus"></p>
+        </div>
+      </div>
+
       <!-- Dagvy-import (collapsible) -->
       <div class="settings-section collapsible" id="dagvyImportSection">
         <div class="collapsible-header" id="dagvyImportHeader">
@@ -384,7 +457,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.12.12</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.13.1</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -498,6 +571,9 @@
   <script src="js/auth.js"></script>
   <script src="js/schedule.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/dagvy.js"></script>
+  <script src="js/departure.js"></script>
   <script src="js/ui-animations.js"></script>
   <script src="js/ui-editors.js"></script>
   <script src="js/ui-fridag.js"></script>

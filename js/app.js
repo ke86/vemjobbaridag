@@ -28,6 +28,9 @@ function initApp() {
   // Initialize authentication
   initAuth();
 
+  // Initialize Departure Board
+  initDeparturePage();
+
   // Setup event listeners
   setupEventListeners();
 

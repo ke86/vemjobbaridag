@@ -1,0 +1,366 @@
+/* ==========================================
+   SKUGGSCHEMA (Shadow Schedule)
+   ========================================== */
+
+/* Page layout */
+.shadow-page {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Empty/hint state */
+.shadow-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* Cycle info tag on person list cards */
+.shadow-cycle-info {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.shadow-cycle-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.12);
+  padding: 4px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+/* Schedule view header */
+.shadow-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.shadow-back-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.shadow-back-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
+}
+
+.shadow-back-btn:active {
+  transform: scale(0.97);
+}
+
+.shadow-person-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shadow-person-name {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shadow-cycle-badge {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Shadow schedule table container */
+.shadow-table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Shadow schedule table */
+.shadow-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.shadow-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  padding: 10px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: center;
+  border-bottom: 2px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.shadow-table thead th:first-child {
+  text-align: left;
+  min-width: 60px;
+}
+
+.shadow-table tbody tr {
+  transition: background 0.1s;
+}
+
+.shadow-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.shadow-table tbody td {
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.shadow-table tbody td:first-child {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Week number cell */
+.shadow-week-num {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  padding: 2px 6px;
+  display: inline-block;
+}
+
+/* Shadow cells - shift data */
+.shadow-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  justify-content: center;
+}
+
+.shadow-cell-turn {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: rgba(59, 130, 246, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shadow-cell-time {
+  font-size: 9px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* Empty cell */
+.shadow-cell-empty {
+  color: var(--text-secondary);
+  opacity: 0.3;
+  font-size: 16px;
+}
+
+/* Predicted cells (future) */
+.shadow-cell-predicted {
+  position: relative;
+}
+
+.shadow-cell-predicted .shadow-cell-turn {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+  border: 1px dashed rgba(139, 92, 246, 0.3);
+}
+
+html.dark .shadow-cell-predicted .shadow-cell-turn {
+  color: #a78bfa;
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.shadow-cell-predicted .shadow-cell-time {
+  color: #8b5cf6;
+  opacity: 0.7;
+}
+
+html.dark .shadow-cell-predicted .shadow-cell-time {
+  color: #a78bfa;
+}
+
+/* FP/FPV cells in shadow */
+.shadow-cell-fp .shadow-cell-turn {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+html.dark .shadow-cell-fp .shadow-cell-turn {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+/* Current week highlight */
+.shadow-table tbody tr.shadow-current-week {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.shadow-table tbody tr.shadow-current-week td:first-child .shadow-week-num {
+  background: var(--accent-blue);
+  color: white;
+}
+
+/* Cycle separator row */
+.shadow-table tbody tr.shadow-cycle-separator td {
+  border-bottom: 3px solid var(--accent-blue);
+  padding-bottom: 10px;
+}
+
+/* Legend */
+.shadow-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+.shadow-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.shadow-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.shadow-legend-dot.actual {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.shadow-legend-dot.predicted {
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px dashed rgba(139, 92, 246, 0.4);
+}
+
+.shadow-legend-dot.fp {
+  background: rgba(34, 197, 94, 0.2);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+/* Loading/placeholder state */
+.shadow-loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.shadow-no-data {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ==========================================
+   SKUGGSCHEMA - Responsive
+   ========================================== */
+@media (max-width: 480px) {
+  .shadow-header {
+    gap: 10px;
+  }
+
+  .shadow-back-btn {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .shadow-person-name {
+    font-size: 15px;
+  }
+
+  .shadow-table thead th {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+
+  .shadow-table tbody td {
+    padding: 6px 3px;
+  }
+
+  .shadow-cell-turn {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+
+  .shadow-cell-time {
+    font-size: 8px;
+  }
+
+  .shadow-legend {
+    gap: 10px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 380px) {
+  .shadow-table thead th {
+    padding: 6px 2px;
+    font-size: 9px;
+  }
+
+  .shadow-table tbody td {
+    padding: 4px 2px;
+  }
+
+  .shadow-cell-turn {
+    font-size: 8px;
+    padding: 1px 3px;
+  }
+
+  .shadow-cell-time {
+    font-size: 7px;
+  }
+}
+
