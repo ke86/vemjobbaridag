@@ -271,8 +271,16 @@
           <span class="dep-filter-toggle-icon">▸</span> Filter
           <span class="dep-filter-count" id="depFilterCount"></span>
         </button>
-        <div class="dep-filter-chips" id="depFilterChips">
-          <!-- Chips rendered dynamically by JS -->
+        <div class="dep-filter-panel" id="depFilterPanel">
+          <div class="dep-filter-chips" id="depFilterChips">
+            <!-- Chips rendered dynamically by JS -->
+          </div>
+          <div class="dep-employee-filter">
+            <select class="dep-employee-select" id="depEmployeeSelect">
+              <option value="">Alla tåg</option>
+              <!-- Options rendered dynamically by JS -->
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -459,7 +467,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.15.1</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.15.2</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

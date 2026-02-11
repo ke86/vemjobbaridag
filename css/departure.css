@@ -3,13 +3,14 @@
    Full-height flex layout with sticky top/bottom
    ========================================== */
 
-/* --- Page layout: flex column, full height (only when active) --- */
+/* --- Page layout: flex column, fill remaining height below header --- */
 .departure-page.active {
   display: flex !important;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  height: calc(100vh - 53px);
+  height: calc(100dvh - 53px);
   overflow: hidden;
+  margin-top: 0;
 }
 
 /* --- STICKY TOP: Controls + Filter --- */
@@ -103,15 +104,22 @@
   font-weight: 700;
 }
 
-.dep-filter-chips {
+/* Filter panel — collapsed by default */
+.dep-filter-panel {
   display: none;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   padding-top: 6px;
 }
 
-.dep-filter-chips.expanded {
+.dep-filter-panel.expanded {
   display: flex;
+}
+
+.dep-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .dep-filter-chip {
@@ -139,12 +147,6 @@
   opacity: 1;
 }
 
-.dark .dep-filter-chip.active {
-  background: #1a3a2a;
-  border-color: #22c55e;
-  color: #4ade80;
-}
-
 .dep-chip-count {
   font-size: 10px;
   background: rgba(255,255,255,0.1);
@@ -156,12 +158,39 @@
   background: rgba(74, 222, 128, 0.2);
 }
 
+/* Employee select */
+.dep-employee-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dep-employee-select {
+  flex: 1;
+  padding: 8px 32px 8px 10px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #333);
+  background: var(--bg-card, #1a1a2e);
+  color: var(--text-primary, #e0e0e0);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.dep-employee-select option:disabled {
+  color: #555;
+}
+
 /* --- SCROLLABLE TABLE AREA --- */
 .dep-scroll-area {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 
 .departure-board {
@@ -277,10 +306,25 @@
   font-weight: 700;
 }
 
+/* My train highlight */
+.departure-table tbody tr.dep-my-train {
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.departure-table tbody tr.dep-my-train td {
+  color: #4ade80;
+}
+
+.departure-table tbody tr.dep-my-train .dep-col-dest {
+  color: #4ade80;
+  font-weight: 700;
+}
+
 /* --- STICKY BOTTOM: Status bar --- */
 .dep-sticky-bottom {
   flex-shrink: 0;
-  padding: 8px 12px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
   font-size: 12px;
   color: #888;
   text-align: center;
@@ -326,6 +370,13 @@
 .dark .dep-toggle-btn.active {
   background: #1a6b3c;
   color: #fff;
+}
+
+.dark .dep-employee-select {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aaa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
 }
 
 /* --- Responsive: narrower on mobile --- */

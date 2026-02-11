@@ -10,11 +10,17 @@ let departurePageActive = false;
 const TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
 const TRAFIKVERKET_PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
 
-// Filter state: which train types are visible (all active by default)
-var depActiveFilters = {};    // { 'Pågatågen': true, 'Öresundståg': true, ... }
-var depAllAnnouncements = []; // raw data from last fetch
+// Default active product — only this type is active by default
+const DEFAULT_ACTIVE_PRODUCTS = ['Öresundståg'];
+
+// Filter state
+var depActiveFilters = {};       // { 'Pågatågen': true/false, ... }
+var depFiltersInitialized = false; // first load sets defaults
+var depAllAnnouncements = [];    // raw data from last fetch
 var depLastLocationField = 'ToLocation';
 var depFilterExpanded = false;
+var depSelectedEmployee = '';     // '' = alla, or normalized employee name
+var depEmployeeTrainNrs = [];    // train numbers from dagvy for selected employee
 
 /**
  * Station name lookup from signature
@@ -43,6 +49,72 @@ function getTrainProduct(announcement) {
 }
 
 /**
+ * Extract train numbers from an employee's dagvy for today
+ */
+function getEmployeeTrainNumbers(normalizedName) {
+  var trainNrs = [];
+  var dagvyDoc = dagvyAllData[normalizedName];
+  if (!dagvyDoc || !dagvyDoc.days) return trainNrs;
+
+  var dateKey = getDateKey(currentDate);
+  var dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+  if (!dayData || !dayData.segments) return trainNrs;
+
+  for (var i = 0; i < dayData.segments.length; i++) {
+    var seg = dayData.segments[i];
+    // Segments with explicit trainNr
+    if (seg.trainNr && seg.trainNr.length > 0) {
+      // trainNr can be like "1085" — extract just the number part
+      var nr = seg.trainNr.replace(/\s.*/g, '').trim();
+      if (nr && trainNrs.indexOf(nr) === -1) trainNrs.push(nr);
+    }
+    // Train-like activities (e.g. "11002 m1", "1071 m1")
+    if (seg.activity && /^\d{3,5}(\s+\S+)*$/i.test(seg.activity.trim())) {
+      var actNr = seg.activity.trim().replace(/\s.*/g, '').trim();
+      if (actNr && trainNrs.indexOf(actNr) === -1) trainNrs.push(actNr);
+    }
+  }
+  return trainNrs;
+}
+
+/**
+ * Populate the employee select dropdown
+ */
+function populateEmployeeSelect() {
+  var select = document.getElementById('depEmployeeSelect');
+  if (!select) return;
+
+  // Keep current selection
+  var currentVal = select.value;
+
+  // Build sorted list of employees
+  var employees = [];
+  for (var id in registeredEmployees) {
+    var emp = registeredEmployees[id];
+    if (emp && emp.name) {
+      employees.push({ id: id, name: emp.name, normalized: normalizeName(emp.name) });
+    }
+  }
+  employees.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
+
+  var html = '<option value="">Alla tåg</option>';
+  for (var i = 0; i < employees.length; i++) {
+    var emp = employees[i];
+    // Check if this employee has dagvy data for today
+    var trainNrs = getEmployeeTrainNumbers(emp.normalized);
+    var hasDagvy = trainNrs.length > 0;
+    var label = emp.name;
+    if (hasDagvy) label += ' (' + trainNrs.length + ' tåg)';
+    html += '<option value="' + emp.normalized + '"' + (hasDagvy ? '' : ' disabled') + '>'
+      + label + '</option>';
+  }
+  select.innerHTML = html;
+
+  // Restore selection
+  if (currentVal) select.value = currentVal;
+}
+
+/**
  * Initialize the departure page: event listeners
  */
 function initDeparturePage() {
@@ -50,6 +122,7 @@ function initDeparturePage() {
   var btnAvgang = document.getElementById('depToggleAvgang');
   var btnAnkomst = document.getElementById('depToggleAnkomst');
   var filterToggle = document.getElementById('depFilterToggle');
+  var employeeSelect = document.getElementById('depEmployeeSelect');
 
   if (stationSelect) {
     stationSelect.addEventListener('change', function() {
@@ -62,7 +135,6 @@ function initDeparturePage() {
       departureType = 'Avgang';
       btnAvgang.classList.add('active');
       if (btnAnkomst) btnAnkomst.classList.remove('active');
-      // Update column header
       var thRow = document.querySelector('.departure-table thead tr');
       if (thRow) { var ths = thRow.querySelectorAll('th'); if (ths.length >= 2) ths[1].textContent = 'Till'; }
       loadDepartures();
@@ -83,10 +155,22 @@ function initDeparturePage() {
   if (filterToggle) {
     filterToggle.addEventListener('click', function() {
       depFilterExpanded = !depFilterExpanded;
-      var chips = document.getElementById('depFilterChips');
+      var panel = document.getElementById('depFilterPanel');
       var icon = document.querySelector('.dep-filter-toggle-icon');
-      if (chips) chips.classList.toggle('expanded', depFilterExpanded);
+      if (panel) panel.classList.toggle('expanded', depFilterExpanded);
       if (icon) icon.textContent = depFilterExpanded ? '▾' : '▸';
+    });
+  }
+
+  if (employeeSelect) {
+    employeeSelect.addEventListener('change', function() {
+      depSelectedEmployee = this.value;
+      if (depSelectedEmployee) {
+        depEmployeeTrainNrs = getEmployeeTrainNumbers(depSelectedEmployee);
+      } else {
+        depEmployeeTrainNrs = [];
+      }
+      renderFilteredBoard();
     });
   }
 }
@@ -96,6 +180,7 @@ function initDeparturePage() {
  */
 function onDeparturePageShow() {
   departurePageActive = true;
+  populateEmployeeSelect();
   loadDepartures();
   departureRefreshTimer = setInterval(function() {
     if (departurePageActive) loadDepartures();
@@ -145,10 +230,18 @@ function buildFilterChips(announcements) {
 
   var types = Object.keys(typeCounts).sort();
 
-  // Initialize new types as active
-  for (var t = 0; t < types.length; t++) {
-    if (depActiveFilters[types[t]] === undefined) {
-      depActiveFilters[types[t]] = true;
+  // First load: set defaults (only DEFAULT_ACTIVE_PRODUCTS active)
+  if (!depFiltersInitialized) {
+    depFiltersInitialized = true;
+    for (var t = 0; t < types.length; t++) {
+      depActiveFilters[types[t]] = DEFAULT_ACTIVE_PRODUCTS.indexOf(types[t]) !== -1;
+    }
+  } else {
+    // Subsequent loads: init new types as inactive, keep existing
+    for (var t2 = 0; t2 < types.length; t2++) {
+      if (depActiveFilters[types[t2]] === undefined) {
+        depActiveFilters[types[t2]] = false;
+      }
     }
   }
 
@@ -164,7 +257,7 @@ function buildFilterChips(announcements) {
   var html = '';
   for (var j = 0; j < types.length; j++) {
     var type = types[j];
-    var active = depActiveFilters[type] !== false;
+    var active = depActiveFilters[type] === true;
     html += '<button class="dep-filter-chip' + (active ? ' active' : '') + '" data-type="' + type.replace(/"/g, '&quot;') + '">'
       + type + ' <span class="dep-chip-count">' + typeCounts[type] + '</span>'
       + '</button>';
@@ -172,18 +265,7 @@ function buildFilterChips(announcements) {
   chipsEl.innerHTML = html;
 
   // Update filter count indicator
-  var activeCount = 0;
-  var totalCount = types.length;
-  for (var f = 0; f < types.length; f++) {
-    if (depActiveFilters[types[f]] !== false) activeCount++;
-  }
-  if (countEl) {
-    if (activeCount < totalCount) {
-      countEl.textContent = '(' + activeCount + '/' + totalCount + ')';
-    } else {
-      countEl.textContent = '';
-    }
-  }
+  updateFilterCount();
 
   // Chip click handlers
   var chips = chipsEl.querySelectorAll('.dep-filter-chip');
@@ -192,26 +274,44 @@ function buildFilterChips(announcements) {
       var type = this.getAttribute('data-type');
       depActiveFilters[type] = !depActiveFilters[type];
       this.classList.toggle('active', depActiveFilters[type]);
-      // Update count
-      var ac = 0;
-      var keys = Object.keys(depActiveFilters);
-      for (var x = 0; x < keys.length; x++) { if (depActiveFilters[keys[x]]) ac++; }
-      if (countEl) { countEl.textContent = ac < keys.length ? '(' + ac + '/' + keys.length + ')' : ''; }
-      // Re-render table with filter
+      updateFilterCount();
       renderFilteredBoard();
     });
   }
 }
 
 /**
- * Re-render the board using current filter state
+ * Update filter count badge
+ */
+function updateFilterCount() {
+  var countEl = document.getElementById('depFilterCount');
+  if (!countEl) return;
+  var keys = Object.keys(depActiveFilters);
+  var ac = 0;
+  for (var x = 0; x < keys.length; x++) { if (depActiveFilters[keys[x]]) ac++; }
+  var empLabel = depSelectedEmployee ? ' · 👤' : '';
+  countEl.textContent = (ac < keys.length ? '(' + ac + '/' + keys.length + ')' : '') + empLabel;
+}
+
+/**
+ * Re-render the board using current filter state + employee filter
  */
 function renderFilteredBoard() {
   var filtered = depAllAnnouncements.filter(function(a) {
+    // Product filter
     var product = getTrainProduct(a);
-    return depActiveFilters[product] !== false;
+    if (depActiveFilters[product] !== true) return false;
+
+    // Employee filter
+    if (depSelectedEmployee && depEmployeeTrainNrs.length > 0) {
+      var trainId = a.AdvertisedTrainIdent || '';
+      if (depEmployeeTrainNrs.indexOf(trainId) === -1) return false;
+    }
+
+    return true;
   });
   renderDepartureBoard(filtered, depLastLocationField);
+  updateFilterCount();
 }
 
 /**
@@ -231,6 +331,9 @@ async function loadDepartures() {
     statusEl.innerHTML = '<span class="dep-loading-spinner"></span> Hämtar data...';
     statusEl.classList.remove('error');
   }
+
+  // Update employee select (dagvy data may have changed)
+  populateEmployeeSelect();
 
   // Build XML request
   depLastLocationField = departureType === 'Avgang' ? 'ToLocation' : 'FromLocation';
@@ -355,10 +458,10 @@ function renderDepartureBoard(announcements, locationField) {
     // Train number
     var trainId = a.AdvertisedTrainIdent || '';
 
-    // Product name for row styling
+    // Product name
     var product = getTrainProduct(a);
 
-    // Deviation = Anmärkning (skip product info, just show deviation)
+    // Deviation = Anmärkning
     var notes = [];
     if (a.Deviation && a.Deviation.length > 0) {
       for (var d = 0; d < a.Deviation.length; d++) {
@@ -373,6 +476,11 @@ function renderDepartureBoard(announcements, locationField) {
 
     var noteStr = notes.length > 0 ? notes.join(' ') : product;
     var rowClass = isCancelled ? 'dep-cancelled' : '';
+
+    // Highlight employee's own trains
+    if (depSelectedEmployee && depEmployeeTrainNrs.indexOf(trainId) !== -1) {
+      rowClass += ' dep-my-train';
+    }
 
     html += '<tr class="' + rowClass + '">'
       + '<td class="dep-col-time">' + timeStr + '</td>'
