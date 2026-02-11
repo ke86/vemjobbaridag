@@ -228,11 +228,22 @@ async function loadDepartures() {
     + '</REQUEST>';
 
   try {
-    var response = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: xml
-    });
+    // Try text/xml first (works on most browsers), fall back to text/plain (avoids CORS preflight on iOS)
+    var response;
+    try {
+      response = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml' },
+        body: xml
+      });
+    } catch (fetchErr) {
+      // Fallback: text/plain avoids CORS preflight
+      response = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: xml
+      });
+    }
 
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
