@@ -56,6 +56,11 @@ function setupEventListeners() {
     showLedigaCheckbox.addEventListener('change', renderEmployees);
   }
 
+  // Nästa tåg toggle
+  if (showNextTrainCheckbox) {
+    showNextTrainCheckbox.addEventListener('change', renderEmployees);
+  }
+
   // Keyboard navigation
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowLeft') goToPrevDay();

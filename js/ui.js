@@ -19,7 +19,7 @@ let currentScheduleView = 'calendar';
 
 // DOM Elements (initialized in initUI)
 let menuBtn, sidebar, sidebarOverlay, closeSidebarBtn;
-let prevDayBtn, nextDayBtn, currentDateEl, workingCountEl, employeeListEl, showLedigaCheckbox;
+let prevDayBtn, nextDayBtn, currentDateEl, employeeListEl, showLedigaCheckbox, showNextTrainCheckbox;
 let schedulePage, uploadPage, monthlyPage, headerTitle, menuLinks;
 let personListView, personScheduleView, personList;
 let monthDisplay, prevMonthBtn, nextMonthBtn, monthlyScheduleList;
@@ -48,9 +48,9 @@ function initUI() {
   prevDayBtn = document.getElementById('prevDay');
   nextDayBtn = document.getElementById('nextDay');
   currentDateEl = document.getElementById('currentDate');
-  workingCountEl = document.getElementById('workingCount');
   employeeListEl = document.getElementById('employeeList');
   showLedigaCheckbox = document.getElementById('showLediga');
+  showNextTrainCheckbox = document.getElementById('showNextTrain');
 
   // Pages
   schedulePage = document.getElementById('schedulePage');
@@ -299,14 +299,15 @@ function getNextTrainForEmployee(employeeId) {
 }
 
 /**
- * Render badge with icon/turn number toggle
- * For regular shifts: shows next train badge (from dagvy) instead of SE/DK icons
- * Returns badge HTML string
+ * Render badge with icon/turn number toggle OR live train badge
+ * Mode depends on the "Nästa tåg" toggle checkbox
  */
 function renderBadgeWithToggle(shift) {
   const turnStr = (shift.badgeText || '').toString().trim();
+  const icons = getTurnIcons(turnStr);
+  const trainMode = showNextTrainCheckbox ? showNextTrainCheckbox.checked : false;
 
-  // Special badge types - no toggle, just return the badge
+  // Special badge types - always the same regardless of mode
   const specialBadges = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'ffu', 'seko', 'sjuk'];
 
   if (specialBadges.includes(shift.badge)) {
@@ -326,24 +327,39 @@ function renderBadgeWithToggle(shift) {
     return badgeHtml;
   }
 
-  // Try to get next train from dagvy for this employee
-  const nextTrain = getNextTrainForEmployee(shift.employeeId);
+  // === NÄSTA TÅG MODE ===
+  if (trainMode) {
+    const nextTrain = getNextTrainForEmployee(shift.employeeId);
 
-  if (nextTrain) {
-    // Show next train badge — data attributes for realtime updates later
-    return `
-      <div class="train-live-badge" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}">
-        <span class="train-live-nr">${nextTrain.trainNr}</span>
-        <span class="train-live-delay"></span>
-      </div>
-    `;
-  }
+    if (nextTrain) {
+      return `
+        <div class="train-live-badge" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}">
+          <span class="train-live-nr">${nextTrain.trainNr}</span>
+          <span class="train-live-delay"></span>
+        </div>
+      `;
+    }
 
-  // No dagvy data — show grey dash or plain turn number
-  if (!turnStr) {
+    // No dagvy data — grey dash
     return '<span class="badge train-no-data">—</span>';
   }
-  return `<span class="badge dag">${turnStr}</span>`;
+
+  // === TUR MODE (default) — show SE/DK icons with toggle ===
+  if (icons.length === 0) {
+    if (!turnStr) return '';
+    return `<span class="badge dag">${turnStr}</span>`;
+  }
+
+  const iconsHtml = icons.map(icon => {
+    return `<img class="badge-icon badge-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
+  }).join('');
+
+  return `
+    <div class="badge-toggle" onclick="toggleBadgeDisplay(event, this)">
+      <div class="badge-icon-view">${iconsHtml}</div>
+      <span class="badge dag badge-number-view">${turnStr}</span>
+    </div>
+  `;
 }
 
 /**
@@ -407,8 +423,6 @@ function renderEmployees() {
     currentDateEl.textContent = formatDate(currentDate);
     currentDateEl.style.transition = 'opacity 0.2s ease';
   }
-  if (workingCountEl) workingCountEl.textContent = workingShifts.length;
-
   // Start holiday animations if applicable
   startHolidayDateDisplay();
   startHolidayAnimations();
@@ -499,7 +513,7 @@ function renderEmployees() {
     const badgeHtml = (shift.isBirthdayOnly || shift.isNameDayOnly) ? '' : renderBadgeWithToggle(shift);
 
     // "Uppdaterad" badge if schedule was updated from dagvy
-    const updatedBadge = shift.updatedFromDagvy ? '<span class="dagvy-updated-badge">Uppdaterad</span>' : '';
+    const updatedBadge = shift.updatedFromDagvy ? '<span class="dagvy-updated-badge">UPD</span>' : '';
 
     return `
       <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
@@ -514,8 +528,13 @@ function renderEmployees() {
     `;
   }).join('');
 
-  // Start realtime train polling after cards are rendered
-  startTrainRealtimePolling();
+  // Start or stop realtime train polling based on toggle
+  const trainMode = showNextTrainCheckbox ? showNextTrainCheckbox.checked : false;
+  if (trainMode) {
+    startTrainRealtimePolling();
+  } else {
+    stopTrainRealtimePolling();
+  }
 }
 
 
@@ -2287,7 +2306,7 @@ function flipTrainBadges() {
 function startTrainFlipTimer() {
   stopTrainFlipTimer();
   trainFlipShowingDelay = false;
-  trainFlipTimer = setInterval(flipTrainBadges, 10000);
+  trainFlipTimer = setInterval(flipTrainBadges, 5000);
 }
 
 /**
