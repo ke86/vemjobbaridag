@@ -207,8 +207,9 @@ async function loadDepartures() {
     + '<AND>'
     + '<EQ name="LocationSignature" value="' + stationSig + '" />'
     + '<EQ name="ActivityType" value="' + departureType + '" />'
-    + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-00:10:00)" />'
-    + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(02:00:00)" />'
+    + '<EQ name="Advertised" value="true" />'
+    + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-00:30:00)" />'
+    + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(06:00:00)" />'
     + '</AND>'
     + '</FILTER>'
     + '<INCLUDE>AdvertisedTimeAtLocation</INCLUDE>'
@@ -252,9 +253,9 @@ async function loadDepartures() {
     }
 
   } catch (err) {
-    console.error('Departure fetch error:', err);
+    console.error('Departure fetch error:', JSON.stringify({message: err.message, stack: err.stack}));
     if (statusEl) {
-      statusEl.innerHTML = 'Kunde inte hämta data: ' + err.message;
+      statusEl.innerHTML = '⚠️ Kunde inte hämta data: ' + (err.message || 'okänt fel') + '<div class="dep-refresh-time">Försöker igen om 30s</div>';
       statusEl.className = 'departure-status error';
     }
   }
