@@ -268,14 +268,18 @@
       <!-- COLLAPSIBLE FILTER -->
       <div class="dep-filter-bar" id="depFilterBar">
         <button class="dep-filter-toggle" id="depFilterToggle">
-          <span class="dep-filter-toggle-icon">▸</span> Filter
+          <span class="dep-filter-toggle-icon" id="depFilterToggleIcon">▸</span> Filter
           <span class="dep-filter-count" id="depFilterCount"></span>
         </button>
         <div class="dep-filter-panel" id="depFilterPanel">
+          <div class="dep-filter-label">Tågtyp</div>
           <div class="dep-filter-chips" id="depFilterChips">
             <!-- Chips rendered dynamically by JS -->
           </div>
+          <div class="dep-filter-divider"></div>
+          <div class="dep-filter-label">Kollega</div>
           <div class="dep-employee-filter">
+            <span class="dep-employee-icon">👤</span>
             <select class="dep-employee-select" id="depEmployeeSelect">
               <option value="">Alla tåg</option>
               <!-- Options rendered dynamically by JS -->
@@ -467,7 +471,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.15.3</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.15.4</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

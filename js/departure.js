@@ -156,9 +156,12 @@ function initDeparturePage() {
     filterToggle.addEventListener('click', function() {
       depFilterExpanded = !depFilterExpanded;
       var panel = document.getElementById('depFilterPanel');
-      var icon = document.querySelector('.dep-filter-toggle-icon');
+      var icon = document.getElementById('depFilterToggleIcon');
       if (panel) panel.classList.toggle('expanded', depFilterExpanded);
-      if (icon) icon.textContent = depFilterExpanded ? '▾' : '▸';
+      if (icon) {
+        icon.textContent = '▸';
+        icon.classList.toggle('expanded', depFilterExpanded);
+      }
     });
   }
 
