@@ -1,20 +1,43 @@
 /* ==========================================
    DEPARTURE BOARD - Avgång/Ankomst
+   Full-height flex layout with sticky top/bottom
    ========================================== */
 
-/* --- Controls bar (station + toggle) --- */
+/* --- Page layout: flex column, full height --- */
+.departure-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* --- STICKY TOP: Controls + Filter --- */
+.dep-sticky-top {
+  flex-shrink: 0;
+  background: var(--bg-primary, #fff);
+  z-index: 10;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.dark .dep-sticky-top {
+  background: var(--bg-primary, #0d0d1a);
+  border-bottom-color: #222;
+}
+
+/* Controls bar: station select + toggle */
 .departure-controls {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 0;
+  padding: 10px 12px;
   flex-wrap: wrap;
 }
 
 .departure-select {
   flex: 1;
-  min-width: 140px;
-  padding: 10px 12px;
+  min-width: 120px;
+  padding: 10px 32px 10px 12px;
   font-size: 16px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
@@ -25,7 +48,6 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  padding-right: 32px;
 }
 
 .departure-toggle {
@@ -52,23 +74,99 @@
   color: #fff;
 }
 
-/* --- The board itself --- */
-.departure-board {
-  background: #111;
-  border-radius: 10px;
-  overflow: hidden;
-  border: 2px solid #333;
-  margin-top: 4px;
+/* --- FILTER BAR (collapsible) --- */
+.dep-filter-bar {
+  padding: 0 12px 8px;
 }
 
-.departure-board-title {
-  text-align: center;
-  font-size: 16px;
+.dep-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary, #888);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
+.dep-filter-toggle-icon {
+  font-size: 11px;
+  transition: transform 0.2s;
+}
+
+.dep-filter-count {
+  font-size: 11px;
+  color: #fbbf24;
   font-weight: 700;
-  color: #e0e0e0;
-  padding: 12px 12px 8px;
-  letter-spacing: 0.04em;
-  font-family: 'Courier New', Courier, monospace;
+}
+
+.dep-filter-chips {
+  display: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 6px;
+}
+
+.dep-filter-chips.expanded {
+  display: flex;
+}
+
+.dep-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #444;
+  border-radius: 16px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: line-through;
+  opacity: 0.5;
+}
+
+.dep-filter-chip.active {
+  background: #1a3a2a;
+  border-color: #22c55e;
+  color: #4ade80;
+  text-decoration: none;
+  opacity: 1;
+}
+
+.dark .dep-filter-chip.active {
+  background: #1a3a2a;
+  border-color: #22c55e;
+  color: #4ade80;
+}
+
+.dep-chip-count {
+  font-size: 10px;
+  background: rgba(255,255,255,0.1);
+  padding: 1px 5px;
+  border-radius: 8px;
+}
+
+.dep-filter-chip.active .dep-chip-count {
+  background: rgba(74, 222, 128, 0.2);
+}
+
+/* --- SCROLLABLE TABLE AREA --- */
+.dep-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.departure-board {
+  background: #111;
+  min-height: 100%;
 }
 
 .departure-table {
@@ -78,11 +176,17 @@
   font-size: 13px;
 }
 
+.departure-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
 .departure-table thead th {
   background: #1a1a1a;
   color: #fbbf24;
   font-weight: 700;
-  padding: 6px 6px;
+  padding: 8px 6px;
   text-align: left;
   border-bottom: 2px solid #333;
   font-size: 12px;
@@ -99,7 +203,7 @@
 }
 
 .departure-table tbody td {
-  padding: 5px 6px;
+  padding: 6px 6px;
   color: #fbbf24;
   vertical-align: middle;
   white-space: nowrap;
@@ -115,14 +219,14 @@
 .dep-col-dest {
   color: #e0e0e0;
   font-weight: 500;
-  max-width: 100px;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 /* Ny tid column - delay highlight */
 .dep-col-newtime {
-  color: #fbbf24;
+  color: #ef4444;
   font-weight: 700;
 }
 
@@ -134,6 +238,7 @@
 .dep-col-track {
   color: #fbbf24;
   text-align: center;
+  font-weight: 600;
 }
 
 /* Tåg column */
@@ -144,11 +249,19 @@
 
 /* Anmärkning column */
 .dep-col-note {
-  color: #fbbf24;
+  color: #888;
   font-size: 11px;
   max-width: 90px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Empty state */
+.dep-empty {
+  text-align: center;
+  color: #666;
+  padding: 32px 12px;
+  font-size: 14px;
 }
 
 /* Cancelled row */
@@ -164,125 +277,37 @@
   font-weight: 700;
 }
 
-/* --- Status messages --- */
-.departure-status {
+/* --- STICKY BOTTOM: Status bar --- */
+.dep-sticky-bottom {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #888;
   text-align: center;
-  padding: 16px;
-  font-size: 14px;
-  color: var(--text-secondary);
+  background: #111;
+  border-top: 1px solid #333;
+  font-family: 'Courier New', Courier, monospace;
+  z-index: 10;
 }
 
-.departure-status.error {
+.dep-sticky-bottom.error {
   color: #ef4444;
 }
 
-.departure-status .dep-loading-spinner {
+.dep-sticky-bottom .dep-loading-spinner {
   display: inline-block;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-color);
+  width: 14px;
+  height: 14px;
+  border: 2px solid #333;
   border-top-color: #fbbf24;
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  margin-right: 8px;
+  animation: dep-spin 0.6s linear infinite;
+  margin-right: 6px;
   vertical-align: middle;
 }
 
-@keyframes spin {
+@keyframes dep-spin {
   to { transform: rotate(360deg); }
-}
-
-.departure-status .dep-refresh-time {
-  font-size: 11px;
-  opacity: 0.6;
-  margin-top: 4px;
-}
-
-/* Empty state */
-.dep-no-key {
-  text-align: center;
-  padding: 32px 16px;
-  color: #aaa;
-}
-
-.dep-no-key .dep-no-key-icon {
-  font-size: 40px;
-  margin-bottom: 12px;
-}
-
-.dep-no-key p {
-  margin: 4px 0;
-  font-size: 14px;
-}
-
-.dep-no-key .dep-go-settings {
-  display: inline-block;
-  margin-top: 12px;
-  padding: 8px 18px;
-  background: #1a6b3c;
-  color: #fff;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  border: none;
-}
-
-/* --- API key input in settings --- */
-.settings-hint {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-  line-height: 1.4;
-}
-
-.settings-hint a {
-  color: var(--accent-blue, #3b82f6);
-  text-decoration: underline;
-}
-
-.api-key-input-group {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.api-key-input {
-  flex: 1;
-  padding: 10px 12px;
-  font-size: 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-family: 'Courier New', monospace;
-}
-
-.api-key-save-btn {
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
-  border-radius: 8px;
-  background: #1a6b3c;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-
-.api-key-save-btn:hover {
-  background: #22884c;
-}
-
-.api-key-status {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.api-key-status.saved {
-  color: #22c55e;
 }
 
 /* --- Dark mode adjustments --- */
@@ -303,25 +328,26 @@
   color: #fff;
 }
 
-.dark .api-key-input {
-  background: var(--bg-card);
-  border-color: var(--border-color);
-  color: var(--text-primary);
-}
-
-/* CORS hint */
-.dep-cors-hint {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #fff8e1;
-  border: 1px solid #ffe082;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #6d4c00;
-  line-height: 1.4;
-}
-.dark .dep-cors-hint {
-  background: #3e2f00;
-  border-color: #6d4c00;
-  color: #ffe082;
+/* --- Responsive: narrower on mobile --- */
+@media (max-width: 400px) {
+  .departure-controls {
+    padding: 8px 8px;
+    gap: 8px;
+  }
+  .dep-filter-bar {
+    padding: 0 8px 6px;
+  }
+  .departure-table {
+    font-size: 12px;
+  }
+  .departure-table thead th,
+  .departure-table tbody td {
+    padding: 5px 4px;
+  }
+  .dep-col-dest {
+    max-width: 80px;
+  }
+  .dep-col-note {
+    max-width: 60px;
+  }
 }

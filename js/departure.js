@@ -2,7 +2,7 @@
 // DEPARTURE BOARD (Avgång / Ankomst)
 // ==========================================
 
-let departureType = 'Avgang'; // 'Avgang' or 'Ankomst'
+let departureType = 'Avgang';
 let departureRefreshTimer = null;
 let departurePageActive = false;
 
@@ -10,7 +10,11 @@ let departurePageActive = false;
 const TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
 const TRAFIKVERKET_PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
 
-// No product filter — show all trains at station
+// Filter state: which train types are visible (all active by default)
+var depActiveFilters = {};    // { 'Pågatågen': true, 'Öresundståg': true, ... }
+var depAllAnnouncements = []; // raw data from last fetch
+var depLastLocationField = 'ToLocation';
+var depFilterExpanded = false;
 
 /**
  * Station name lookup from signature
@@ -26,12 +30,26 @@ const stationNames = {};
 })();
 
 /**
+ * Get product name from an announcement
+ */
+function getTrainProduct(announcement) {
+  if (announcement.ProductInformation && announcement.ProductInformation.length > 0) {
+    var info = announcement.ProductInformation[0];
+    var desc = info.Description || info;
+    if (typeof desc === 'string') return desc;
+    if (desc && desc.Description) return desc.Description;
+  }
+  return 'Övrigt';
+}
+
+/**
  * Initialize the departure page: event listeners
  */
 function initDeparturePage() {
   var stationSelect = document.getElementById('departureStation');
   var btnAvgang = document.getElementById('depToggleAvgang');
   var btnAnkomst = document.getElementById('depToggleAnkomst');
+  var filterToggle = document.getElementById('depFilterToggle');
 
   if (stationSelect) {
     stationSelect.addEventListener('change', function() {
@@ -44,6 +62,9 @@ function initDeparturePage() {
       departureType = 'Avgang';
       btnAvgang.classList.add('active');
       if (btnAnkomst) btnAnkomst.classList.remove('active');
+      // Update column header
+      var thRow = document.querySelector('.departure-table thead tr');
+      if (thRow) { var ths = thRow.querySelectorAll('th'); if (ths.length >= 2) ths[1].textContent = 'Till'; }
       loadDepartures();
     });
   }
@@ -53,7 +74,19 @@ function initDeparturePage() {
       departureType = 'Ankomst';
       btnAnkomst.classList.add('active');
       if (btnAvgang) btnAvgang.classList.remove('active');
+      var thRow = document.querySelector('.departure-table thead tr');
+      if (thRow) { var ths = thRow.querySelectorAll('th'); if (ths.length >= 2) ths[1].textContent = 'Från'; }
       loadDepartures();
+    });
+  }
+
+  if (filterToggle) {
+    filterToggle.addEventListener('click', function() {
+      depFilterExpanded = !depFilterExpanded;
+      var chips = document.getElementById('depFilterChips');
+      var icon = document.querySelector('.dep-filter-toggle-icon');
+      if (chips) chips.classList.toggle('expanded', depFilterExpanded);
+      if (icon) icon.textContent = depFilterExpanded ? '▾' : '▸';
     });
   }
 }
@@ -64,7 +97,6 @@ function initDeparturePage() {
 function onDeparturePageShow() {
   departurePageActive = true;
   loadDepartures();
-  // Auto-refresh every 30 seconds
   departureRefreshTimer = setInterval(function() {
     if (departurePageActive) loadDepartures();
   }, 30000);
@@ -97,43 +129,111 @@ async function fetchTrafikverketData(xmlBody) {
 }
 
 /**
+ * Build and render filter chips from announcements
+ */
+function buildFilterChips(announcements) {
+  var chipsEl = document.getElementById('depFilterChips');
+  var countEl = document.getElementById('depFilterCount');
+  if (!chipsEl) return;
+
+  // Collect unique train types + count
+  var typeCounts = {};
+  for (var i = 0; i < announcements.length; i++) {
+    var product = getTrainProduct(announcements[i]);
+    typeCounts[product] = (typeCounts[product] || 0) + 1;
+  }
+
+  var types = Object.keys(typeCounts).sort();
+
+  // Initialize new types as active
+  for (var t = 0; t < types.length; t++) {
+    if (depActiveFilters[types[t]] === undefined) {
+      depActiveFilters[types[t]] = true;
+    }
+  }
+
+  // Remove old types no longer present
+  var filterKeys = Object.keys(depActiveFilters);
+  for (var k = 0; k < filterKeys.length; k++) {
+    if (typeCounts[filterKeys[k]] === undefined) {
+      delete depActiveFilters[filterKeys[k]];
+    }
+  }
+
+  // Render chips
+  var html = '';
+  for (var j = 0; j < types.length; j++) {
+    var type = types[j];
+    var active = depActiveFilters[type] !== false;
+    html += '<button class="dep-filter-chip' + (active ? ' active' : '') + '" data-type="' + type.replace(/"/g, '&quot;') + '">'
+      + type + ' <span class="dep-chip-count">' + typeCounts[type] + '</span>'
+      + '</button>';
+  }
+  chipsEl.innerHTML = html;
+
+  // Update filter count indicator
+  var activeCount = 0;
+  var totalCount = types.length;
+  for (var f = 0; f < types.length; f++) {
+    if (depActiveFilters[types[f]] !== false) activeCount++;
+  }
+  if (countEl) {
+    if (activeCount < totalCount) {
+      countEl.textContent = '(' + activeCount + '/' + totalCount + ')';
+    } else {
+      countEl.textContent = '';
+    }
+  }
+
+  // Chip click handlers
+  var chips = chipsEl.querySelectorAll('.dep-filter-chip');
+  for (var c = 0; c < chips.length; c++) {
+    chips[c].addEventListener('click', function() {
+      var type = this.getAttribute('data-type');
+      depActiveFilters[type] = !depActiveFilters[type];
+      this.classList.toggle('active', depActiveFilters[type]);
+      // Update count
+      var ac = 0;
+      var keys = Object.keys(depActiveFilters);
+      for (var x = 0; x < keys.length; x++) { if (depActiveFilters[keys[x]]) ac++; }
+      if (countEl) { countEl.textContent = ac < keys.length ? '(' + ac + '/' + keys.length + ')' : ''; }
+      // Re-render table with filter
+      renderFilteredBoard();
+    });
+  }
+}
+
+/**
+ * Re-render the board using current filter state
+ */
+function renderFilteredBoard() {
+  var filtered = depAllAnnouncements.filter(function(a) {
+    var product = getTrainProduct(a);
+    return depActiveFilters[product] !== false;
+  });
+  renderDepartureBoard(filtered, depLastLocationField);
+}
+
+/**
  * Load departures/arrivals from Trafikverket API
  */
 async function loadDepartures() {
   var statusEl = document.getElementById('departureStatus');
   var tbodyEl = document.getElementById('departureTableBody');
-  var titleEl = document.getElementById('departureBoardTitle');
   var stationSelect = document.getElementById('departureStation');
 
   if (!tbodyEl || !stationSelect) return;
 
   var stationSig = stationSelect.value;
-  var stationName = stationNames[stationSig] || stationSig;
 
-  // Update title
-  if (titleEl) {
-    titleEl.textContent = (departureType === 'Avgang' ? 'Avgående tåg från ' : 'Ankommande tåg till ') + stationName;
-  }
-
-  // Update column header (Till vs Från)
-  var thRow = document.querySelector('.departure-table thead tr');
-  if (thRow) {
-    var ths = thRow.querySelectorAll('th');
-    if (ths.length >= 2) {
-      ths[1].textContent = departureType === 'Avgang' ? 'Till' : 'Från';
-    }
-  }
-
-  // Show loading
-  var boardEl = document.getElementById('departureBoard');
-  if (boardEl) boardEl.style.display = '';
+  // Show loading in bottom bar
   if (statusEl) {
     statusEl.innerHTML = '<span class="dep-loading-spinner"></span> Hämtar data...';
-    statusEl.className = 'departure-status';
+    statusEl.classList.remove('error');
   }
 
   // Build XML request
-  var locationField = departureType === 'Avgang' ? 'ToLocation' : 'FromLocation';
+  depLastLocationField = departureType === 'Avgang' ? 'ToLocation' : 'FromLocation';
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
@@ -167,25 +267,49 @@ async function loadDepartures() {
       announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
     }
 
-    // No product filter — show all trains
+    // Store for filter re-renders
+    depAllAnnouncements = announcements;
 
-    renderDepartureBoard(announcements, locationField);
+    // Build filter chips
+    buildFilterChips(announcements);
 
-    // Show refresh time
+    // Render with active filters
+    renderFilteredBoard();
+
+    // Update bottom status bar
     var now = new Date();
     var timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
     if (statusEl) {
-      statusEl.innerHTML = '<div class="dep-refresh-time">Uppdaterad ' + timeStr + ' · Nästa om 30s</div>';
-      statusEl.className = 'departure-status';
+      statusEl.innerHTML = 'Uppdaterad ' + timeStr + ' · <span id="depCountdown">30</span>s';
+      statusEl.classList.remove('error');
+      startCountdown();
     }
 
   } catch (err) {
     console.error('Departure fetch error:', JSON.stringify({message: err.message, stack: err.stack}));
     if (statusEl) {
-      statusEl.innerHTML = '⚠️ Kunde inte hämta data: ' + (err.message || 'okänt fel') + '<div class="dep-refresh-time">Försöker igen om 30s</div>';
-      statusEl.className = 'departure-status error';
+      statusEl.innerHTML = '⚠️ ' + (err.message || 'Fel') + ' · Försöker igen...';
+      statusEl.classList.add('error');
     }
   }
+}
+
+/**
+ * Countdown timer in the bottom bar
+ */
+var depCountdownTimer = null;
+function startCountdown() {
+  if (depCountdownTimer) clearInterval(depCountdownTimer);
+  var seconds = 30;
+  depCountdownTimer = setInterval(function() {
+    seconds--;
+    var el = document.getElementById('depCountdown');
+    if (el) el.textContent = seconds;
+    if (seconds <= 0) {
+      clearInterval(depCountdownTimer);
+      depCountdownTimer = null;
+    }
+  }, 1000);
 }
 
 /**
@@ -196,7 +320,7 @@ function renderDepartureBoard(announcements, locationField) {
   if (!tbodyEl) return;
 
   if (announcements.length === 0) {
-    tbodyEl.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px;">Inga tåg hittades</td></tr>';
+    tbodyEl.innerHTML = '<tr><td colspan="6" class="dep-empty">Inga tåg</td></tr>';
     return;
   }
 
@@ -231,15 +355,11 @@ function renderDepartureBoard(announcements, locationField) {
     // Train number
     var trainId = a.AdvertisedTrainIdent || '';
 
-    // Product info + Deviation = Anmärkning
+    // Product name for row styling
+    var product = getTrainProduct(a);
+
+    // Deviation = Anmärkning (skip product info, just show deviation)
     var notes = [];
-    if (a.ProductInformation && a.ProductInformation.length > 0) {
-      for (var p = 0; p < a.ProductInformation.length; p++) {
-        var desc = a.ProductInformation[p].Description || a.ProductInformation[p];
-        if (typeof desc === 'string') notes.push(desc);
-        else if (desc && desc.Description) notes.push(desc.Description);
-      }
-    }
     if (a.Deviation && a.Deviation.length > 0) {
       for (var d = 0; d < a.Deviation.length; d++) {
         var devDesc = a.Deviation[d].Description || a.Deviation[d];
@@ -251,7 +371,7 @@ function renderDepartureBoard(announcements, locationField) {
     var isCancelled = a.Canceled === true;
     if (isCancelled) notes.push('Inställt');
 
-    var noteStr = notes.join(' ');
+    var noteStr = notes.length > 0 ? notes.join(' ') : product;
     var rowClass = isCancelled ? 'dep-cancelled' : '';
 
     html += '<tr class="' + rowClass + '">'
