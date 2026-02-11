@@ -210,8 +210,9 @@ function renderTurnIcons(turnNumber) {
 
 /**
  * Get the next (or current) train segment for an employee from dagvy data.
- * Returns { trainNr, timeStart, timeEnd, fromStation, toStation } or null.
+ * Returns { trainNr, timeStart, timeEnd, fromStation, toStation, finished? } or null.
  * "Next" = nearest future train, or a train that started up to 60 min ago.
+ * If all trains are done: returns last train with finished=true.
  */
 function getNextTrainForEmployee(employeeId) {
   const emp = registeredEmployees[employeeId];
@@ -267,7 +268,6 @@ function getNextTrainForEmployee(employeeId) {
   const isViewingToday = (getDateKey(currentDate) === getDateKey(new Date()));
 
   if (!isViewingToday) {
-    // If viewing another date, return first train of the day
     return trainSegs[0];
   }
 
@@ -283,7 +283,6 @@ function getNextTrainForEmployee(employeeId) {
     if (t.startMin === null) continue;
 
     if (t.startMin <= nowMinutes && t.endMin !== null && t.endMin >= nowMinutes) {
-      // Currently running
       currentTrain = t;
       break;
     }
@@ -291,11 +290,21 @@ function getNextTrainForEmployee(employeeId) {
       nextTrain = t;
     }
     if (t.endMin !== null && t.endMin < nowMinutes && (nowMinutes - t.endMin) <= 60) {
-      recentTrain = t; // Keep updating — last recent train
+      recentTrain = t;
     }
   }
 
-  return currentTrain || nextTrain || recentTrain || trainSegs[0];
+  if (currentTrain || nextTrain || recentTrain) {
+    return currentTrain || nextTrain || recentTrain;
+  }
+
+  // All trains are done — return last train with finished flag
+  const lastTrain = trainSegs[trainSegs.length - 1];
+  if (lastTrain.endMin !== null && lastTrain.endMin < nowMinutes) {
+    return Object.assign({}, lastTrain, { finished: true });
+  }
+
+  return trainSegs[0];
 }
 
 /**
@@ -332,6 +341,16 @@ function renderBadgeWithToggle(shift) {
     const nextTrain = getNextTrainForEmployee(shift.employeeId);
 
     if (nextTrain) {
+      if (nextTrain.finished) {
+        // Finished for the day — show last train nr, flip shows "Ank HH:MM"
+        const ankTime = nextTrain.timeEnd || '—';
+        return `
+          <div class="train-live-badge train-finished" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}" data-finished="1" data-ank="${ankTime}">
+            <span class="train-live-nr">${nextTrain.trainNr}</span>
+            <span class="train-live-delay">Ank ${ankTime}</span>
+          </div>
+        `;
+      }
       return `
         <div class="train-live-badge" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}">
           <span class="train-live-nr">${nextTrain.trainNr}</span>
@@ -532,6 +551,11 @@ function renderEmployees() {
   const trainMode = showNextTrainCheckbox ? showNextTrainCheckbox.checked : false;
   if (trainMode) {
     startTrainRealtimePolling();
+    // Start flip timer for finished badges even before realtime data arrives
+    const finishedBadges = document.querySelectorAll('.train-live-badge[data-finished="1"]');
+    if (finishedBadges.length > 0 && !trainFlipTimer) {
+      startTrainFlipTimer();
+    }
   } else {
     stopTrainRealtimePolling();
   }
@@ -2287,11 +2311,18 @@ let trainFlipShowingDelay = false;
 
 /**
  * Toggle all train badges between showing train number and delay text
+ * Finished badges always flip (Sista tåg ↔ Ank HH:MM)
  */
 function flipTrainBadges() {
   trainFlipShowingDelay = !trainFlipShowingDelay;
   const badges = document.querySelectorAll('.train-live-badge[data-train-nr]');
   badges.forEach(badge => {
+    const isFinished = badge.getAttribute('data-finished') === '1';
+    if (isFinished) {
+      // Finished badges always flip
+      badge.classList.toggle('show-delay', trainFlipShowingDelay);
+      return;
+    }
     const nr = badge.getAttribute('data-train-nr');
     const info = trainRealtimeStore[nr];
     // Only flip if we have realtime data

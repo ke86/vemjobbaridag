@@ -365,6 +365,27 @@ html.dark .train-live-badge[data-status="minor"] .train-live-delay {
   color: var(--accent-red);
 }
 
+/* Finished for the day — blue/grey style */
+.train-live-badge.train-finished {
+  background: rgba(100, 116, 139, 0.15);
+  border-color: #94a3b8;
+}
+.train-live-badge.train-finished .train-live-nr {
+  color: #64748b;
+}
+.train-live-badge.train-finished .train-live-delay {
+  color: #64748b;
+  font-size: 11px;
+}
+html.dark .train-live-badge.train-finished {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: #64748b;
+}
+html.dark .train-live-badge.train-finished .train-live-nr,
+html.dark .train-live-badge.train-finished .train-live-delay {
+  color: #94a3b8;
+}
+
 /* No data — grey dash */
 .badge.train-no-data {
   background: rgba(136, 136, 136, 0.12);
