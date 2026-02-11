@@ -238,50 +238,68 @@
 
   <!-- Departure/Arrival Page -->
   <main class="departure-page page" id="departurePage">
-    <div class="departure-controls">
-      <select class="departure-select" id="departureStation">
-        <option value="Mc" selected>Malmö C</option>
-        <option value="Hie">Hyllie</option>
-        <option value="Tri">Triangeln</option>
-        <option value="Lu">Lund C</option>
-        <option value="Klv">Kävlinge</option>
-        <option value="Lkr">Landskrona</option>
-        <option value="Hb">Helsingborg C</option>
-        <option value="Åp">Åstorp</option>
-        <option value="Elv">Eslöv</option>
-        <option value="Hör">Höör</option>
-        <option value="Hm">Hässleholm C</option>
-        <option value="Kr">Kristianstad C</option>
-        <option value="Tb">Trelleborg</option>
-        <option value="Ys">Ystad</option>
-        <option value="Sim">Simrishamn</option>
-        <option value="G">Göteborg C</option>
-        <option value="Cst">Stockholm C</option>
-      </select>
-      <div class="departure-toggle">
-        <button class="dep-toggle-btn active" id="depToggleAvgang" data-type="Avgang">Avgång</button>
-        <button class="dep-toggle-btn" id="depToggleAnkomst" data-type="Ankomst">Ankomst</button>
+    <!-- STICKY TOP: Station + Avgång/Ankomst -->
+    <div class="dep-sticky-top">
+      <div class="departure-controls">
+        <select class="departure-select" id="departureStation">
+          <option value="Mc" selected>Malmö C</option>
+          <option value="Hie">Hyllie</option>
+          <option value="Tri">Triangeln</option>
+          <option value="Lu">Lund C</option>
+          <option value="Klv">Kävlinge</option>
+          <option value="Lkr">Landskrona</option>
+          <option value="Hb">Helsingborg C</option>
+          <option value="Åp">Åstorp</option>
+          <option value="Elv">Eslöv</option>
+          <option value="Hör">Höör</option>
+          <option value="Hm">Hässleholm C</option>
+          <option value="Kr">Kristianstad C</option>
+          <option value="Tb">Trelleborg</option>
+          <option value="Ys">Ystad</option>
+          <option value="Sim">Simrishamn</option>
+          <option value="G">Göteborg C</option>
+          <option value="Cst">Stockholm C</option>
+        </select>
+        <div class="departure-toggle">
+          <button class="dep-toggle-btn active" id="depToggleAvgang" data-type="Avgang">Avgång</button>
+          <button class="dep-toggle-btn" id="depToggleAnkomst" data-type="Ankomst">Ankomst</button>
+        </div>
+      </div>
+      <!-- COLLAPSIBLE FILTER -->
+      <div class="dep-filter-bar" id="depFilterBar">
+        <button class="dep-filter-toggle" id="depFilterToggle">
+          <span class="dep-filter-toggle-icon">▸</span> Filter
+          <span class="dep-filter-count" id="depFilterCount"></span>
+        </button>
+        <div class="dep-filter-chips" id="depFilterChips">
+          <!-- Chips rendered dynamically by JS -->
+        </div>
       </div>
     </div>
-    <div class="departure-board" id="departureBoard">
-      <div class="departure-board-title" id="departureBoardTitle">Avgående tåg från Malmö C</div>
-      <table class="departure-table">
-        <thead>
-          <tr>
-            <th>Tid</th>
-            <th>Till</th>
-            <th>Ny tid</th>
-            <th>Spår</th>
-            <th>Tåg</th>
-            <th>Anmärkning</th>
-          </tr>
-        </thead>
-        <tbody id="departureTableBody">
-          <!-- Rows rendered here by JS -->
-        </tbody>
-      </table>
+
+    <!-- SCROLLABLE TABLE -->
+    <div class="dep-scroll-area" id="depScrollArea">
+      <div class="departure-board" id="departureBoard">
+        <table class="departure-table">
+          <thead>
+            <tr>
+              <th>Tid</th>
+              <th>Till</th>
+              <th>Ny tid</th>
+              <th>Spår</th>
+              <th>Tåg</th>
+              <th>Anm.</th>
+            </tr>
+          </thead>
+          <tbody id="departureTableBody"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="departure-status" id="departureStatus"></div>
+
+    <!-- STICKY BOTTOM: Status -->
+    <div class="dep-sticky-bottom" id="departureStatus">
+      <span class="dep-loading-spinner"></span> Väntar...
+    </div>
   </main>
 
   <!-- Settings Page -->
@@ -441,7 +459,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.14.2</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.15.1</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

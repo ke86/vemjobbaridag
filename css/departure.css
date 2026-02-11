@@ -3,9 +3,9 @@
    Full-height flex layout with sticky top/bottom
    ========================================== */
 
-/* --- Page layout: flex column, full height --- */
-.departure-page {
-  display: flex;
+/* --- Page layout: flex column, full height (only when active) --- */
+.departure-page.active {
+  display: flex !important;
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
