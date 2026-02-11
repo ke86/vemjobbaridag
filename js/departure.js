@@ -10,8 +10,7 @@ let departurePageActive = false;
 const TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
 const TRAFIKVERKET_PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
 
-// Train product filters — only show these train types
-const ALLOWED_TRAIN_PRODUCTS = ['öresundståg', 'pågatågen'];
+// No product filter — show all trains at station
 
 /**
  * Station name lookup from signature
@@ -168,21 +167,7 @@ async function loadDepartures() {
       announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
     }
 
-    // Filter to only allowed train products
-    if (ALLOWED_TRAIN_PRODUCTS.length > 0) {
-      announcements = announcements.filter(function(a) {
-        if (!a.ProductInformation || a.ProductInformation.length === 0) return false;
-        for (var p = 0; p < a.ProductInformation.length; p++) {
-          var desc = a.ProductInformation[p].Description || a.ProductInformation[p];
-          if (typeof desc === 'string') {
-            if (ALLOWED_TRAIN_PRODUCTS.indexOf(desc.toLowerCase()) !== -1) return true;
-          } else if (desc && desc.Description) {
-            if (ALLOWED_TRAIN_PRODUCTS.indexOf(desc.Description.toLowerCase()) !== -1) return true;
-          }
-        }
-        return false;
-      });
-    }
+    // No product filter — show all trains
 
     renderDepartureBoard(announcements, locationField);
 
