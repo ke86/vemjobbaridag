@@ -5,6 +5,7 @@
 let departureType = 'Avgang'; // 'Avgang' or 'Ankomst'
 let departureRefreshTimer = null;
 let departurePageActive = false;
+const DEFAULT_TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
 
 /**
  * Station name lookup from signature
@@ -107,6 +108,12 @@ async function loadTrafikverketApiKeyUI() {
       statusEl.textContent = '✓ Nyckel sparad';
       statusEl.className = 'api-key-status saved';
     }
+  } else if (DEFAULT_TRAFIKVERKET_API_KEY) {
+    input.value = DEFAULT_TRAFIKVERKET_API_KEY;
+    if (statusEl) {
+      statusEl.textContent = 'Standardnyckel aktiv';
+      statusEl.className = 'api-key-status saved';
+    }
   }
 }
 
@@ -165,8 +172,8 @@ async function loadDepartures() {
     }
   }
 
-  // Check API key
-  var apiKey = await loadSetting('trafikverketApiKey');
+  // Check API key (use saved key or fall back to default)
+  var apiKey = await loadSetting('trafikverketApiKey') || DEFAULT_TRAFIKVERKET_API_KEY;
   if (!apiKey) {
     tbodyEl.innerHTML = '';
     var boardEl = document.getElementById('departureBoard');
