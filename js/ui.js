@@ -209,13 +209,102 @@ function renderTurnIcons(turnNumber) {
 }
 
 /**
+ * Get the next (or current) train segment for an employee from dagvy data.
+ * Returns { trainNr, timeStart, timeEnd, fromStation, toStation } or null.
+ * "Next" = nearest future train, or a train that started up to 60 min ago.
+ */
+function getNextTrainForEmployee(employeeId) {
+  const emp = registeredEmployees[employeeId];
+  if (!emp) return null;
+
+  const normalizedName = normalizeName(emp.name);
+  const dagvyDoc = dagvyAllData[normalizedName];
+  if (!dagvyDoc || !dagvyDoc.days) return null;
+
+  const dateKey = getDateKey(currentDate);
+  const dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+  if (!dayData || !dayData.segments) return null;
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Collect all train segments with parsed times
+  const trainSegs = [];
+  for (const seg of dayData.segments) {
+    let trainNr = null;
+    if (seg.trainNr && seg.trainNr.length > 0) {
+      trainNr = seg.trainNr.replace(/\s.*/g, '').trim();
+    } else if (seg.activity && /^\d{3,5}(\s+\S+)*$/i.test(seg.activity.trim())) {
+      trainNr = seg.activity.trim().replace(/\s.*/g, '').trim();
+    }
+    if (!trainNr) continue;
+
+    let startMin = null;
+    let endMin = null;
+    if (seg.timeStart) {
+      const p = seg.timeStart.split(':');
+      startMin = parseInt(p[0]) * 60 + parseInt(p[1]);
+    }
+    if (seg.timeEnd) {
+      const p = seg.timeEnd.split(':');
+      endMin = parseInt(p[0]) * 60 + parseInt(p[1]);
+    }
+
+    trainSegs.push({
+      trainNr: trainNr,
+      timeStart: seg.timeStart || '',
+      timeEnd: seg.timeEnd || '',
+      startMin: startMin,
+      endMin: endMin,
+      fromStation: seg.fromStation || '',
+      toStation: seg.toStation || ''
+    });
+  }
+
+  if (trainSegs.length === 0) return null;
+
+  // Only pick trains for "today" (not looking at past dates)
+  const isViewingToday = (getDateKey(currentDate) === getDateKey(new Date()));
+
+  if (!isViewingToday) {
+    // If viewing another date, return first train of the day
+    return trainSegs[0];
+  }
+
+  // Find current or next train:
+  // 1. A train currently running (startMin <= now <= endMin)
+  // 2. The next future train (startMin > now)
+  // 3. A train that ended up to 60 min ago
+  let currentTrain = null;
+  let nextTrain = null;
+  let recentTrain = null;
+
+  for (const t of trainSegs) {
+    if (t.startMin === null) continue;
+
+    if (t.startMin <= nowMinutes && t.endMin !== null && t.endMin >= nowMinutes) {
+      // Currently running
+      currentTrain = t;
+      break;
+    }
+    if (t.startMin > nowMinutes && !nextTrain) {
+      nextTrain = t;
+    }
+    if (t.endMin !== null && t.endMin < nowMinutes && (nowMinutes - t.endMin) <= 60) {
+      recentTrain = t; // Keep updating — last recent train
+    }
+  }
+
+  return currentTrain || nextTrain || recentTrain || trainSegs[0];
+}
+
+/**
  * Render badge with icon/turn number toggle
- * For regular shifts: icon shown by default, tap to show turn number badge
- * Returns: { badgeHtml, hasToggle }
+ * For regular shifts: shows next train badge (from dagvy) instead of SE/DK icons
+ * Returns badge HTML string
  */
 function renderBadgeWithToggle(shift) {
   const turnStr = (shift.badgeText || '').toString().trim();
-  const icons = getTurnIcons(turnStr);
 
   // Special badge types - no toggle, just return the badge
   const specialBadges = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'ffu', 'seko', 'sjuk'];
@@ -237,24 +326,24 @@ function renderBadgeWithToggle(shift) {
     return badgeHtml;
   }
 
-  // Regular turn - check if we have icons
-  if (icons.length === 0) {
-    // No icons, just show turn number badge
-    if (!turnStr) return '';
-    return `<span class="badge dag">${turnStr}</span>`;
+  // Try to get next train from dagvy for this employee
+  const nextTrain = getNextTrainForEmployee(shift.employeeId);
+
+  if (nextTrain) {
+    // Show next train badge — data attributes for realtime updates later
+    return `
+      <div class="train-live-badge" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}">
+        <span class="train-live-nr">${nextTrain.trainNr}</span>
+        <span class="train-live-delay"></span>
+      </div>
+    `;
   }
 
-  // Has icons - create toggle: icon (default) ↔ badge
-  const iconsHtml = icons.map(icon => {
-    return `<img class="badge-icon badge-icon-${icon.type}" src="${icon.src}" alt="${icon.alt}">`;
-  }).join('');
-
-  return `
-    <div class="badge-toggle" onclick="toggleBadgeDisplay(event, this)">
-      <div class="badge-icon-view">${iconsHtml}</div>
-      <span class="badge dag badge-number-view">${turnStr}</span>
-    </div>
-  `;
+  // No dagvy data — show grey dash or plain turn number
+  if (!turnStr) {
+    return '<span class="badge train-no-data">—</span>';
+  }
+  return `<span class="badge dag">${turnStr}</span>`;
 }
 
 /**
@@ -424,6 +513,9 @@ function renderEmployees() {
       </div>
     `;
   }).join('');
+
+  // Start realtime train polling after cards are rendered
+  startTrainRealtimePolling();
 }
 
 
@@ -1961,4 +2053,253 @@ async function confirmDeleteEmployee() {
     console.error('Error deleting employee:', error);
     showToast('Kunde inte radera data', 'error');
   }
+}
+
+
+// ==========================================
+// LIVE TRAIN REALTIME DATA
+// Fetches delay info from Trafikverket every 30s
+// and updates .train-live-badge elements
+// ==========================================
+
+// Store: trainNr → { delayMin: number, canceled: boolean, status: 'ontime'|'minor'|'major', delayText: string }
+let trainRealtimeStore = {};
+let trainRealtimeTimer = null;
+
+/**
+ * Collect unique train numbers from all visible .train-live-badge elements
+ */
+function collectVisibleTrainNumbers() {
+  const badges = document.querySelectorAll('.train-live-badge[data-train-nr]');
+  const numbers = new Set();
+  badges.forEach(b => {
+    const nr = b.getAttribute('data-train-nr');
+    if (nr) numbers.add(nr);
+  });
+  return Array.from(numbers);
+}
+
+/**
+ * Fetch realtime train data from Trafikverket for a list of train numbers
+ */
+async function fetchTrainRealtimeData(trainNumbers) {
+  if (!trainNumbers.length) return;
+  if (typeof TRAFIKVERKET_API_KEY === 'undefined' || typeof TRAFIKVERKET_PROXY_URL === 'undefined') return;
+
+  // Build OR filter for all train numbers
+  const orParts = trainNumbers.map(nr =>
+    '<EQ name="AdvertisedTrainIdent" value="' + nr + '" />'
+  ).join('');
+
+  const xml = '<REQUEST>'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+    + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
+    + '<FILTER>'
+    + '<AND>'
+    + '<EQ name="LocationSignature" value="Mc" />'
+    + '<OR>' + orParts + '</OR>'
+    + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-02:00:00)" />'
+    + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(08:00:00)" />'
+    + '</AND>'
+    + '</FILTER>'
+    + '<INCLUDE>AdvertisedTrainIdent</INCLUDE>'
+    + '<INCLUDE>AdvertisedTimeAtLocation</INCLUDE>'
+    + '<INCLUDE>EstimatedTimeAtLocation</INCLUDE>'
+    + '<INCLUDE>TimeAtLocation</INCLUDE>'
+    + '<INCLUDE>Canceled</INCLUDE>'
+    + '<INCLUDE>ActivityType</INCLUDE>'
+    + '</QUERY>'
+    + '</REQUEST>';
+
+  try {
+    const response = await fetch(TRAFIKVERKET_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml' },
+      body: xml
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+
+    const announcements = (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0])
+      ? data.RESPONSE.RESULT[0].TrainAnnouncement || []
+      : [];
+
+    // Group by train number and find the most relevant announcement
+    const byTrain = {};
+    const now = new Date();
+
+    for (const a of announcements) {
+      const nr = a.AdvertisedTrainIdent;
+      if (!nr) continue;
+
+      const advTime = new Date(a.AdvertisedTimeAtLocation);
+      const estTime = a.EstimatedTimeAtLocation ? new Date(a.EstimatedTimeAtLocation) : null;
+      const actTime = a.TimeAtLocation ? new Date(a.TimeAtLocation) : null;
+      const canceled = a.Canceled === true;
+
+      // Calculate delay in minutes
+      let delayMin = 0;
+      if (canceled) {
+        delayMin = 999;
+      } else if (actTime) {
+        delayMin = Math.round((actTime - advTime) / 60000);
+      } else if (estTime) {
+        delayMin = Math.round((estTime - advTime) / 60000);
+      }
+
+      // Pick the announcement closest to now (prefer Avgang, then future ones)
+      const diff = Math.abs(advTime - now);
+      if (!byTrain[nr] || diff < byTrain[nr].diff) {
+        byTrain[nr] = { delayMin, canceled, diff, advTime };
+      }
+    }
+
+    // Update the store
+    for (const nr of trainNumbers) {
+      if (byTrain[nr]) {
+        const t = byTrain[nr];
+        let status = 'ontime';
+        let delayText = 'I tid';
+
+        if (t.canceled) {
+          status = 'major';
+          delayText = 'Inställt';
+        } else if (t.delayMin >= 6) {
+          status = 'major';
+          delayText = '+' + t.delayMin + ' min';
+        } else if (t.delayMin >= 1) {
+          status = 'minor';
+          delayText = '+' + t.delayMin + ' min';
+        } else if (t.delayMin < 0) {
+          status = 'ontime';
+          delayText = t.delayMin + ' min';
+        }
+
+        trainRealtimeStore[nr] = { delayMin: t.delayMin, canceled: t.canceled, status, delayText };
+      } else {
+        // No data found — keep as unknown / default green
+        if (!trainRealtimeStore[nr]) {
+          trainRealtimeStore[nr] = { delayMin: 0, canceled: false, status: 'ontime', delayText: 'I tid' };
+        }
+      }
+    }
+
+    // Update all badges in the DOM
+    updateTrainBadgesDOM();
+
+  } catch (err) {
+    console.log('Train realtime fetch error: ' + err.message);
+  }
+}
+
+/**
+ * Update all .train-live-badge elements with current realtime data
+ */
+function updateTrainBadgesDOM() {
+  let hasData = false;
+  const badges = document.querySelectorAll('.train-live-badge[data-train-nr]');
+  badges.forEach(badge => {
+    const nr = badge.getAttribute('data-train-nr');
+    const info = trainRealtimeStore[nr];
+    if (!info) return;
+
+    hasData = true;
+    badge.setAttribute('data-status', info.status);
+
+    // Update delay text element
+    const delayEl = badge.querySelector('.train-live-delay');
+    if (delayEl) {
+      delayEl.textContent = info.delayText;
+    }
+  });
+
+  // Start flip timer once we have realtime data
+  if (hasData && !trainFlipTimer) {
+    startTrainFlipTimer();
+  }
+}
+
+/**
+ * Start the realtime train polling (every 30 seconds)
+ * Called after renderEmployees and whenever the schedule page is shown
+ */
+function startTrainRealtimePolling() {
+  // Stop any existing timer
+  stopTrainRealtimePolling();
+
+  // Only poll if we're viewing today
+  const isToday = getDateKey(currentDate) === getDateKey(new Date());
+  if (!isToday) return;
+
+  // Immediate first fetch
+  const numbers = collectVisibleTrainNumbers();
+  if (numbers.length > 0) {
+    fetchTrainRealtimeData(numbers);
+  }
+
+  // Poll every 30 seconds
+  trainRealtimeTimer = setInterval(() => {
+    const nums = collectVisibleTrainNumbers();
+    if (nums.length > 0) {
+      fetchTrainRealtimeData(nums);
+    }
+  }, 30000);
+}
+
+/**
+ * Stop the realtime polling and flip timer
+ */
+function stopTrainRealtimePolling() {
+  if (trainRealtimeTimer) {
+    clearInterval(trainRealtimeTimer);
+    trainRealtimeTimer = null;
+  }
+  stopTrainFlipTimer();
+}
+
+
+// ==========================================
+// TRAIN BADGE FLIP ANIMATION
+// Flips between train number and delay every 10s
+// ==========================================
+
+let trainFlipTimer = null;
+let trainFlipShowingDelay = false;
+
+/**
+ * Toggle all train badges between showing train number and delay text
+ */
+function flipTrainBadges() {
+  trainFlipShowingDelay = !trainFlipShowingDelay;
+  const badges = document.querySelectorAll('.train-live-badge[data-train-nr]');
+  badges.forEach(badge => {
+    const nr = badge.getAttribute('data-train-nr');
+    const info = trainRealtimeStore[nr];
+    // Only flip if we have realtime data
+    if (!info) return;
+    badge.classList.toggle('show-delay', trainFlipShowingDelay);
+  });
+}
+
+/**
+ * Start the 10-second flip timer
+ */
+function startTrainFlipTimer() {
+  stopTrainFlipTimer();
+  trainFlipShowingDelay = false;
+  trainFlipTimer = setInterval(flipTrainBadges, 10000);
+}
+
+/**
+ * Stop the flip timer and reset to showing train numbers
+ */
+function stopTrainFlipTimer() {
+  if (trainFlipTimer) {
+    clearInterval(trainFlipTimer);
+    trainFlipTimer = null;
+  }
+  trainFlipShowingDelay = false;
+  // Reset all badges to show train number
+  const badges = document.querySelectorAll('.train-live-badge.show-delay');
+  badges.forEach(b => b.classList.remove('show-delay'));
 }
