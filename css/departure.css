@@ -308,3 +308,20 @@
   border-color: var(--border-color);
   color: var(--text-primary);
 }
+
+/* CORS hint */
+.dep-cors-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6d4c00;
+  line-height: 1.4;
+}
+.dark .dep-cors-hint {
+  background: #3e2f00;
+  border-color: #6d4c00;
+  color: #ffe082;
+}

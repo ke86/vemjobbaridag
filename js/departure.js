@@ -5,7 +5,10 @@
 let departureType = 'Avgang'; // 'Avgang' or 'Ankomst'
 let departureRefreshTimer = null;
 let departurePageActive = false;
-const DEFAULT_TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
+
+// Hardcoded config
+const TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
+const TRAFIKVERKET_PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
 
 // Train product filters — only show these train types
 const ALLOWED_TRAIN_PRODUCTS = ['öresundståg', 'pågatågen'];
@@ -54,70 +57,6 @@ function initDeparturePage() {
       loadDepartures();
     });
   }
-
-  // Trafikverket API key save
-  var apiSaveBtn = document.getElementById('trafikverketApiKeySave');
-  if (apiSaveBtn) {
-    apiSaveBtn.addEventListener('click', saveTrafikverketApiKey);
-  }
-
-  // Collapsible header
-  var tvHeader = document.getElementById('trafikverketHeader');
-  var tvSection = document.getElementById('trafikverketSection');
-  if (tvHeader && tvSection) {
-    tvHeader.addEventListener('click', function() {
-      tvSection.classList.toggle('expanded');
-      // Load saved key when expanding
-      if (tvSection.classList.contains('expanded')) {
-        loadTrafikverketApiKeyUI();
-      }
-    });
-  }
-}
-
-/**
- * Save API key to IndexedDB
- */
-async function saveTrafikverketApiKey() {
-  var input = document.getElementById('trafikverketApiKeyInput');
-  var statusEl = document.getElementById('trafikverketApiKeyStatus');
-  if (!input) return;
-
-  var key = input.value.trim();
-  if (!key) {
-    if (statusEl) { statusEl.textContent = 'Ange en API-nyckel'; statusEl.className = 'api-key-status'; }
-    return;
-  }
-
-  await saveSetting('trafikverketApiKey', key);
-  if (statusEl) {
-    statusEl.textContent = '✓ Sparad';
-    statusEl.className = 'api-key-status saved';
-  }
-}
-
-/**
- * Load API key into input field when settings section opens
- */
-async function loadTrafikverketApiKeyUI() {
-  var input = document.getElementById('trafikverketApiKeyInput');
-  var statusEl = document.getElementById('trafikverketApiKeyStatus');
-  if (!input) return;
-
-  var savedKey = await loadSetting('trafikverketApiKey');
-  if (savedKey) {
-    input.value = savedKey;
-    if (statusEl) {
-      statusEl.textContent = '✓ Nyckel sparad';
-      statusEl.className = 'api-key-status saved';
-    }
-  } else if (DEFAULT_TRAFIKVERKET_API_KEY) {
-    input.value = DEFAULT_TRAFIKVERKET_API_KEY;
-    if (statusEl) {
-      statusEl.textContent = 'Standardnyckel aktiv';
-      statusEl.className = 'api-key-status saved';
-    }
-  }
 }
 
 /**
@@ -144,6 +83,21 @@ function onDeparturePageHide() {
 }
 
 /**
+ * Fetch data from Trafikverket API via Cloudflare Worker proxy
+ */
+async function fetchTrafikverketData(xmlBody) {
+  var response = await fetch(TRAFIKVERKET_PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/xml' },
+    body: xmlBody
+  });
+  if (!response.ok) {
+    throw new Error('HTTP ' + response.status);
+  }
+  return await response.json();
+}
+
+/**
  * Load departures/arrivals from Trafikverket API
  */
 async function loadDepartures() {
@@ -157,13 +111,9 @@ async function loadDepartures() {
   var stationSig = stationSelect.value;
   var stationName = stationNames[stationSig] || stationSig;
 
-  // Update title and table header
+  // Update title
   if (titleEl) {
-    if (departureType === 'Avgang') {
-      titleEl.textContent = 'Avgående tåg från ' + stationName;
-    } else {
-      titleEl.textContent = 'Ankommande tåg till ' + stationName;
-    }
+    titleEl.textContent = (departureType === 'Avgang' ? 'Avgående tåg från ' : 'Ankommande tåg till ') + stationName;
   }
 
   // Update column header (Till vs Från)
@@ -175,27 +125,9 @@ async function loadDepartures() {
     }
   }
 
-  // Check API key (use saved key or fall back to default)
-  var apiKey = await loadSetting('trafikverketApiKey') || DEFAULT_TRAFIKVERKET_API_KEY;
-  if (!apiKey) {
-    tbodyEl.innerHTML = '';
-    var boardEl = document.getElementById('departureBoard');
-    if (boardEl) boardEl.style.display = 'none';
-    if (statusEl) {
-      statusEl.innerHTML = '<div class="dep-no-key">'
-        + '<div class="dep-no-key-icon">🔑</div>'
-        + '<p>API-nyckel saknas</p>'
-        + '<p>Lägg till din Trafikverket API-nyckel i Inställningar</p>'
-        + '<button class="dep-go-settings" onclick="showPage(\'settings\')">Gå till Inställningar</button>'
-        + '</div>';
-      statusEl.className = 'departure-status';
-    }
-    return;
-  }
-
-  // Show board, show loading
-  var boardEl2 = document.getElementById('departureBoard');
-  if (boardEl2) boardEl2.style.display = '';
+  // Show loading
+  var boardEl = document.getElementById('departureBoard');
+  if (boardEl) boardEl.style.display = '';
   if (statusEl) {
     statusEl.innerHTML = '<span class="dep-loading-spinner"></span> Hämtar data...';
     statusEl.className = 'departure-status';
@@ -204,7 +136,7 @@ async function loadDepartures() {
   // Build XML request
   var locationField = departureType === 'Avgang' ? 'ToLocation' : 'FromLocation';
   var xml = '<REQUEST>'
-    + '<LOGIN authenticationkey="' + apiKey + '" />'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
     + '<FILTER>'
     + '<AND>'
@@ -217,6 +149,7 @@ async function loadDepartures() {
     + '</FILTER>'
     + '<INCLUDE>AdvertisedTimeAtLocation</INCLUDE>'
     + '<INCLUDE>EstimatedTimeAtLocation</INCLUDE>'
+    + '<INCLUDE>TimeAtLocation</INCLUDE>'
     + '<INCLUDE>TrackAtLocation</INCLUDE>'
     + '<INCLUDE>AdvertisedTrainIdent</INCLUDE>'
     + '<INCLUDE>ToLocation</INCLUDE>'
@@ -228,35 +161,14 @@ async function loadDepartures() {
     + '</REQUEST>';
 
   try {
-    // Try text/xml first (works on most browsers), fall back to text/plain (avoids CORS preflight on iOS)
-    var response;
-    try {
-      response = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/xml' },
-        body: xml
-      });
-    } catch (fetchErr) {
-      // Fallback: text/plain avoids CORS preflight
-      response = await fetch('https://api.trafikinfo.trafikverket.se/v2/data.json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: xml
-      });
-    }
-
-    if (!response.ok) {
-      throw new Error('HTTP ' + response.status);
-    }
-
-    var data = await response.json();
+    var data = await fetchTrafikverketData(xml);
     var announcements = [];
 
     if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
       announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
     }
 
-    // Filter to only allowed train products (Öresundståg, Pågatågen)
+    // Filter to only allowed train products
     if (ALLOWED_TRAIN_PRODUCTS.length > 0) {
       announcements = announcements.filter(function(a) {
         if (!a.ProductInformation || a.ProductInformation.length === 0) return false;
@@ -325,7 +237,6 @@ function renderDepartureBoard(announcements, locationField) {
     var locArr = a[locationField] || [];
     var destName = '';
     if (locArr.length > 0) {
-      // Get the last location (final destination)
       destName = locArr[locArr.length - 1].LocationName || '';
     }
 
@@ -370,4 +281,3 @@ function renderDepartureBoard(announcements, locationField) {
 
   tbodyEl.innerHTML = html;
 }
-
