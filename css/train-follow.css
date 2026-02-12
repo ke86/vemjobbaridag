@@ -155,7 +155,7 @@
 .ft-panel-inner {
   max-width: 500px;
   margin: 0 auto;
-  padding: 12px 16px 32px;
+  padding: 12px 16px 80px;
 }
 
 /* Hide main content when panel is open */
@@ -460,7 +460,9 @@ body.ft-panel-open .departures-page {
   transition: max-height 0.3s ease;
 }
 .ft-stops-body.open {
-  max-height: 600px;
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ft-stops-table {

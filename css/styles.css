@@ -87,7 +87,7 @@ html {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 900;
 }
 
 html.dark .header {
@@ -141,12 +141,43 @@ html.dark .menu-btn:hover {
   background: var(--accent-blue);
   color: #fff;
 }
+/* Delay status colors on follow button */
+.follow-train-btn.ft-btn-ontime {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #fff;
+}
+.follow-train-btn.ft-btn-minor {
+  background: #eab308;
+  border-color: #eab308;
+  color: #fff;
+}
+html.dark .follow-train-btn.ft-btn-minor {
+  background: #facc15;
+  border-color: #facc15;
+  color: #1a1a2e;
+}
+.follow-train-btn.ft-btn-major {
+  background: var(--accent-red);
+  border-color: var(--accent-red);
+  color: #fff;
+}
 html.dark .follow-train-btn {
   border-color: var(--accent-blue);
   color: var(--accent-blue);
 }
 html.dark .follow-train-btn.following {
   background: var(--accent-blue);
+  color: #fff;
+}
+html.dark .follow-train-btn.ft-btn-ontime {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #fff;
+}
+html.dark .follow-train-btn.ft-btn-major {
+  background: var(--accent-red);
+  border-color: var(--accent-red);
   color: #fff;
 }
 

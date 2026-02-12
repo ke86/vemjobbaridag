@@ -33,8 +33,11 @@
   var announcements = [];
   var pollTimer = null;
   var countdownTimer = null;
+  var btnFlipTimer = null;
+  var btnFlipShowingDelay = false;
   var nextStationData = null;
   var panelVisible = false;
+  var currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
 
   // ==========================================
   // STATION NAME MAP (signature → display name)
@@ -178,6 +181,7 @@
   function startFollowing(trainNr) {
     stopFollowing(true); // stop previous without hiding panel yet
     followedTrain = { trainNr: trainNr };
+    currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
     updateButton();
     saveCookie(trainNr);
 
@@ -189,6 +193,9 @@
     showPanel();
     showPanelLoading();
 
+    // Start button flip timer
+    startBtnFlipTimer();
+
     // Fetch immediately then poll
     fetchAndRender();
     pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
@@ -198,7 +205,9 @@
     followedTrain = null;
     announcements = [];
     nextStationData = null;
+    currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
     clearCookie();
+    stopBtnFlipTimer();
     updateButton();
 
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -211,13 +220,112 @@
 
   function updateButton() {
     if (!followBtn) return;
+    // Clear all status classes
+    followBtn.classList.remove('following', 'ft-btn-ontime', 'ft-btn-minor', 'ft-btn-major');
+
     if (followedTrain) {
       followBtn.classList.add('following');
-      followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
+      // Apply delay color class
+      applyBtnDelayClass();
+      // Show train nr or delay based on flip state
+      if (btnFlipShowingDelay) {
+        followBtn.textContent = currentDelayInfo.delayText;
+      } else {
+        followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
+      }
     } else {
-      followBtn.classList.remove('following');
       followBtn.textContent = 'Följ tåg';
     }
+  }
+
+  function applyBtnDelayClass() {
+    if (!followBtn || !followedTrain) return;
+    followBtn.classList.remove('ft-btn-ontime', 'ft-btn-minor', 'ft-btn-major');
+    if (currentDelayInfo.status === 'ontime') {
+      followBtn.classList.add('ft-btn-ontime');
+    } else if (currentDelayInfo.status === 'minor') {
+      followBtn.classList.add('ft-btn-minor');
+    } else if (currentDelayInfo.status === 'major') {
+      followBtn.classList.add('ft-btn-major');
+    }
+  }
+
+  /**
+   * Compute delay info from trainRealtimeStore (if available) or from nextStationData.
+   * Uses same rules as "Vem jobbar idag" badges:
+   *   0 min or negative → ontime, "I tid"
+   *   1-5 min → minor (yellow), "+X min"
+   *   6+ min → major (red), "+X min"
+   *   Canceled → major, "Inställt"
+   */
+  function computeDelayInfo() {
+    if (!followedTrain) return;
+    var trainNr = followedTrain.trainNr;
+
+    // Try trainRealtimeStore from ui.js first (most accurate, shared data)
+    if (typeof trainRealtimeStore !== 'undefined' && trainRealtimeStore[trainNr]) {
+      var info = trainRealtimeStore[trainNr];
+      currentDelayInfo = {
+        status: info.status || 'ontime',
+        delayText: info.delayText || 'I tid',
+        delayMin: info.delayMin || 0
+      };
+      return;
+    }
+
+    // Fallback: compute from own nextStationData
+    if (!nextStationData || nextStationData.nextIdx < 0) {
+      currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+      return;
+    }
+
+    var stops = nextStationData.stops;
+    var next = stops[nextStationData.nextIdx];
+    if (!next) {
+      currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+      return;
+    }
+
+    var timeInfo = next.arrival || next.departure;
+    if (!timeInfo || !timeInfo.estimated || !timeInfo.planned) {
+      currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+      return;
+    }
+
+    if (timeInfo.canceled) {
+      currentDelayInfo = { status: 'major', delayText: 'Inställt', delayMin: 999 };
+      return;
+    }
+
+    var dm = calcDelayMin(timeInfo.planned, timeInfo.estimated);
+    if (dm >= 6) {
+      currentDelayInfo = { status: 'major', delayText: '+' + dm + ' min', delayMin: dm };
+    } else if (dm >= 1) {
+      currentDelayInfo = { status: 'minor', delayText: '+' + dm + ' min', delayMin: dm };
+    } else {
+      currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+    }
+  }
+
+  // ==========================================
+  // BUTTON FLIP TIMER (every 5s)
+  // ==========================================
+
+  function startBtnFlipTimer() {
+    stopBtnFlipTimer();
+    btnFlipShowingDelay = false;
+    btnFlipTimer = setInterval(flipButton, 5000);
+  }
+
+  function stopBtnFlipTimer() {
+    if (btnFlipTimer) { clearInterval(btnFlipTimer); btnFlipTimer = null; }
+    btnFlipShowingDelay = false;
+  }
+
+  function flipButton() {
+    if (!followedTrain || !followBtn) return;
+    btnFlipShowingDelay = !btnFlipShowingDelay;
+    updateButton();
   }
 
   // ==========================================
@@ -314,6 +422,8 @@
 
       announcements = result;
       processAnnouncements();
+      computeDelayInfo();
+      updateButton();
       renderPanel();
     } catch (err) {
       var inner = document.getElementById('ftPanelInner');
