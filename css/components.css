@@ -398,6 +398,59 @@ html.dark .train-live-badge.train-finished .train-live-delay {
 }
 
 /* ==========================================
+   RAST (BREAK) FLIP
+   Shows break time / city next to shift time
+   ========================================== */
+
+.rast-flip {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  position: relative;
+  overflow: hidden;
+  height: 1.3em;
+  vertical-align: middle;
+}
+
+.rast-icon {
+  margin-right: 3px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.rast-time,
+.rast-city {
+  color: var(--accent-green);
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.rast-time {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.rast-city {
+  position: absolute;
+  left: 19px;
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+/* Flip state: show city */
+.rast-flip.show-city .rast-time {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.rast-flip.show-city .rast-city {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ==========================================
    TURN ICONS (for calendar/list views)
    ========================================== */
 .turn-icons {

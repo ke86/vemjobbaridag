@@ -208,6 +208,102 @@ function renderTurnIcons(turnNumber) {
   return `<div class="turn-icons">${iconsHtml}</div>`;
 }
 
+// ==========================================
+// BREAK (RAST) DATA FROM DAGVY
+// ==========================================
+
+const RLO_CITY_MAP = {
+  'mcrlo': 'Malmö',
+  'hbrlo': 'Helsingborg',
+  'hdrlo': 'Halmstad',
+  'hmrlo': 'Hässleholm',
+  'ckrlo': 'Karlskrona',
+  'kacrlo': 'Kalmar',
+  'grlo': 'Göteborg',
+  'crrlo': 'Kristianstad',
+  'vörlo': 'Växjö'
+};
+
+/**
+ * Get break info for an employee from dagvy data.
+ * Combines consecutive "Rast" and "Rasto" segments.
+ * Finds nearest *rlo segment for city name.
+ * Returns { time: "12:00-12:45", city: "Malmö" } or null.
+ */
+function getBreakForEmployee(employeeId) {
+  const emp = registeredEmployees[employeeId];
+  if (!emp) return null;
+
+  const normalizedName = normalizeName(emp.name);
+  const dagvyDoc = dagvyAllData[normalizedName];
+  if (!dagvyDoc || !dagvyDoc.days) return null;
+
+  const dateKey = getDateKey(currentDate);
+  const dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+  if (!dayData || !dayData.segments) return null;
+
+  // Collect all rast segments and rlo segments
+  const rastSegs = [];
+  let rloCity = null;
+
+  for (let i = 0; i < dayData.segments.length; i++) {
+    const seg = dayData.segments[i];
+    const act = (seg.activity || '').trim();
+    const actLower = act.toLowerCase();
+
+    // Check for rlo location segment
+    if (actLower.endsWith('rlo')) {
+      const mapped = RLO_CITY_MAP[actLower];
+      if (mapped) {
+        rloCity = mapped;
+      }
+    }
+
+    // Check for Rast/Rasto segment
+    if (actLower === 'rast' || actLower === 'rasto') {
+      let startMin = null;
+      let endMin = null;
+      if (seg.timeStart) {
+        const p = seg.timeStart.split(':');
+        startMin = parseInt(p[0]) * 60 + parseInt(p[1]);
+      }
+      if (seg.timeEnd) {
+        const p = seg.timeEnd.split(':');
+        endMin = parseInt(p[0]) * 60 + parseInt(p[1]);
+      }
+      rastSegs.push({
+        timeStart: seg.timeStart || '',
+        timeEnd: seg.timeEnd || '',
+        startMin: startMin,
+        endMin: endMin
+      });
+    }
+  }
+
+  if (rastSegs.length === 0) return null;
+
+  // Combine consecutive rast segments: earliest start → latest end
+  let combinedStart = rastSegs[0].startMin;
+  let combinedEnd = rastSegs[0].endMin;
+  let combinedStartStr = rastSegs[0].timeStart;
+  let combinedEndStr = rastSegs[0].timeEnd;
+
+  for (let i = 1; i < rastSegs.length; i++) {
+    const r = rastSegs[i];
+    if (r.startMin !== null && (combinedStart === null || r.startMin < combinedStart)) {
+      combinedStart = r.startMin;
+      combinedStartStr = r.timeStart;
+    }
+    if (r.endMin !== null && (combinedEnd === null || r.endMin > combinedEnd)) {
+      combinedEnd = r.endMin;
+      combinedEndStr = r.timeEnd;
+    }
+  }
+
+  const timeStr = combinedStartStr + '-' + combinedEndStr;
+  return { time: timeStr, city: rloCity || '' };
+}
+
 /**
  * Get the next (or current) train segment for an employee from dagvy data.
  * Returns { trainNr, timeStart, timeEnd, fromStation, toStation, finished? } or null.
@@ -522,10 +618,23 @@ function renderEmployees() {
 
     // Determine time display
     let timeDisplay = shift.time || '-';
+    let isWorking = true;
     if (shift.isBirthdayOnly || shift.isNameDayOnly) {
       timeDisplay = 'Ledig';
+      isWorking = false;
     } else if (nonWorkingTypes.includes(shift.badge)) {
       timeDisplay = 'Ledig';
+      isWorking = false;
+    }
+
+    // Get break info for working employees
+    let rastHtml = '';
+    if (isWorking && shift.employeeId) {
+      const breakInfo = getBreakForEmployee(shift.employeeId);
+      if (breakInfo && breakInfo.time) {
+        const cityText = breakInfo.city || '';
+        rastHtml = `<span class="rast-flip" data-rast-time="${breakInfo.time}" data-rast-city="${cityText}"><span class="rast-icon">🍽</span><span class="rast-time">${breakInfo.time}</span><span class="rast-city">${cityText}</span></span>`;
+      }
     }
 
     // Build badge HTML with icon toggle support
@@ -538,7 +647,7 @@ function renderEmployees() {
       <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
           <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}</div>
-          <div class="employee-time">${timeDisplay}</div>
+          <div class="employee-time">${timeDisplay}${rastHtml}</div>
         </div>
         <div class="employee-badge">
           ${badgeHtml}
@@ -558,6 +667,14 @@ function renderEmployees() {
     }
   } else {
     stopTrainRealtimePolling();
+  }
+
+  // Start rast flip timer if there are any rast-flip elements
+  const rastFlips = document.querySelectorAll('.rast-flip');
+  if (rastFlips.length > 0) {
+    startRastFlipTimer();
+  } else {
+    stopRastFlipTimer();
   }
 }
 
@@ -2352,4 +2469,49 @@ function stopTrainFlipTimer() {
   // Reset all badges to show train number
   const badges = document.querySelectorAll('.train-live-badge.show-delay');
   badges.forEach(b => b.classList.remove('show-delay'));
+}
+
+
+// ==========================================
+// RAST (BREAK) FLIP ANIMATION
+// Flips between rast time and city every 5s
+// ==========================================
+
+let rastFlipTimer = null;
+let rastFlipShowingCity = false;
+
+/**
+ * Toggle all rast-flip elements between showing time and city
+ */
+function flipRastBadges() {
+  rastFlipShowingCity = !rastFlipShowingCity;
+  const flips = document.querySelectorAll('.rast-flip');
+  flips.forEach(el => {
+    // Only flip if we have a city to show
+    const city = el.getAttribute('data-rast-city');
+    if (!city) return;
+    el.classList.toggle('show-city', rastFlipShowingCity);
+  });
+}
+
+/**
+ * Start the 5-second rast flip timer
+ */
+function startRastFlipTimer() {
+  if (rastFlipTimer) return; // Already running
+  rastFlipShowingCity = false;
+  rastFlipTimer = setInterval(flipRastBadges, 5000);
+}
+
+/**
+ * Stop the rast flip timer and reset to showing time
+ */
+function stopRastFlipTimer() {
+  if (rastFlipTimer) {
+    clearInterval(rastFlipTimer);
+    rastFlipTimer = null;
+  }
+  rastFlipShowingCity = false;
+  const flips = document.querySelectorAll('.rast-flip.show-city');
+  flips.forEach(el => el.classList.remove('show-city'));
 }
