@@ -453,69 +453,67 @@
       });
     }
 
-    // Check for Danish stops continuation
+    // Check for Danish stops
     var dkData = null;
     if (typeof denmark !== 'undefined' && followedTrain) {
       dkData = denmark.getDanishStops(followedTrain.trainNr);
     }
 
-    html += '<div class="ft-stops-card">'
-      + '<div class="ft-stops-header" id="ftStopsToggle">'
-      + '<span>Alla stopp' + (dkData ? ' <span class="ft-dk-badge">🇩🇰</span>' : '') + '</span>'
-      + '<span class="ft-stops-chevron" id="ftStopsChevron">▼</span>'
-      + '</div>'
-      + '<div class="ft-stops-body" id="ftStopsBody">'
-      + '<table class="ft-stops-table"><thead><tr>'
-      + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
-      + '</tr></thead><tbody>';
-
-    for (var m = 0; m < upcomingStops.length; m++) {
-      var st = upcomingStops[m];
-      var rowClass = st.passed ? 'ft-stop-passed' : '';
-      if (st.isNext) rowClass = 'ft-stop-next';
-      var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
-      var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
-      html += '<tr class="' + rowClass + '">'
-        + '<td>' + check + marker + st.station + '</td>'
-        + '<td>' + st.arr + '</td>'
-        + '<td>' + st.dep + '</td>'
-        + '</tr>';
-    }
-
-    // Danish stops — show after Swedish stops
-    if (dkData && dkData.stops.length > 0) {
-      // Separator row
-      html += '<tr class="ft-dk-separator"><td colspan="3">🇩🇰 Danmark — ' + dkData.route + '</td></tr>';
-
+    // Build Danish stop rows helper
+    function buildDkRows() {
+      var dkHtml = '';
+      if (!dkData || !dkData.stops.length) return dkHtml;
+      dkHtml += '<tr class="ft-dk-separator"><td colspan="3">🇩🇰 Danmark</td></tr>';
       for (var di = 0; di < dkData.stops.length; di++) {
         var dkStop = dkData.stops[di];
-        // Skip PHM (Peberholm) — not a passenger station, just border marker
         if (!dkStop.pax) continue;
-        html += '<tr class="ft-dk-stop">'
+        dkHtml += '<tr class="ft-dk-stop">'
           + '<td>' + dkStop.name + '</td>'
           + '<td>' + (dkStop.arr || '') + '</td>'
           + '<td>' + (dkStop.dep || '') + '</td>'
           + '</tr>';
       }
+      return dkHtml;
     }
 
-    html += '</tbody></table></div></div>';
+    // Build Swedish stop rows helper
+    function buildSeRows() {
+      var seHtml = '';
+      var hasDk = dkData && dkData.stops.length > 0;
+      if (hasDk) {
+        seHtml += '<tr class="ft-se-separator"><td colspan="3">🇸🇪 Sverige</td></tr>';
+      }
+      for (var m = 0; m < upcomingStops.length; m++) {
+        var st = upcomingStops[m];
+        var rowClass = st.passed ? 'ft-stop-passed' : '';
+        if (st.isNext) rowClass = 'ft-stop-next';
+        var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
+        var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
+        seHtml += '<tr class="' + rowClass + '">'
+          + '<td>' + check + marker + st.station + '</td>'
+          + '<td>' + st.arr + '</td>'
+          + '<td>' + st.dep + '</td>'
+          + '</tr>';
+      }
+      return seHtml;
+    }
+
+    html += '<div class="ft-stops-card">'
+      + '<div class="ft-stops-title">Alla stopp' + (dkData ? ' <span class="ft-dk-badge">🇩🇰</span>' : '') + '</div>'
+      + '<table class="ft-stops-table"><thead><tr>'
+      + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
+      + '</tr></thead><tbody>';
+
+    // Order: DK first for trains FROM Denmark, SE first for trains TO Denmark
+    if (dkData && dkData.direction === 'toSE') {
+      html += buildDkRows() + buildSeRows();
+    } else {
+      html += buildSeRows() + buildDkRows();
+    }
+
+    html += '</tbody></table></div>';
 
     contentEl.innerHTML = html;
-
-    // Toggle stops
-    var stopsToggle = document.getElementById('ftStopsToggle');
-    if (stopsToggle) {
-      stopsToggle.addEventListener('click', function() {
-        var body = document.getElementById('ftStopsBody');
-        var chevron = document.getElementById('ftStopsChevron');
-        if (body) {
-          var isOpen = body.classList.toggle('open');
-          if (chevron) chevron.textContent = isOpen ? '▲' : '▼';
-          if (isOpen) scrollToNextStop(body);
-        }
-      });
-    }
 
     startCountdown();
   }
