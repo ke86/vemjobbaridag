@@ -121,20 +121,50 @@ html.dark .menu-btn:hover {
   letter-spacing: -0.3px;
 }
 
-/* Sync Icon - iOS Style */
+/* Follow Train Button — header right */
+.follow-train-btn {
+  background: none;
+  border: 1.5px solid var(--accent-blue);
+  color: var(--accent-blue);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.follow-train-btn:active {
+  transform: scale(0.95);
+}
+.follow-train-btn.following {
+  background: var(--accent-blue);
+  color: #fff;
+}
+html.dark .follow-train-btn {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+html.dark .follow-train-btn.following {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+/* Sync Icon — now inside sidebar header */
 .sync-icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--accent-green);
   transition: color 0.3s ease;
+  flex-shrink: 0;
 }
 
 .sync-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 /* Connected state - Green (default) */
