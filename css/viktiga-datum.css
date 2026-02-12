@@ -211,6 +211,41 @@
   color: var(--text-secondary);
 }
 
+/* Inline delete button (✕) in header row */
+.date-inline-delete {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  opacity: 0.5;
+  margin-right: -2px;
+}
+.date-inline-delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  opacity: 1;
+}
+.date-inline-delete:active {
+  background: rgba(239, 68, 68, 0.22);
+  color: #dc2626;
+  opacity: 1;
+}
+html.dark .date-inline-delete:hover,
+html.dark .date-inline-delete:active {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.15);
+}
+
 .important-date-item .date-chevron {
   font-size: 14px;
   color: var(--text-secondary);
@@ -291,6 +326,83 @@ html.dark .important-date-item .date-delete {
   padding: 20px;
   color: var(--text-secondary);
   font-size: 14px;
+}
+
+/* ==========================================
+   CONFIRM DELETE DIALOG
+   ========================================== */
+.date-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.date-confirm-overlay.visible {
+  opacity: 1;
+}
+.date-confirm-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 22px 24px 18px;
+  max-width: 300px;
+  width: 88%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  transform: scale(0.92);
+  transition: transform 0.2s;
+}
+.date-confirm-overlay.visible .date-confirm-box {
+  transform: scale(1);
+}
+.date-confirm-msg {
+  font-size: 15px;
+  color: var(--text-primary);
+  text-align: center;
+  margin: 0 0 18px;
+  line-height: 1.4;
+}
+.date-confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+.date-confirm-cancel,
+.date-confirm-delete {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.date-confirm-cancel {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.date-confirm-cancel:hover {
+  background: var(--border-color);
+}
+.date-confirm-delete {
+  background: #dc2626;
+  color: #fff;
+}
+.date-confirm-delete:hover {
+  background: #b91c1c;
+}
+.date-confirm-delete:active {
+  transform: scale(0.97);
+}
+html.dark .date-confirm-delete {
+  background: #ef4444;
+}
+html.dark .date-confirm-delete:hover {
+  background: #dc2626;
 }
 
 /* ==========================================

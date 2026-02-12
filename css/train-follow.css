@@ -96,59 +96,6 @@
   75% { transform: translateX(6px); }
 }
 
-/* Suggestions */
-.ft-suggestions {
-  margin-top: 10px;
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ft-suggestion {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  transition: background 0.15s;
-}
-.ft-suggestion:active {
-  background: var(--accent-blue);
-  color: #fff;
-}
-.ft-suggestion:active .ft-sug-route {
-  color: rgba(255, 255, 255, 0.8);
-}
-
-.ft-sug-nr {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-  min-width: 48px;
-}
-
-.ft-sug-route {
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ft-suggestion-empty {
-  padding: 12px;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
 /* Footer */
 .ft-modal-footer {
   display: flex;
@@ -186,17 +133,37 @@
 
 
 /* ==========================================
-   TRAIN FOLLOW — REALTIME PANEL
+   TRAIN FOLLOW — REALTIME PANEL (fullscreen)
    ========================================== */
 
 .ft-panel {
   display: none;
-  padding: 12px 16px 16px;
-  max-width: 500px;
-  margin: 0 auto;
+  position: fixed;
+  top: 56px;  /* height of header */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 800;
+  background: var(--bg-primary);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .ft-panel.active {
   display: block;
+}
+
+.ft-panel-inner {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 12px 16px 32px;
+}
+
+/* Hide main content when panel is open */
+body.ft-panel-open .main-content,
+body.ft-panel-open .bottom-nav,
+body.ft-panel-open .settings-page,
+body.ft-panel-open .departures-page {
+  display: none !important;
 }
 
 /* Loading */
@@ -283,6 +250,24 @@
   text-overflow: ellipsis;
 }
 
+.ft-stop-follow-btn {
+  background: none;
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.ft-stop-follow-btn:active {
+  background: var(--accent-red);
+  color: #fff;
+}
+
 .ft-close-btn {
   background: none;
   border: 1px solid var(--border-color);
@@ -299,9 +284,7 @@
   transition: all 0.15s;
 }
 .ft-close-btn:active {
-  background: var(--accent-red);
-  color: #fff;
-  border-color: transparent;
+  background: var(--bg-secondary);
 }
 
 /* Next station card */

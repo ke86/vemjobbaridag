@@ -664,6 +664,45 @@ async function deleteImportantDate(id) {
 }
 
 /**
+ * Show a confirm-delete dialog for an important date.
+ * Prevents event from bubbling to the expandable header.
+ */
+function confirmDeleteDate(e, id, title) {
+  e.stopPropagation();
+  // Build overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'date-confirm-overlay';
+  overlay.innerHTML =
+    '<div class="date-confirm-box">' +
+      '<p class="date-confirm-msg">Radera <strong>' + title.replace(/</g, '&lt;') + '</strong>?</p>' +
+      '<div class="date-confirm-actions">' +
+        '<button class="date-confirm-cancel">Avbryt</button>' +
+        '<button class="date-confirm-delete">Radera</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  // Animate in
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  overlay.querySelector('.date-confirm-cancel').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 200);
+  });
+  overlay.querySelector('.date-confirm-delete').addEventListener('click', () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 200);
+    deleteImportantDate(id);
+  });
+  overlay.addEventListener('click', (ev) => {
+    if (ev.target === overlay) {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.remove(), 200);
+    }
+  });
+}
+
+/**
  * Render the list of important dates in settings (collapsible items)
  */
 function renderImportantDatesList() {
@@ -694,6 +733,7 @@ function renderImportantDatesList() {
 
     const hasImage = d.image && d.image.length > 0;
 
+    const safeTitle = d.title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
     return `
       <div class="important-date-item" data-id="${d.id}">
         <div class="important-date-item-header" onclick="toggleImportantDateItem(this)">
@@ -702,6 +742,7 @@ function renderImportantDatesList() {
             <div class="date-title"><span class="marquee-inner">${d.title}</span></div>
             <div class="date-subtitle">${dateStr}</div>
           </div>
+          <button class="date-inline-delete" onclick="confirmDeleteDate(event, '${d.id}', '${safeTitle}')" title="Radera">✕</button>
           <span class="date-chevron">›</span>
         </div>
         <div class="important-date-item-content">
@@ -712,9 +753,6 @@ function renderImportantDatesList() {
             </div>
             ${hasImage ? `<div class="date-detail-image"><img src="${d.image}" alt="${d.title}"></div>` : ''}
             ${d.description ? `<div class="date-description">${formatDescription(d.description)}</div>` : ''}
-            <button class="date-delete" onclick="deleteImportantDate('${d.id}')">
-              🗑️ Radera
-            </button>
           </div>
         </div>
       </div>

@@ -1,6 +1,9 @@
 /**
  * Train Follow (Följ tåg) — pick a train to track in realtime.
  * Shows next station, countdown, track, arrival/departure times, upcoming stops.
+ *
+ * Persistence: cookie-based (per-device, valid until midnight).
+ * Panel: fullscreen overlay below header.
  */
 
 (function() {
@@ -13,6 +16,7 @@
   var PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
   var POLL_INTERVAL = 30000; // 30s
   var COUNTDOWN_INTERVAL = 1000; // 1s
+  var COOKIE_NAME = 'ft_train';
 
   // ==========================================
   // DOM REFS
@@ -20,17 +24,17 @@
   var followBtn = null;
   var modal = null;
   var inputEl = null;
-  var suggestionsEl = null;
   var panelEl = null;
 
   // ==========================================
   // STATE
   // ==========================================
   var followedTrain = null;    // { trainNr }
-  var announcements = [];       // all TrainAnnouncement for followed train
+  var announcements = [];
   var pollTimer = null;
   var countdownTimer = null;
-  var nextStationData = null;   // computed from announcements
+  var nextStationData = null;
+  var panelVisible = false;
 
   // ==========================================
   // STATION NAME MAP (signature → display name)
@@ -62,6 +66,26 @@
   }
 
   // ==========================================
+  // COOKIE HELPERS (persists until midnight)
+  // ==========================================
+
+  function saveCookie(trainNr) {
+    var midnight = new Date();
+    midnight.setHours(23, 59, 59, 0);
+    document.cookie = COOKIE_NAME + '=' + encodeURIComponent(trainNr)
+      + '; expires=' + midnight.toUTCString() + '; path=/; SameSite=Lax';
+  }
+
+  function readCookie() {
+    var match = document.cookie.match(new RegExp('(?:^|; )' + COOKIE_NAME + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+  }
+
+  function clearCookie() {
+    document.cookie = COOKIE_NAME + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+  }
+
+  // ==========================================
   // MODAL CREATION
   // ==========================================
 
@@ -74,13 +98,12 @@
     div.innerHTML =
       '<div class="ft-modal">'
       + '<div class="ft-modal-header">'
-      + '<span class="ft-modal-title">🚆 Följ tåg</span>'
+      + '<span class="ft-modal-title">Följ tåg</span>'
       + '<button class="ft-modal-close" id="ftModalClose">×</button>'
       + '</div>'
       + '<div class="ft-modal-body">'
       + '<label class="ft-label" for="ftTrainInput">Ange tågnummer</label>'
       + '<input class="ft-input" type="text" id="ftTrainInput" inputmode="numeric" pattern="[0-9]*" placeholder="T.ex. 1071" autocomplete="off">'
-      + '<div class="ft-suggestions" id="ftSuggestions"></div>'
       + '</div>'
       + '<div class="ft-modal-footer">'
       + '<button class="ft-btn ft-btn-cancel" id="ftBtnCancel">Avbryt</button>'
@@ -91,7 +114,6 @@
 
     modal = div;
     inputEl = document.getElementById('ftTrainInput');
-    suggestionsEl = document.getElementById('ftSuggestions');
 
     document.getElementById('ftModalClose').addEventListener('click', closeModal);
     document.getElementById('ftBtnCancel').addEventListener('click', closeModal);
@@ -100,7 +122,6 @@
       if (e.target === div) closeModal();
     });
 
-    inputEl.addEventListener('input', onInputChange);
     inputEl.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') onFollowClick();
     });
@@ -114,8 +135,6 @@
     createModal();
     modal.classList.add('active');
     inputEl.value = '';
-    suggestionsEl.innerHTML = '';
-    buildSuggestions('');
     setTimeout(function() { inputEl.focus(); }, 100);
   }
 
@@ -124,81 +143,20 @@
   }
 
   // ==========================================
-  // SUGGESTIONS FROM DAGVY
+  // BUTTON CLICK LOGIC
   // ==========================================
 
-  function collectTodaysTrains() {
-    var trains = [];
-    var seen = {};
-    if (typeof dagvyAllData === 'undefined' || typeof getDateKey === 'undefined' || typeof currentDate === 'undefined') return trains;
-
-    var dateKey = getDateKey(currentDate);
-    for (var name in dagvyAllData) {
-      var doc = dagvyAllData[name];
-      if (!doc || !doc.days) continue;
-      var dayData = null;
-      for (var i = 0; i < doc.days.length; i++) {
-        if (doc.days[i].date === dateKey) { dayData = doc.days[i]; break; }
-      }
-      if (!dayData || !dayData.segments) continue;
-
-      for (var j = 0; j < dayData.segments.length; j++) {
-        var seg = dayData.segments[j];
-        var trainNr = null;
-        if (seg.trainNr && seg.trainNr.length > 0) {
-          trainNr = seg.trainNr.replace(/\s.*/g, '').trim();
-        } else if (seg.activity && /^\d{3,5}(\s+\S+)*$/i.test((seg.activity || '').trim())) {
-          trainNr = (seg.activity || '').trim().replace(/\s.*/g, '').trim();
-        }
-        if (trainNr && !seen[trainNr]) {
-          seen[trainNr] = true;
-          var route = '';
-          if (seg.fromStation && seg.toStation && seg.fromStation !== seg.toStation) {
-            route = seg.fromStation + ' → ' + seg.toStation;
-          }
-          trains.push({ trainNr: trainNr, route: route, time: seg.timeStart || '' });
-        }
-      }
+  function onButtonClick() {
+    if (!followedTrain) {
+      // No train followed → open modal to pick one
+      openModal();
+    } else if (panelVisible) {
+      // Panel is showing → hide it (but keep following)
+      hidePanel();
+    } else {
+      // Panel hidden, but we have a train → show it
+      showPanel();
     }
-    trains.sort(function(a, b) { return a.trainNr.localeCompare(b.trainNr, undefined, { numeric: true }); });
-    return trains;
-  }
-
-  function buildSuggestions(filter) {
-    var trains = collectTodaysTrains();
-    var filterLower = (filter || '').trim();
-
-    var filtered = trains;
-    if (filterLower.length > 0) {
-      filtered = trains.filter(function(t) { return t.trainNr.indexOf(filterLower) !== -1; });
-    }
-
-    if (filtered.length === 0) {
-      suggestionsEl.innerHTML = filterLower.length > 0
-        ? '<div class="ft-suggestion-empty">Inga tåg matchar</div>'
-        : '<div class="ft-suggestion-empty">Inga tåg hittades i dagvy</div>';
-      return;
-    }
-
-    suggestionsEl.innerHTML = filtered.slice(0, 8).map(function(t) {
-      var routeHtml = t.route ? '<span class="ft-sug-route">' + t.route + '</span>' : '';
-      return '<button class="ft-suggestion" data-train="' + t.trainNr + '">'
-        + '<span class="ft-sug-nr">' + t.trainNr + '</span>'
-        + routeHtml
-        + '</button>';
-    }).join('');
-
-    var btns = suggestionsEl.querySelectorAll('.ft-suggestion');
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].addEventListener('click', function() {
-        inputEl.value = this.getAttribute('data-train');
-        buildSuggestions(this.getAttribute('data-train'));
-      });
-    }
-  }
-
-  function onInputChange() {
-    buildSuggestions(inputEl.value);
   }
 
   // ==========================================
@@ -218,15 +176,17 @@
   }
 
   function startFollowing(trainNr) {
-    stopFollowing(true); // stop previous without removing panel yet
+    stopFollowing(true); // stop previous without hiding panel yet
     followedTrain = { trainNr: trainNr };
-    followBtn.classList.add('following');
-    followBtn.textContent = '🚆 ' + trainNr;
+    updateButton();
+    saveCookie(trainNr);
+
     announcements = [];
     nextStationData = null;
 
-    // Create or show panel
+    // Create and show panel
     createPanel();
+    showPanel();
     showPanelLoading();
 
     // Fetch immediately then poll
@@ -238,30 +198,38 @@
     followedTrain = null;
     announcements = [];
     nextStationData = null;
-
-    if (followBtn) {
-      followBtn.classList.remove('following');
-      followBtn.textContent = '🚆 Följ tåg';
-    }
+    clearCookie();
+    updateButton();
 
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
 
-    if (!keepPanel && panelEl) {
-      panelEl.classList.remove('active');
+    if (!keepPanel) {
+      hidePanel();
+    }
+  }
+
+  function updateButton() {
+    if (!followBtn) return;
+    if (followedTrain) {
+      followBtn.classList.add('following');
+      followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
+    } else {
+      followBtn.classList.remove('following');
+      followBtn.textContent = 'Följ tåg';
     }
   }
 
   // ==========================================
-  // PANEL CREATION
+  // PANEL CREATION — fullscreen below header
   // ==========================================
 
   function createPanel() {
-    if (panelEl) { panelEl.classList.add('active'); return; }
+    if (panelEl) return;
 
     var div = document.createElement('div');
     div.id = 'ftPanel';
-    div.className = 'ft-panel active';
+    div.className = 'ft-panel';
     div.innerHTML = '<div class="ft-panel-inner" id="ftPanelInner"></div>';
 
     // Insert after header
@@ -272,6 +240,20 @@
       document.body.appendChild(div);
     }
     panelEl = div;
+  }
+
+  function showPanel() {
+    createPanel();
+    panelEl.classList.add('active');
+    panelVisible = true;
+    // Hide main content below
+    document.body.classList.add('ft-panel-open');
+  }
+
+  function hidePanel() {
+    if (panelEl) panelEl.classList.remove('active');
+    panelVisible = false;
+    document.body.classList.remove('ft-panel-open');
   }
 
   function showPanelLoading() {
@@ -347,7 +329,6 @@
   // ==========================================
 
   function processAnnouncements() {
-    // Group by location into stops
     var stopsMap = {};
     var stopsOrder = [];
 
@@ -379,27 +360,22 @@
 
       if (a.ActivityType === 'Ankomst') {
         stop.arrival = timeObj;
-        if (actual) stop.passed = true; // arrived = passed
+        if (actual) stop.passed = true;
       } else if (a.ActivityType === 'Avgang') {
         stop.departure = timeObj;
-        if (actual) stop.passed = true; // departed = definitely passed
+        if (actual) stop.passed = true;
       }
     }
 
-    // Build ordered stops list
     var stops = stopsOrder.map(function(loc) { return stopsMap[loc]; });
-
-    // Determine route (first and last station)
     var firstStation = stops.length > 0 ? stops[0].station : '';
     var lastStation = stops.length > 0 ? stops[stops.length - 1].station : '';
 
-    // Find next station (first non-passed)
     var nextIdx = -1;
     for (var j = 0; j < stops.length; j++) {
       if (!stops[j].passed) { nextIdx = j; break; }
     }
 
-    // Get product info from first announcement
     var product = '';
     if (announcements.length > 0 && announcements[0].ProductInformation) {
       var pi = announcements[0].ProductInformation;
@@ -444,7 +420,6 @@
       }
     }
 
-    // Check if train completed route
     var trainCompleted = nextIdx === -1 && stops.length > 0;
 
     // === TOP BAR ===
@@ -455,7 +430,8 @@
       + '</div>'
       + '<div class="ft-topbar-right">'
       + '<span class="ft-route">' + route + '</span>'
-      + '<button class="ft-close-btn" id="ftClosePanel">✕</button>'
+      + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
+      + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
       + '</div>'
       + '</div>';
 
@@ -471,7 +447,6 @@
       var depTime = next.departure ? (next.departure.estimated || next.departure.planned) : '';
       var trackStr = next.track || '—';
 
-      // Countdown target = arrival or departure
       var countdownTarget = '';
       var countdownLabel = 'AVGÅNG OM';
       if (arrTime && (!next.arrival || !next.arrival.actual)) {
@@ -482,7 +457,6 @@
         countdownLabel = 'AVGÅNG OM';
       }
 
-      // Show delay text
       var delayHtml = '';
       if (delayMin > 0) {
         delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
@@ -549,6 +523,10 @@
 
     // Event listeners
     document.getElementById('ftClosePanel').addEventListener('click', function() {
+      hidePanel();
+    });
+
+    document.getElementById('ftStopFollow').addEventListener('click', function() {
       stopFollowing(false);
     });
 
@@ -564,7 +542,6 @@
       });
     }
 
-    // Start countdown
     startCountdown();
   }
 
@@ -608,7 +585,6 @@
       el.textContent = sec + ' sek';
     }
 
-    // Color based on urgency
     if (diff <= 60) {
       el.className = 'ft-countdown-value ft-countdown-urgent';
     } else if (diff <= 180) {
@@ -639,9 +615,13 @@
     followBtn = document.getElementById('followTrainBtn');
     if (!followBtn) return;
 
-    followBtn.addEventListener('click', function() {
-      openModal();
-    });
+    followBtn.addEventListener('click', onButtonClick);
+
+    // Restore from cookie if present
+    var saved = readCookie();
+    if (saved && /^\d{1,5}$/.test(saved)) {
+      startFollowing(saved);
+    }
   }
 
   window.trainFollow = {
