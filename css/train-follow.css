@@ -133,46 +133,42 @@
 
 
 /* ==========================================
-   TRAIN FOLLOW — REALTIME PANEL (fullscreen)
+   TRAIN FOLLOW — REALTIME PANEL
+   Normal document flow, no fixed/z-index needed.
    ========================================== */
 
 .ft-panel {
   display: none;
-  position: fixed;
-  top: 56px;  /* fallback; JS overrides dynamically */
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 800;
   background: var(--bg-primary);
-  overflow: hidden;
-  flex-direction: column;
+  min-height: calc(100vh - 60px);     /* fill below header */
+  min-height: calc(100dvh - 60px);
 }
 .ft-panel.active {
-  display: flex;
+  display: block;
 }
 
-/* Sticky topbar inside panel */
+/* Sticky topbar — sticks right below the sticky header */
 .ft-panel-topbar {
-  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 8px 16px;
-  max-width: 500px;
-  width: 100%;
-  margin: 0 auto;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
 }
-
-/* Scrollable area below topbar */
-.ft-panel-scroll {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+.ft-panel-topbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 .ft-panel-inner {
@@ -181,7 +177,7 @@
   padding: 12px 16px 80px;
 }
 
-/* Hide main content when panel is open */
+/* Hide main content, bottom-nav etc. when panel is open */
 body.ft-panel-open .main-content,
 body.ft-panel-open .bottom-nav,
 body.ft-panel-open .settings-page,

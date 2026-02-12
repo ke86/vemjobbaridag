@@ -329,7 +329,7 @@
   }
 
   // ==========================================
-  // PANEL CREATION
+  // PANEL CREATION  (normal document flow — no fixed positioning)
   // ==========================================
 
   function createPanel() {
@@ -340,10 +340,15 @@
     div.className = 'ft-panel';
     div.innerHTML =
       '<div class="ft-panel-topbar" id="ftPanelTopbar"></div>'
-      + '<div class="ft-panel-scroll">'
-      + '<div class="ft-panel-inner" id="ftPanelInner"></div>'
-      + '</div>';
-    document.body.appendChild(div);
+      + '<div class="ft-panel-inner" id="ftPanelInner"></div>';
+
+    // Insert right after header so it's in normal document flow
+    var header = document.querySelector('.header');
+    if (header && header.nextSibling) {
+      header.parentNode.insertBefore(div, header.nextSibling);
+    } else {
+      document.body.appendChild(div);
+    }
     panelEl = div;
   }
 
@@ -363,13 +368,15 @@
     else if (currentDelayInfo.status === 'minor') statusClass = 'ft-status-minor';
 
     topbar.innerHTML =
-      '<div class="ft-topbar-left">'
+      '<div class="ft-panel-topbar-center">'
+      + '<div class="ft-topbar-left">'
       + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
       + '<span class="ft-route">' + route + '</span>'
       + '</div>'
       + '<div class="ft-topbar-right">'
       + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
       + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
+      + '</div>'
       + '</div>';
 
     document.getElementById('ftClosePanel').addEventListener('click', function() {
@@ -380,19 +387,13 @@
     });
   }
 
-  function calcPanelTop() {
-    var header = document.querySelector('.header');
-    if (!header) return;
-    var h = header.offsetHeight;
-    if (panelEl) panelEl.style.top = h + 'px';
-  }
-
   function showPanel() {
     createPanel();
-    calcPanelTop();
     panelEl.classList.add('active');
     panelVisible = true;
     document.body.classList.add('ft-panel-open');
+    // Scroll to top so topbar is visible
+    window.scrollTo(0, 0);
   }
 
   function hidePanel() {
@@ -566,7 +567,6 @@
 
     // Update topbar inside panel
     updateTopbar();
-    calcPanelTop();
 
     var html = '';
 
