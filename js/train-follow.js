@@ -1,10 +1,11 @@
 /**
  * Train Follow (Följ tåg) — pick a train to track in realtime.
- * Shows next station, countdown, track, arrival/departure times, upcoming stops.
+ * Uses the app's page system (showPage('trainFollow')) — no overlays or fixed positioning.
  *
  * Persistence: cookie-based (per-device, valid until midnight).
- * Panel: fullscreen overlay below header.
  */
+
+/* global showPage, trainRealtimeStore */
 
 (function() {
   'use strict';
@@ -14,33 +15,34 @@
   // ==========================================
   var API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
   var PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
-  var POLL_INTERVAL = 30000; // 30s
-  var COUNTDOWN_INTERVAL = 1000; // 1s
+  var POLL_INTERVAL = 30000;
+  var COUNTDOWN_INTERVAL = 1000;
   var COOKIE_NAME = 'ft_train';
 
   // ==========================================
-  // DOM REFS
+  // DOM REFS  (resolved in init)
   // ==========================================
   var followBtn = null;
   var modal = null;
   var inputEl = null;
-  var panelEl = null;
+  var topbarEl = null;   // #ftPageTopbar
+  var contentEl = null;  // #ftPageContent
 
   // ==========================================
   // STATE
   // ==========================================
-  var followedTrain = null;    // { trainNr }
+  var followedTrain = null;
   var announcements = [];
   var pollTimer = null;
   var countdownTimer = null;
   var btnFlipTimer = null;
   var btnFlipShowingDelay = false;
   var nextStationData = null;
-  var panelVisible = false;
+  var pageActive = false;
   var currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
 
   // ==========================================
-  // STATION NAME MAP (signature → display name)
+  // STATION NAME MAP
   // ==========================================
   var SIG_NAMES = {
     'Mc': 'Malmö C', 'Hie': 'Hyllie', 'Tri': 'Triangeln', 'Lu': 'Lund C',
@@ -69,7 +71,7 @@
   }
 
   // ==========================================
-  // COOKIE HELPERS (persists until midnight)
+  // COOKIE HELPERS
   // ==========================================
 
   function saveCookie(trainNr) {
@@ -89,7 +91,7 @@
   }
 
   // ==========================================
-  // MODAL CREATION
+  // MODAL
   // ==========================================
 
   function createModal() {
@@ -124,15 +126,10 @@
     div.addEventListener('click', function(e) {
       if (e.target === div) closeModal();
     });
-
     inputEl.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') onFollowClick();
     });
   }
-
-  // ==========================================
-  // OPEN / CLOSE MODAL
-  // ==========================================
 
   function openModal() {
     createModal();
@@ -146,25 +143,17 @@
   }
 
   // ==========================================
-  // BUTTON CLICK LOGIC
+  // HEADER BUTTON
   // ==========================================
 
   function onButtonClick() {
     if (!followedTrain) {
-      // No train followed → open modal to pick one
       openModal();
-    } else if (panelVisible) {
-      // Panel is showing → hide it (but keep following)
-      hidePanel();
     } else {
-      // Panel hidden, but we have a train → show it
-      showPanel();
+      // Navigate to the train follow page
+      showPage('trainFollow');
     }
   }
-
-  // ==========================================
-  // FOLLOW / STOP
-  // ==========================================
 
   function onFollowClick() {
     var trainNr = (inputEl.value || '').trim();
@@ -173,13 +162,16 @@
       setTimeout(function() { inputEl.classList.remove('ft-input-error'); }, 600);
       return;
     }
-
     startFollowing(trainNr);
     closeModal();
   }
 
+  // ==========================================
+  // FOLLOW / STOP
+  // ==========================================
+
   function startFollowing(trainNr) {
-    stopFollowing(true); // stop previous without hiding panel yet
+    stopFollowing(true);
     followedTrain = { trainNr: trainNr };
     currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
     updateButton();
@@ -188,20 +180,18 @@
     announcements = [];
     nextStationData = null;
 
-    // Create and show panel
-    createPanel();
-    showPanel();
-    showPanelLoading();
-
-    // Start button flip timer
     startBtnFlipTimer();
+
+    // Navigate to train page & show loading
+    showPage('trainFollow');
+    showLoading();
 
     // Fetch immediately then poll
     fetchAndRender();
     pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
   }
 
-  function stopFollowing(keepPanel) {
+  function stopFollowing(keepPage) {
     followedTrain = null;
     announcements = [];
     nextStationData = null;
@@ -213,21 +203,18 @@
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
 
-    if (!keepPanel) {
-      hidePanel();
+    if (!keepPage) {
+      showPage('schedule');
     }
   }
 
   function updateButton() {
     if (!followBtn) return;
-    // Clear all status classes
     followBtn.classList.remove('following', 'ft-btn-ontime', 'ft-btn-minor', 'ft-btn-major');
 
     if (followedTrain) {
       followBtn.classList.add('following');
-      // Apply delay color class
       applyBtnDelayClass();
-      // Show train nr or delay based on flip state
       if (btnFlipShowingDelay) {
         followBtn.textContent = currentDelayInfo.delayText;
       } else {
@@ -250,19 +237,14 @@
     }
   }
 
-  /**
-   * Compute delay info from trainRealtimeStore (if available) or from nextStationData.
-   * Uses same rules as "Vem jobbar idag" badges:
-   *   0 min or negative → ontime, "I tid"
-   *   1-5 min → minor (yellow), "+X min"
-   *   6+ min → major (red), "+X min"
-   *   Canceled → major, "Inställt"
-   */
+  // ==========================================
+  // DELAY COMPUTATION
+  // ==========================================
+
   function computeDelayInfo() {
     if (!followedTrain) return;
     var trainNr = followedTrain.trainNr;
 
-    // Try trainRealtimeStore from ui.js first (most accurate, shared data)
     if (typeof trainRealtimeStore !== 'undefined' && trainRealtimeStore[trainNr]) {
       var info = trainRealtimeStore[trainNr];
       currentDelayInfo = {
@@ -273,7 +255,6 @@
       return;
     }
 
-    // Fallback: compute from own nextStationData
     if (!nextStationData || nextStationData.nextIdx < 0) {
       currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
       return;
@@ -308,7 +289,7 @@
   }
 
   // ==========================================
-  // BUTTON FLIP TIMER (every 5s)
+  // BUTTON FLIP TIMER
   // ==========================================
 
   function startBtnFlipTimer() {
@@ -329,32 +310,20 @@
   }
 
   // ==========================================
-  // PANEL CREATION  (normal document flow — no fixed positioning)
+  // PAGE RENDERING  (uses #ftPageTopbar + #ftPageContent)
   // ==========================================
 
-  function createPanel() {
-    if (panelEl) return;
-
-    var div = document.createElement('div');
-    div.id = 'ftPanel';
-    div.className = 'ft-panel';
-    div.innerHTML =
-      '<div class="ft-panel-topbar" id="ftPanelTopbar"></div>'
-      + '<div class="ft-panel-inner" id="ftPanelInner"></div>';
-
-    // Insert right after header so it's in normal document flow
-    var header = document.querySelector('.header');
-    if (header && header.nextSibling) {
-      header.parentNode.insertBefore(div, header.nextSibling);
-    } else {
-      document.body.appendChild(div);
-    }
-    panelEl = div;
+  function showLoading() {
+    if (!contentEl) return;
+    contentEl.innerHTML =
+      '<div class="ft-loading">'
+      + '<div class="ft-loading-spinner"></div>'
+      + '<span>Hämtar tågdata...</span>'
+      + '</div>';
   }
 
   function updateTopbar() {
-    var topbar = document.getElementById('ftPanelTopbar');
-    if (!topbar || !followedTrain) return;
+    if (!topbarEl || !followedTrain) return;
 
     var trainNr = followedTrain.trainNr;
     var route = '';
@@ -362,54 +331,162 @@
       route = nextStationData.firstStation + ' → ' + nextStationData.lastStation;
     }
 
-    // Delay status class for badge
     var statusClass = 'ft-status-ok';
     if (currentDelayInfo.status === 'major') statusClass = 'ft-status-major';
     else if (currentDelayInfo.status === 'minor') statusClass = 'ft-status-minor';
 
-    topbar.innerHTML =
-      '<div class="ft-panel-topbar-center">'
-      + '<div class="ft-topbar-left">'
+    topbarEl.innerHTML =
+      '<div class="ft-topbar-left">'
       + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
       + '<span class="ft-route">' + route + '</span>'
       + '</div>'
       + '<div class="ft-topbar-right">'
-      + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
-      + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
-      + '</div>'
+      + '<button class="ft-stop-follow-btn" id="ftStopFollow">Sluta följa</button>'
+      + '<button class="ft-close-btn" id="ftClosePanel" title="Tillbaka">✕</button>'
       + '</div>';
 
     document.getElementById('ftClosePanel').addEventListener('click', function() {
-      hidePanel();
+      showPage('schedule');
     });
     document.getElementById('ftStopFollow').addEventListener('click', function() {
       stopFollowing(false);
     });
   }
 
-  function showPanel() {
-    createPanel();
-    panelEl.classList.add('active');
-    panelVisible = true;
-    document.body.classList.add('ft-panel-open');
-    // Scroll to top so topbar is visible
-    window.scrollTo(0, 0);
+  function renderPage() {
+    if (!contentEl || !nextStationData) return;
+
+    var d = nextStationData;
+    var stops = d.stops;
+    var nextIdx = d.nextIdx;
+
+    var delayMin = 0;
+    if (nextIdx >= 0 && stops[nextIdx]) {
+      var ns = stops[nextIdx];
+      var timeInfo = ns.arrival || ns.departure;
+      if (timeInfo && timeInfo.estimated && timeInfo.planned) {
+        delayMin = calcDelayMin(timeInfo.planned, timeInfo.estimated);
+      }
+    }
+
+    var trainCompleted = nextIdx === -1 && stops.length > 0;
+
+    updateTopbar();
+
+    var html = '';
+
+    // === NEXT STATION CARD ===
+    if (trainCompleted) {
+      html += '<div class="ft-next-card">'
+        + '<div class="ft-next-label">TÅGET HAR ANKOMMIT</div>'
+        + '<div class="ft-next-station">' + stationName(d.lastStation) + '</div>'
+        + '</div>';
+    } else if (nextIdx >= 0) {
+      var next = stops[nextIdx];
+      var arrTime = next.arrival ? (next.arrival.estimated || next.arrival.planned) : '';
+      var depTime = next.departure ? (next.departure.estimated || next.departure.planned) : '';
+      var trackStr = next.track || '—';
+
+      var countdownTarget = '';
+      var countdownLabel = 'AVGÅNG OM';
+      if (arrTime && (!next.arrival || !next.arrival.actual)) {
+        countdownTarget = arrTime;
+        countdownLabel = 'ANKOMST OM';
+      } else if (depTime && (!next.departure || !next.departure.actual)) {
+        countdownTarget = depTime;
+        countdownLabel = 'AVGÅNG OM';
+      }
+
+      var delayHtml = '';
+      if (delayMin > 0) {
+        delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
+      }
+
+      html += '<div class="ft-next-card">'
+        + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
+        + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
+        + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
+        + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
+        + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+        + '</div>'
+        + '<div class="ft-detail-row">'
+        + '<div class="ft-track-circle"><span class="ft-track-nr">' + trackStr + '</span><span class="ft-track-label">SPÅR</span></div>'
+        + '<div class="ft-times">'
+        + (arrTime ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrTime + '</span></div>' : '')
+        + (depTime ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depTime + '</span></div>' : '')
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    }
+
+    // === ALL STOPS ===
+    var upcomingStops = [];
+    for (var k = 0; k < stops.length; k++) {
+      var s = stops[k];
+      var arr = s.arrival ? (s.arrival.actual || s.arrival.estimated || s.arrival.planned) : '';
+      var dep = s.departure ? (s.departure.actual || s.departure.estimated || s.departure.planned) : '';
+      upcomingStops.push({
+        station: stationName(s.station),
+        arr: arr,
+        dep: dep,
+        passed: s.passed,
+        isNext: k === nextIdx
+      });
+    }
+
+    html += '<div class="ft-stops-card">'
+      + '<div class="ft-stops-header" id="ftStopsToggle">'
+      + '<span>Alla stopp</span>'
+      + '<span class="ft-stops-chevron" id="ftStopsChevron">▼</span>'
+      + '</div>'
+      + '<div class="ft-stops-body" id="ftStopsBody">'
+      + '<table class="ft-stops-table"><thead><tr>'
+      + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
+      + '</tr></thead><tbody>';
+
+    for (var m = 0; m < upcomingStops.length; m++) {
+      var st = upcomingStops[m];
+      var rowClass = st.passed ? 'ft-stop-passed' : '';
+      if (st.isNext) rowClass = 'ft-stop-next';
+      var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
+      var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
+      html += '<tr class="' + rowClass + '">'
+        + '<td>' + check + marker + st.station + '</td>'
+        + '<td>' + st.arr + '</td>'
+        + '<td>' + st.dep + '</td>'
+        + '</tr>';
+    }
+
+    html += '</tbody></table></div></div>';
+
+    contentEl.innerHTML = html;
+
+    // Toggle stops
+    var stopsToggle = document.getElementById('ftStopsToggle');
+    if (stopsToggle) {
+      stopsToggle.addEventListener('click', function() {
+        var body = document.getElementById('ftStopsBody');
+        var chevron = document.getElementById('ftStopsChevron');
+        if (body) {
+          var isOpen = body.classList.toggle('open');
+          if (chevron) chevron.textContent = isOpen ? '▲' : '▼';
+          if (isOpen) scrollToNextStop(body);
+        }
+      });
+    }
+
+    startCountdown();
   }
 
-  function hidePanel() {
-    if (panelEl) panelEl.classList.remove('active');
-    panelVisible = false;
-    document.body.classList.remove('ft-panel-open');
-  }
-
-  function showPanelLoading() {
-    var inner = document.getElementById('ftPanelInner');
-    if (!inner) return;
-    inner.innerHTML =
-      '<div class="ft-loading">'
-      + '<div class="ft-loading-spinner"></div>'
-      + '<span>Hämtar tågdata...</span>'
-      + '</div>';
+  function scrollToNextStop(container) {
+    setTimeout(function() {
+      var nextRow = container.querySelector('.ft-stop-next');
+      if (nextRow) {
+        var rowTop = nextRow.offsetTop - container.offsetTop;
+        var containerH = container.clientHeight;
+        container.scrollTop = Math.max(0, rowTop - containerH / 3);
+      }
+    }, 50);
   }
 
   // ==========================================
@@ -462,18 +539,17 @@
       processAnnouncements();
       computeDelayInfo();
       updateButton();
-      renderPanel();
+      renderPage();
     } catch (err) {
-      var inner = document.getElementById('ftPanelInner');
-      if (inner && announcements.length === 0) {
-        inner.innerHTML =
+      if (contentEl && announcements.length === 0) {
+        contentEl.innerHTML =
           '<div class="ft-error">Kunde inte hämta data. Försöker igen...</div>';
       }
     }
   }
 
   // ==========================================
-  // PROCESS ANNOUNCEMENTS → STOPS
+  // PROCESS ANNOUNCEMENTS
   // ==========================================
 
   function processAnnouncements() {
@@ -542,158 +618,7 @@
   }
 
   // ==========================================
-  // RENDER PANEL
-  // ==========================================
-
-  function renderPanel() {
-    var inner = document.getElementById('ftPanelInner');
-    if (!inner || !nextStationData) return;
-
-    var d = nextStationData;
-    var stops = d.stops;
-    var nextIdx = d.nextIdx;
-
-    // Determine delay for next-station card
-    var delayMin = 0;
-    if (nextIdx >= 0 && stops[nextIdx]) {
-      var ns = stops[nextIdx];
-      var timeInfo = ns.arrival || ns.departure;
-      if (timeInfo && timeInfo.estimated && timeInfo.planned) {
-        delayMin = calcDelayMin(timeInfo.planned, timeInfo.estimated);
-      }
-    }
-
-    var trainCompleted = nextIdx === -1 && stops.length > 0;
-
-    // Update topbar inside panel
-    updateTopbar();
-
-    var html = '';
-
-    // === NEXT STATION CARD ===
-    if (trainCompleted) {
-      html += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">TÅGET HAR ANKOMMIT</div>'
-        + '<div class="ft-next-station">' + stationName(d.lastStation) + '</div>'
-        + '</div>';
-    } else if (nextIdx >= 0) {
-      var next = stops[nextIdx];
-      var arrTime = next.arrival ? (next.arrival.estimated || next.arrival.planned) : '';
-      var depTime = next.departure ? (next.departure.estimated || next.departure.planned) : '';
-      var trackStr = next.track || '—';
-
-      var countdownTarget = '';
-      var countdownLabel = 'AVGÅNG OM';
-      if (arrTime && (!next.arrival || !next.arrival.actual)) {
-        countdownTarget = arrTime;
-        countdownLabel = 'ANKOMST OM';
-      } else if (depTime && (!next.departure || !next.departure.actual)) {
-        countdownTarget = depTime;
-        countdownLabel = 'AVGÅNG OM';
-      }
-
-      var delayHtml = '';
-      if (delayMin > 0) {
-        delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
-      }
-
-      html += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
-        + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
-        + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
-        + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
-        + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
-        + '</div>'
-        + '<div class="ft-detail-row">'
-        + '<div class="ft-track-circle"><span class="ft-track-nr">' + trackStr + '</span><span class="ft-track-label">SPÅR</span></div>'
-        + '<div class="ft-times">'
-        + (arrTime ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrTime + '</span></div>' : '')
-        + (depTime ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depTime + '</span></div>' : '')
-        + '</div>'
-        + '</div>'
-        + '</div>';
-    }
-
-    // === UPCOMING STOPS ===
-    var upcomingStops = [];
-    for (var k = 0; k < stops.length; k++) {
-      var s = stops[k];
-      var arr = s.arrival ? (s.arrival.actual || s.arrival.estimated || s.arrival.planned) : '';
-      var dep = s.departure ? (s.departure.actual || s.departure.estimated || s.departure.planned) : '';
-      upcomingStops.push({
-        station: stationName(s.station),
-        arr: arr,
-        dep: dep,
-        passed: s.passed,
-        isNext: k === nextIdx
-      });
-    }
-
-    html += '<div class="ft-stops-card">'
-      + '<div class="ft-stops-header" id="ftStopsToggle">'
-      + '<span>Alla stopp</span>'
-      + '<span class="ft-stops-chevron" id="ftStopsChevron">▼</span>'
-      + '</div>'
-      + '<div class="ft-stops-body" id="ftStopsBody">'
-      + '<table class="ft-stops-table"><thead><tr>'
-      + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
-      + '</tr></thead><tbody>';
-
-    for (var m = 0; m < upcomingStops.length; m++) {
-      var st = upcomingStops[m];
-      var rowClass = st.passed ? 'ft-stop-passed' : '';
-      if (st.isNext) rowClass = 'ft-stop-next';
-      var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
-      var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
-      html += '<tr class="' + rowClass + '">'
-        + '<td>' + check + marker + st.station + '</td>'
-        + '<td>' + st.arr + '</td>'
-        + '<td>' + st.dep + '</td>'
-        + '</tr>';
-    }
-
-    html += '</tbody></table></div></div>';
-
-    inner.innerHTML = html;
-
-    // Event listeners
-    var stopsToggle = document.getElementById('ftStopsToggle');
-    if (stopsToggle) {
-      stopsToggle.addEventListener('click', function() {
-        var body = document.getElementById('ftStopsBody');
-        var chevron = document.getElementById('ftStopsChevron');
-        if (body) {
-          var isOpen = body.classList.toggle('open');
-          if (chevron) chevron.textContent = isOpen ? '▲' : '▼';
-          // Auto-scroll to next station row when opening
-          if (isOpen) {
-            scrollToNextStop(body);
-          }
-        }
-      });
-    }
-
-    startCountdown();
-  }
-
-  // ==========================================
-  // AUTO-SCROLL STOPS TABLE
-  // ==========================================
-
-  function scrollToNextStop(container) {
-    setTimeout(function() {
-      var nextRow = container.querySelector('.ft-stop-next');
-      if (nextRow) {
-        // Scroll so next row is roughly centered
-        var rowTop = nextRow.offsetTop - container.offsetTop;
-        var containerH = container.clientHeight;
-        container.scrollTop = Math.max(0, rowTop - containerH / 3);
-      }
-    }, 50); // slight delay to let max-height transition start
-  }
-
-  // ==========================================
-  // COUNTDOWN TIMER
+  // COUNTDOWN
   // ==========================================
 
   function startCountdown() {
@@ -755,7 +680,50 @@
   }
 
   // ==========================================
-  // INIT / EXPOSE
+  // PAGE LIFECYCLE HOOKS (called from navigation.js)
+  // ==========================================
+
+  window.onTrainFollowPageShow = function() {
+    pageActive = true;
+    topbarEl = document.getElementById('ftPageTopbar');
+    contentEl = document.getElementById('ftPageContent');
+
+    // Set header title
+    var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
+    if (headerTitle) {
+      headerTitle.textContent = followedTrain ? 'Följ tåg ' + followedTrain.trainNr : 'Följ tåg';
+    }
+
+    if (followedTrain) {
+      updateTopbar();
+      if (nextStationData) {
+        renderPage();
+      } else {
+        showLoading();
+      }
+    } else {
+      // No train followed — show prompt
+      if (topbarEl) topbarEl.innerHTML = '';
+      if (contentEl) {
+        contentEl.innerHTML =
+          '<div class="ft-empty">'
+          + '<p>Inget tåg följs just nu.</p>'
+          + '<button class="ft-btn ft-btn-follow ft-empty-btn" id="ftEmptyFollow">Välj tåg</button>'
+          + '</div>';
+        document.getElementById('ftEmptyFollow').addEventListener('click', function() {
+          openModal();
+        });
+      }
+    }
+  };
+
+  window.onTrainFollowPageHide = function() {
+    pageActive = false;
+    // Keep polling in background — button flip still needs updates
+  };
+
+  // ==========================================
+  // INIT
   // ==========================================
 
   function init() {
@@ -764,10 +732,18 @@
 
     followBtn.addEventListener('click', onButtonClick);
 
-    // Restore from cookie if present
+    // Restore from cookie
     var saved = readCookie();
     if (saved && /^\d{1,5}$/.test(saved)) {
-      startFollowing(saved);
+      // Just restore state, don't navigate
+      followedTrain = { trainNr: saved };
+      currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+      updateButton();
+      startBtnFlipTimer();
+
+      // Start fetching in background
+      fetchAndRender();
+      pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
     }
   }
 

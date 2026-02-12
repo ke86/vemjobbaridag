@@ -122,11 +122,19 @@ function showPage(pageId) {
     document.getElementById('settingsPage').classList.add('active');
     headerTitle.textContent = 'Inställningar';
     resetSettingsCollapse();
+  } else if (pageId === 'trainFollow') {
+    document.getElementById('trainFollowPage').classList.add('active');
+    if (typeof onTrainFollowPageShow === 'function') onTrainFollowPageShow();
   }
 
   // Stop departure refresh when leaving departure page
   if (pageId !== 'departure') {
     onDeparturePageHide();
+  }
+
+  // Stop train follow polling when leaving page
+  if (pageId !== 'trainFollow') {
+    if (typeof onTrainFollowPageHide === 'function') onTrainFollowPageHide();
   }
 
   closeSidebarMenu();

@@ -133,22 +133,12 @@
 
 
 /* ==========================================
-   TRAIN FOLLOW — REALTIME PANEL
-   Normal document flow, no fixed/z-index needed.
+   TRAIN FOLLOW — PAGE
+   Uses the app's standard page system.
    ========================================== */
 
-.ft-panel {
-  display: none;
-  background: var(--bg-primary);
-  min-height: calc(100vh - 60px);     /* fill below header */
-  min-height: calc(100dvh - 60px);
-}
-.ft-panel.active {
-  display: block;
-}
-
-/* Sticky topbar — sticks right below the sticky header */
-.ft-panel-topbar {
+/* Topbar inside the page — sticky under header */
+.ft-page-topbar {
   position: sticky;
   top: 0;
   z-index: 10;
@@ -161,28 +151,24 @@
   border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
 }
-.ft-panel-topbar-center {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto;
-}
 
-.ft-panel-inner {
+.ft-page-content {
   max-width: 500px;
   margin: 0 auto;
   padding: 12px 16px 80px;
 }
 
-/* Hide main content, bottom-nav etc. when panel is open */
-body.ft-panel-open .main-content,
-body.ft-panel-open .bottom-nav,
-body.ft-panel-open .settings-page,
-body.ft-panel-open .departures-page {
-  display: none !important;
+/* Empty state */
+.ft-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  font-size: 16px;
+}
+.ft-empty-btn {
+  margin-top: 16px;
+  flex: none;
+  padding: 12px 32px;
 }
 
 /* Loading */
