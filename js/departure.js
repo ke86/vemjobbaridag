@@ -566,6 +566,35 @@ async function fetchSwedishTrainData(trainNrs) {
     announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
   }
 
+  // ===== DEBUG: Log raw Trafikverket data per train =====
+  var debugPerTrain = {};
+  for (var d = 0; d < announcements.length; d++) {
+    var da = announcements[d];
+    var dtnr = da.AdvertisedTrainIdent || '?';
+    if (!debugPerTrain[dtnr]) debugPerTrain[dtnr] = [];
+    var dTo = da.ToLocation && da.ToLocation.length > 0
+      ? da.ToLocation.map(function(t) { return t.LocationName; }).join(',')
+      : '-';
+    var dFrom = da.FromLocation && da.FromLocation.length > 0
+      ? da.FromLocation.map(function(f) { return f.LocationName; }).join(',')
+      : '-';
+    debugPerTrain[dtnr].push(
+      da.ActivityType + ' @ ' + (da.LocationSignature || '?')
+      + ' | To: ' + dTo
+      + ' | From: ' + dFrom
+      + ' | ' + (da.AdvertisedTimeAtLocation || '')
+    );
+  }
+  var debugTrains = Object.keys(debugPerTrain);
+  for (var dt = 0; dt < debugTrains.length; dt++) {
+    var dtNr = debugTrains[dt];
+    console.log('[DK-DEBUG] Tåg ' + dtNr + ' (' + debugPerTrain[dtNr].length + ' announcements):');
+    for (var dl = 0; dl < debugPerTrain[dtNr].length; dl++) {
+      console.log('  ' + debugPerTrain[dtNr][dl]);
+    }
+  }
+  // ===== END DEBUG =====
+
   // Border stations — destinations on the short Swedish ØP leg.
   // If the train continues beyond these, we want the REAL final destination.
   var borderNames = ['malmö central', 'hyllie', 'svågertorp'];
@@ -632,6 +661,15 @@ async function fetchSwedishTrainData(trainNrs) {
       }
     }
   }
+
+  // ===== DEBUG: Log final result =====
+  var resultTrains = Object.keys(result);
+  for (var rt = 0; rt < resultTrains.length; rt++) {
+    var rNr = resultTrains[rt];
+    var r = result[rNr];
+    console.log('[DK-DEBUG] RESULT tåg ' + rNr + ': toLocation="' + r.toLocation + '" fromLocation="' + r.fromLocation + '" lastStation="' + r.lastStation + '" delay=' + r.delayMin);
+  }
+  // ===== END DEBUG =====
 
   return result;
 }
