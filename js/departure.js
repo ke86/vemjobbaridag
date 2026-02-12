@@ -400,19 +400,19 @@ async function loadDanishDepartures(stationCode) {
       if (diff < -30 || diff > 360) continue;
 
       // Determine DK-only destination/origin (fallback)
-      // For toSE departures: extract destination from route name (e.g. "Østerport - Malmø Central" → "Malmö Central")
-      // For toSE arrivals (odd nr, from SE): extract origin from route name (e.g. "Malmø Central - Østerport" → "Malmö Central")
+      // For toSE trains that cross the bridge: generic "Malmö Central" fallback
+      // (Trafikverket merge will upgrade to real destination if it goes further)
+      // For toDK trains arriving from SE: generic "Malmö Central" fallback
       var dkDest = '';
-      var routeParts = dkInfo.route ? dkInfo.route.split(' - ') : [];
       // Check if train actually crosses to Sweden (has Peberholm stop)
       var crossesBorder = false;
       for (var cb = 0; cb < dkInfo.stops.length; cb++) {
         if (dkInfo.stops[cb].code === 'PHM') { crossesBorder = true; break; }
       }
       if (isDep) {
-        if (dkInfo.direction === 'toSE' && crossesBorder && routeParts.length === 2) {
-          // toSE departure: destination is Sweden — use route's end
-          dkDest = routeParts[1].replace('Malmø', 'Malmö');
+        if (dkInfo.direction === 'toSE' && crossesBorder) {
+          // toSE departure: destination is Sweden — generic fallback
+          dkDest = 'Malmö Central';
         } else {
           var lastPax = null;
           for (var lk = dkInfo.stops.length - 1; lk >= 0; lk--) {
@@ -422,9 +422,9 @@ async function loadDanishDepartures(stationCode) {
           if (lastPax && lastPax.code === stationCode) continue;
         }
       } else {
-        if (dkInfo.direction === 'toDK' && crossesBorder && routeParts.length === 2) {
-          // toDK arrival (odd nr coming from SE): origin is Sweden — use route's start
-          dkDest = routeParts[0].replace('Malmø', 'Malmö');
+        if (dkInfo.direction === 'toDK' && crossesBorder) {
+          // toDK arrival (odd nr coming from SE): generic fallback
+          dkDest = 'Malmö Central';
         } else {
           var firstPax = null;
           for (var fk = 0; fk < dkInfo.stops.length; fk++) {
@@ -479,17 +479,38 @@ async function loadDanishDepartures(stationCode) {
   if (uniqueTrainNrs.length > 0) {
     try {
       var seData = await fetchSwedishTrainData(uniqueTrainNrs);
+      // Border stations: if Trafikverket only reports one of these,
+      // it's just the short Swedish leg — keep DK fallback instead.
+      var borderStations = ['Malmö central', 'Hyllie', 'Svågertorp'];
+
       // Merge Swedish data into rows
       for (var s = 0; s < rows.length; s++) {
         var row = rows[s];
         var seInfo = seData[row.trainNr];
         if (!seInfo) continue;
 
-        // Swedish destination/origin
+        // Swedish destination/origin — only use if it's beyond the border zone
         if (isDep && seInfo.toLocation) {
-          row.seDest = seInfo.toLocation;
+          var isBorder = false;
+          for (var bs = 0; bs < borderStations.length; bs++) {
+            if (seInfo.toLocation.toLowerCase() === borderStations[bs].toLowerCase()) {
+              isBorder = true; break;
+            }
+          }
+          if (!isBorder) {
+            row.seDest = seInfo.toLocation;
+          }
+          // If it IS a border station, keep the DK fallback (row.dest)
         } else if (!isDep && seInfo.fromLocation) {
-          row.seDest = seInfo.fromLocation;
+          var isBorderFrom = false;
+          for (var bsf = 0; bsf < borderStations.length; bsf++) {
+            if (seInfo.fromLocation.toLowerCase() === borderStations[bsf].toLowerCase()) {
+              isBorderFrom = true; break;
+            }
+          }
+          if (!isBorderFrom) {
+            row.seDest = seInfo.fromLocation;
+          }
         }
 
         // Delay info from nearest Swedish station
@@ -566,7 +587,7 @@ async function fetchSwedishTrainData(trainNrs) {
     if (!tnr) continue;
 
     if (!result[tnr]) {
-      result[tnr] = { toLocation: '', fromLocation: '', delayMin: 0 };
+      result[tnr] = { toLocation: '', fromLocation: '', lastStation: '', delayMin: 0 };
     }
 
     // Capture To/From location (last occurrence wins — we want the final destination)
@@ -574,6 +595,10 @@ async function fetchSwedishTrainData(trainNrs) {
       if (ann.ToLocation && ann.ToLocation.length > 0) {
         var toLoc = ann.ToLocation[ann.ToLocation.length - 1];
         result[tnr].toLocation = toLoc.LocationName || '';
+      }
+      // Track the last departure station (furthest along the route)
+      if (ann.LocationSignature) {
+        result[tnr].lastStation = ann.LocationSignature;
       }
     }
     if (ann.ActivityType === 'Ankomst') {
