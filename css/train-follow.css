@@ -537,3 +537,13 @@
   border-bottom: 2px solid rgba(250, 204, 21, 0.3) !important;
   background: rgba(250, 204, 21, 0.05);
 }
+
+/* Waiting for API data placeholder */
+.ft-waiting-api {
+  text-align: center;
+  padding: 18px 16px !important;
+  color: var(--text-secondary) !important;
+  font-style: italic;
+  font-size: 13px;
+  opacity: 0.7;
+}

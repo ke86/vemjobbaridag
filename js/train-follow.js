@@ -372,8 +372,79 @@
     });
   }
 
+  /**
+   * Try to find the first departure time from Danish timetable data.
+   * Used as fallback when Trafikverket has no data yet (train in Denmark).
+   */
+  function getDkDepartureInfo(trainNr) {
+    if (typeof denmark === 'undefined' || !trainNr) return null;
+    var dkInfo = denmark.getDanishStops(trainNr);
+    if (!dkInfo || !dkInfo.stops.length) return null;
+
+    // Find the first passenger stop with a departure time
+    for (var i = 0; i < dkInfo.stops.length; i++) {
+      var s = dkInfo.stops[i];
+      if (s.pax && s.dep) {
+        return { station: s.name, dep: s.dep };
+      }
+    }
+    return null;
+  }
+
   function renderPage() {
-    if (!contentEl || !nextStationData) return;
+    if (!contentEl) return;
+
+    // If no API data yet, try to show DK timetable departure
+    if (!nextStationData || nextStationData.stops.length === 0) {
+      updateTopbar();
+      var dkDep = followedTrain ? getDkDepartureInfo(followedTrain.trainNr) : null;
+
+      if (dkDep) {
+        var html = '<div class="ft-next-card">'
+          + '<div class="ft-next-label">AVGÅNG FRÅN</div>'
+          + '<div class="ft-next-station">' + dkDep.station + '</div>'
+          + '<div class="ft-countdown-row" data-target="' + dkDep.dep + '">'
+          + '<span class="ft-countdown-label">AVGÅNG OM</span>'
+          + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+          + '</div>'
+          + '<div class="ft-detail-row">'
+          + '<div class="ft-times">'
+          + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + dkDep.dep + '</span></div>'
+          + '</div>'
+          + '</div>'
+          + '</div>';
+
+        // Still show the full stops list
+        var dkData2 = denmark.getDanishStops(followedTrain.trainNr);
+        if (dkData2 && dkData2.stops.length > 0) {
+          html += '<div class="ft-stops-card">'
+            + '<div class="ft-stops-title">Alla stopp <span class="ft-dk-badge">🇩🇰</span></div>'
+            + '<table class="ft-stops-table"><thead><tr>'
+            + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
+            + '</tr></thead><tbody>';
+          html += '<tr class="ft-dk-separator"><td colspan="3">🇩🇰 Danmark</td></tr>';
+          for (var dj = 0; dj < dkData2.stops.length; dj++) {
+            var ds = dkData2.stops[dj];
+            if (!ds.pax) continue;
+            html += '<tr class="ft-dk-stop">'
+              + '<td>' + ds.name + '</td>'
+              + '<td>' + (ds.arr || '') + '</td>'
+              + '<td>' + (ds.dep || '') + '</td>'
+              + '</tr>';
+          }
+          html += '<tr class="ft-se-separator"><td colspan="3">🇸🇪 Sverige</td></tr>';
+          html += '<tr><td colspan="3" class="ft-waiting-api">Väntar på tågdata...</td></tr>';
+          html += '</tbody></table></div>';
+        }
+
+        contentEl.innerHTML = html;
+        startCountdown();
+        return;
+      }
+
+      // No DK data either — just return (loading state shown elsewhere)
+      return;
+    }
 
     var d = nextStationData;
     var stops = d.stops;
@@ -389,6 +460,9 @@
     }
 
     var trainCompleted = nextIdx === -1 && stops.length > 0;
+
+    // Detect "at origin, not departed" = nextIdx is 0 and nothing is passed
+    var atOrigin = nextIdx === 0 && stops.length > 0 && !stops[0].passed;
 
     updateTopbar();
 
@@ -408,7 +482,16 @@
 
       var countdownTarget = '';
       var countdownLabel = 'AVGÅNG OM';
-      if (arrTime && (!next.arrival || !next.arrival.actual)) {
+      var cardLabel = 'NÄSTA STATION';
+
+      if (atOrigin) {
+        // At origin station — count down to departure
+        cardLabel = 'AVGÅNG FRÅN';
+        if (depTime) {
+          countdownTarget = depTime;
+          countdownLabel = 'AVGÅNG OM';
+        }
+      } else if (arrTime && (!next.arrival || !next.arrival.actual)) {
         countdownTarget = arrTime;
         countdownLabel = 'ANKOMST OM';
       } else if (depTime && (!next.departure || !next.departure.actual)) {
@@ -422,7 +505,7 @@
       }
 
       html += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
+        + '<div class="ft-next-label">' + cardLabel + ' ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
         + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
         + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
