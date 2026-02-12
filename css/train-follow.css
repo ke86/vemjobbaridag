@@ -139,7 +139,7 @@
 .ft-panel {
   display: none;
   position: fixed;
-  top: 56px;  /* height of header */
+  top: 56px;  /* fallback; JS overrides with actual header height */
   left: 0;
   right: 0;
   bottom: 0;

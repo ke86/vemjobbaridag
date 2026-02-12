@@ -352,6 +352,11 @@
 
   function showPanel() {
     createPanel();
+    // Set top dynamically to match actual header height
+    var header = document.querySelector('.header');
+    if (header) {
+      panelEl.style.top = header.offsetHeight + 'px';
+    }
     panelEl.classList.add('active');
     panelVisible = true;
     // Hide main content below
@@ -513,7 +518,8 @@
 
     var d = nextStationData;
     var trainNr = d.trainNr;
-    var route = stationName(d.firstStation) + ' → ' + stationName(d.lastStation);
+    // Short route using station signatures
+    var route = d.firstStation + ' → ' + d.lastStation;
     var stops = d.stops;
     var nextIdx = d.nextIdx;
 
@@ -536,10 +542,9 @@
     var html = '<div class="ft-topbar">'
       + '<div class="ft-topbar-left">'
       + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
-      + (d.product ? '<span class="ft-product">' + d.product + '</span>' : '')
+      + '<span class="ft-route">' + route + '</span>'
       + '</div>'
       + '<div class="ft-topbar-right">'
-      + '<span class="ft-route">' + route + '</span>'
       + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
       + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
       + '</div>'
@@ -648,11 +653,31 @@
         if (body) {
           var isOpen = body.classList.toggle('open');
           if (chevron) chevron.textContent = isOpen ? '▲' : '▼';
+          // Auto-scroll to next station row when opening
+          if (isOpen) {
+            scrollToNextStop(body);
+          }
         }
       });
     }
 
     startCountdown();
+  }
+
+  // ==========================================
+  // AUTO-SCROLL STOPS TABLE
+  // ==========================================
+
+  function scrollToNextStop(container) {
+    setTimeout(function() {
+      var nextRow = container.querySelector('.ft-stop-next');
+      if (nextRow) {
+        // Scroll so next row is roughly centered
+        var rowTop = nextRow.offsetTop - container.offsetTop;
+        var containerH = container.clientHeight;
+        container.scrollTop = Math.max(0, rowTop - containerH / 3);
+      }
+    }, 50); // slight delay to let max-height transition start
   }
 
   // ==========================================
