@@ -25,7 +25,6 @@
   var modal = null;
   var inputEl = null;
   var panelEl = null;
-  var subheaderEl = null;
 
   // ==========================================
   // STATE
@@ -330,65 +329,8 @@
   }
 
   // ==========================================
-  // SUBHEADER + PANEL CREATION
+  // PANEL CREATION
   // ==========================================
-
-  function createSubheader() {
-    if (subheaderEl) return;
-    var div = document.createElement('div');
-    div.id = 'ftSubheader';
-    div.className = 'ft-subheader';
-    div.innerHTML = '<div class="ft-subheader-inner" id="ftSubheaderInner"></div>';
-    // Insert after header
-    var header = document.querySelector('.header');
-    if (header && header.nextSibling) {
-      header.parentNode.insertBefore(div, header.nextSibling);
-    } else {
-      document.body.appendChild(div);
-    }
-    subheaderEl = div;
-  }
-
-  function updateSubheader() {
-    createSubheader();
-    if (!nextStationData || !followedTrain) {
-      subheaderEl.classList.remove('active');
-      return;
-    }
-    var d = nextStationData;
-    var trainNr = d.trainNr;
-    var route = d.firstStation + ' → ' + d.lastStation;
-
-    // Delay status class for badge
-    var statusClass = 'ft-status-ok';
-    if (currentDelayInfo.status === 'major') statusClass = 'ft-status-major';
-    else if (currentDelayInfo.status === 'minor') statusClass = 'ft-status-minor';
-
-    var inner = document.getElementById('ftSubheaderInner');
-    if (inner) {
-      inner.innerHTML =
-        '<div class="ft-topbar-left">'
-        + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
-        + '<span class="ft-route">' + route + '</span>'
-        + '</div>'
-        + '<div class="ft-topbar-right">'
-        + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
-        + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
-        + '</div>';
-
-      document.getElementById('ftClosePanel').addEventListener('click', function() {
-        hidePanel();
-      });
-      document.getElementById('ftStopFollow').addEventListener('click', function() {
-        stopFollowing(false);
-      });
-    }
-    subheaderEl.classList.add('active');
-  }
-
-  function hideSubheader() {
-    if (subheaderEl) subheaderEl.classList.remove('active');
-  }
 
   function createPanel() {
     if (panelEl) return;
@@ -396,42 +338,58 @@
     var div = document.createElement('div');
     div.id = 'ftPanel';
     div.className = 'ft-panel';
-    div.innerHTML = '<div class="ft-panel-inner" id="ftPanelInner"></div>';
-
-    // Insert after subheader (or header)
-    var after = subheaderEl || document.querySelector('.header');
-    if (after && after.nextSibling) {
-      after.parentNode.insertBefore(div, after.nextSibling);
-    } else if (after) {
-      after.parentNode.appendChild(div);
-    } else {
-      document.body.appendChild(div);
-    }
+    div.innerHTML =
+      '<div class="ft-panel-topbar" id="ftPanelTopbar"></div>'
+      + '<div class="ft-panel-scroll">'
+      + '<div class="ft-panel-inner" id="ftPanelInner"></div>'
+      + '</div>';
+    document.body.appendChild(div);
     panelEl = div;
   }
 
-  function recalcPanelTop() {
+  function updateTopbar() {
+    var topbar = document.getElementById('ftPanelTopbar');
+    if (!topbar || !followedTrain) return;
+
+    var trainNr = followedTrain.trainNr;
+    var route = '';
+    if (nextStationData) {
+      route = nextStationData.firstStation + ' → ' + nextStationData.lastStation;
+    }
+
+    // Delay status class for badge
+    var statusClass = 'ft-status-ok';
+    if (currentDelayInfo.status === 'major') statusClass = 'ft-status-major';
+    else if (currentDelayInfo.status === 'minor') statusClass = 'ft-status-minor';
+
+    topbar.innerHTML =
+      '<div class="ft-topbar-left">'
+      + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
+      + '<span class="ft-route">' + route + '</span>'
+      + '</div>'
+      + '<div class="ft-topbar-right">'
+      + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
+      + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
+      + '</div>';
+
+    document.getElementById('ftClosePanel').addEventListener('click', function() {
+      hidePanel();
+    });
+    document.getElementById('ftStopFollow').addEventListener('click', function() {
+      stopFollowing(false);
+    });
+  }
+
+  function calcPanelTop() {
     var header = document.querySelector('.header');
-    var headerH = header ? header.offsetHeight : 56;
-
-    // Position subheader right below header
-    if (subheaderEl) {
-      subheaderEl.style.top = headerH + 'px';
-    }
-
-    // Position panel below header + subheader
-    if (panelEl) {
-      var top = headerH;
-      if (subheaderEl && subheaderEl.classList.contains('active')) {
-        top += subheaderEl.offsetHeight;
-      }
-      panelEl.style.top = top + 'px';
-    }
+    if (!header) return;
+    var h = header.offsetHeight;
+    if (panelEl) panelEl.style.top = h + 'px';
   }
 
   function showPanel() {
     createPanel();
-    recalcPanelTop();
+    calcPanelTop();
     panelEl.classList.add('active');
     panelVisible = true;
     document.body.classList.add('ft-panel-open');
@@ -441,7 +399,6 @@
     if (panelEl) panelEl.classList.remove('active');
     panelVisible = false;
     document.body.classList.remove('ft-panel-open');
-    hideSubheader();
   }
 
   function showPanelLoading() {
@@ -607,9 +564,9 @@
 
     var trainCompleted = nextIdx === -1 && stops.length > 0;
 
-    // Update sticky subheader
-    updateSubheader();
-    recalcPanelTop();
+    // Update topbar inside panel
+    updateTopbar();
+    calcPanelTop();
 
     var html = '';
 

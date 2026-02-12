@@ -133,50 +133,46 @@
 
 
 /* ==========================================
-   TRAIN FOLLOW — STICKY SUBHEADER
-   ========================================== */
-
-.ft-subheader {
-  display: none;
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: 850; /* between header (900) and panel (800) */
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-.ft-subheader.active {
-  display: block;
-}
-.ft-subheader-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 8px 16px;
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-/* ==========================================
    TRAIN FOLLOW — REALTIME PANEL (fullscreen)
    ========================================== */
 
 .ft-panel {
   display: none;
   position: fixed;
-  top: 100px;  /* fallback; JS overrides dynamically */
+  top: 56px;  /* fallback; JS overrides dynamically */
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 800;
   background: var(--bg-primary);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: hidden;
+  flex-direction: column;
 }
 .ft-panel.active {
-  display: block;
+  display: flex;
+}
+
+/* Sticky topbar inside panel */
+.ft-panel-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  max-width: 500px;
+  width: 100%;
+  margin: 0 auto;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+/* Scrollable area below topbar */
+.ft-panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ft-panel-inner {
