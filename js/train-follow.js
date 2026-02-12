@@ -243,12 +243,10 @@
     var diff = Math.floor((target - now) / 1000);
     if (diff <= 0) return 'Avgår nu';
     var min = Math.floor(diff / 60);
-    if (min >= 60) {
-      var h = Math.floor(min / 60);
-      var m = min % 60;
-      return 'Avg. ' + h + 'h ' + m + 'm';
-    }
-    return 'Avg. ' + min + ' min';
+    var sec = diff % 60;
+    var mm = (min < 10 ? '0' : '') + min;
+    var ss = (sec < 10 ? '0' : '') + sec;
+    return 'Avg. ' + mm + ':' + ss;
   }
 
   function applyBtnDelayClass() {
