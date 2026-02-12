@@ -712,6 +712,46 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
         crewHtml += '</div>';
       }
 
+      // Build Danish stops HTML if this train segment touches Hie (Hyllie)
+      let dkStopsHtml = '';
+      if (isAnyTrain && typeof denmark !== 'undefined') {
+        const tnr = isTrain ? seg.trainNr : (seg.activity || '').trim().split(/\s+/)[0];
+        if (tnr && denmark.hasDanishData(tnr)) {
+          const fromLower = (seg.fromStation || '').toLowerCase();
+          const toLower = (seg.toStation || '').toLowerCase();
+          const touchesHie = fromLower === 'hie' || toLower === 'hie'
+            || fromLower === 'hyllie' || toLower === 'hyllie';
+          if (touchesHie) {
+            const dkInfo = denmark.getDanishStops(tnr);
+            if (dkInfo && dkInfo.stops.length > 0) {
+              const paxStops = dkInfo.stops.filter(function(s) { return s.pax; });
+              if (paxStops.length > 0) {
+                const dkFirst = paxStops[0];
+                const dkLast = paxStops[paxStops.length - 1];
+                const dkRoute = dkFirst.name + ' → ' + dkLast.name;
+                dkStopsHtml += '<div class="dagvy-dk-section">'
+                  + '<div class="dagvy-dk-header" onclick="this.parentElement.classList.toggle(\'dk-open\'); event.stopPropagation();">'
+                  + '<span class="dagvy-dk-flag">🇩🇰</span>'
+                  + '<span class="dagvy-dk-route">' + dkRoute + '</span>'
+                  + '<span class="dagvy-dk-chevron">›</span>'
+                  + '</div>'
+                  + '<div class="dagvy-dk-stops">';
+                for (const ds of paxStops) {
+                  dkStopsHtml += '<div class="dagvy-dk-row">'
+                    + '<span class="dagvy-dk-station">' + ds.name + '</span>'
+                    + '<span class="dagvy-dk-times">'
+                    + (ds.arr ? '<span class="dagvy-dk-arr">' + ds.arr + '</span>' : '')
+                    + (ds.dep ? '<span class="dagvy-dk-dep">' + ds.dep + '</span>' : '')
+                    + '</span>'
+                    + '</div>';
+                }
+                dkStopsHtml += '</div></div>';
+              }
+            }
+          }
+        }
+      }
+
       // Time display: simple mode shows start–end, allt mode shows only start
       const timeHtml = simpleMode
         ? seg.timeStart + '<span class="dagvy-seg-time-sep">–</span>' + seg.timeEnd
@@ -722,6 +762,7 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
         + '<div class="dagvy-seg-middle">' + middleHtml + '</div>'
         + '<div class="dagvy-seg-right">' + trainBadgeHtml + '</div>'
         + crewHtml
+        + dkStopsHtml
         + '</div>';
     }
 

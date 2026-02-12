@@ -470,6 +470,23 @@ function renderDepartureBoard(announcements, locationField) {
       destName = locArr[locArr.length - 1].LocationName || '';
     }
 
+    // Danish extension: if train ends at Hyllie and has Danish data, show Danish destination
+    var dkDest = '';
+    if (typeof denmark !== 'undefined' && trainId) {
+      var lastSig = locArr.length > 0 ? (locArr[locArr.length - 1].LocationName || '') : '';
+      if (lastSig === 'Hyllie' || lastSig === 'Kastrup' || lastSig === 'Malmö central') {
+        var dkStops = denmark.getDanishStops(trainId);
+        if (dkStops && dkStops.stops.length > 0) {
+          if (dkStops.direction === 'toDK') {
+            dkDest = dkStops.stops[dkStops.stops.length - 1].name;
+          } else {
+            // Train coming FROM Denmark — show Danish origin
+            dkDest = dkStops.stops[0].name;
+          }
+        }
+      }
+    }
+
     // Track
     var track = a.TrackAtLocation || '';
 
@@ -500,9 +517,15 @@ function renderDepartureBoard(announcements, locationField) {
       rowClass += ' dep-my-train';
     }
 
+    // Build destination cell with optional Danish destination
+    var destCell = destName;
+    if (dkDest) {
+      destCell = destName + '<span class="dep-dk-dest"> → ' + dkDest + '</span>';
+    }
+
     html += '<tr class="' + rowClass + '">'
       + '<td class="dep-col-time">' + timeStr + '</td>'
-      + '<td class="dep-col-dest">' + destName + '</td>'
+      + '<td class="dep-col-dest">' + destCell + '</td>'
       + '<td class="dep-col-newtime' + (hasDelay ? '' : ' no-delay') + '">' + (newTimeStr || '') + '</td>'
       + '<td class="dep-col-track">' + track + '</td>'
       + '<td class="dep-col-train">' + trainId + '</td>'

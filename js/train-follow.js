@@ -328,7 +328,26 @@
     var trainNr = followedTrain.trainNr;
     var route = '';
     if (nextStationData) {
-      route = nextStationData.firstStation + ' → ' + nextStationData.lastStation;
+      var first = stationName(nextStationData.firstStation);
+      var last = stationName(nextStationData.lastStation);
+
+      // Extend route with Danish destination/origin
+      if (typeof denmark !== 'undefined') {
+        var dkInfo = denmark.getDanishStops(trainNr);
+        if (dkInfo && dkInfo.stops.length > 0) {
+          if (dkInfo.direction === 'toDK') {
+            // Train going to Denmark — extend last station
+            var dkLast = dkInfo.stops[dkInfo.stops.length - 1];
+            if (dkLast.pax) last = dkLast.name;
+          } else {
+            // Train coming from Denmark — extend first station
+            var dkFirst = dkInfo.stops[0];
+            if (dkFirst.pax) first = dkFirst.name;
+          }
+        }
+      }
+
+      route = first + ' → ' + last;
     }
 
     var statusClass = 'ft-status-ok';
@@ -434,9 +453,15 @@
       });
     }
 
+    // Check for Danish stops continuation
+    var dkData = null;
+    if (typeof denmark !== 'undefined' && followedTrain) {
+      dkData = denmark.getDanishStops(followedTrain.trainNr);
+    }
+
     html += '<div class="ft-stops-card">'
       + '<div class="ft-stops-header" id="ftStopsToggle">'
-      + '<span>Alla stopp</span>'
+      + '<span>Alla stopp' + (dkData ? ' <span class="ft-dk-badge">🇩🇰</span>' : '') + '</span>'
       + '<span class="ft-stops-chevron" id="ftStopsChevron">▼</span>'
       + '</div>'
       + '<div class="ft-stops-body" id="ftStopsBody">'
@@ -455,6 +480,23 @@
         + '<td>' + st.arr + '</td>'
         + '<td>' + st.dep + '</td>'
         + '</tr>';
+    }
+
+    // Danish stops — show after Swedish stops
+    if (dkData && dkData.stops.length > 0) {
+      // Separator row
+      html += '<tr class="ft-dk-separator"><td colspan="3">🇩🇰 Danmark — ' + dkData.route + '</td></tr>';
+
+      for (var di = 0; di < dkData.stops.length; di++) {
+        var dkStop = dkData.stops[di];
+        // Skip PHM (Peberholm) — not a passenger station, just border marker
+        if (!dkStop.pax) continue;
+        html += '<tr class="ft-dk-stop">'
+          + '<td>' + dkStop.name + '</td>'
+          + '<td>' + (dkStop.arr || '') + '</td>'
+          + '<td>' + (dkStop.dep || '') + '</td>'
+          + '</tr>';
+      }
     }
 
     html += '</tbody></table></div></div>';

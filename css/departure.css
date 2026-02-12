@@ -308,9 +308,16 @@
 .dep-col-dest {
   color: #e0e0e0;
   font-weight: 500;
-  max-width: 110px;
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Danish destination extension (shown after →) */
+.dep-dk-dest {
+  color: #60a5fa;
+  font-weight: 400;
+  font-size: 0.9em;
 }
 
 /* Ny tid column - delay highlight */

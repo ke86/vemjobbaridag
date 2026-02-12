@@ -680,3 +680,149 @@
   color: #777;
 }
 
+/* ==========================================
+   DANISH STOPS SECTION (inside train segment)
+   ========================================== */
+
+.dagvy-dk-section {
+  width: 100%;
+  margin-top: 6px;
+  border-top: 1px dashed rgba(96, 165, 250, 0.25);
+}
+
+.dagvy-dk-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 4px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.dagvy-dk-header:active {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+.dagvy-dk-flag {
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.dagvy-dk-route {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #60a5fa;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dagvy-dk-chevron {
+  font-size: 14px;
+  color: #60a5fa;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.dagvy-dk-section.dk-open .dagvy-dk-chevron {
+  transform: rotate(90deg);
+}
+
+/* Stops container — collapsed by default */
+.dagvy-dk-stops {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  padding: 0 8px;
+}
+.dagvy-dk-section.dk-open .dagvy-dk-stops {
+  max-height: 400px;
+  padding: 4px 8px 8px;
+}
+
+.dagvy-dk-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11.5px;
+  border-bottom: 1px solid rgba(96, 165, 250, 0.08);
+}
+.dagvy-dk-row:last-child {
+  border-bottom: none;
+}
+
+.dagvy-dk-station {
+  color: #60a5fa;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dagvy-dk-times {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.dagvy-dk-arr, .dagvy-dk-dep {
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+  font-size: 11px;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Light mode overrides */
+.dagvy-dk-route {
+  color: #2563eb;
+}
+.dagvy-dk-chevron {
+  color: #2563eb;
+}
+.dagvy-dk-station {
+  color: #2563eb;
+}
+.dagvy-dk-arr, .dagvy-dk-dep {
+  color: #64748b;
+}
+.dagvy-dk-header:active {
+  background: rgba(37, 99, 235, 0.06);
+}
+.dagvy-dk-section {
+  border-top-color: rgba(37, 99, 235, 0.15);
+}
+.dagvy-dk-row {
+  border-bottom-color: rgba(37, 99, 235, 0.06);
+}
+
+/* Dark mode overrides */
+.dark .dagvy-dk-route {
+  color: #60a5fa;
+}
+.dark .dagvy-dk-chevron {
+  color: #60a5fa;
+}
+.dark .dagvy-dk-station {
+  color: #60a5fa;
+}
+.dark .dagvy-dk-arr, .dark .dagvy-dk-dep {
+  color: #94a3b8;
+}
+.dark .dagvy-dk-header:active {
+  background: rgba(96, 165, 250, 0.08);
+}
+.dark .dagvy-dk-section {
+  border-top-color: rgba(96, 165, 250, 0.25);
+}
+.dark .dagvy-dk-row {
+  border-bottom-color: rgba(96, 165, 250, 0.08);
+}
+
