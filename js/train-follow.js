@@ -25,6 +25,7 @@
   var modal = null;
   var inputEl = null;
   var panelEl = null;
+  var subheaderEl = null;
 
   // ==========================================
   // STATE
@@ -329,8 +330,65 @@
   }
 
   // ==========================================
-  // PANEL CREATION — fullscreen below header
+  // SUBHEADER + PANEL CREATION
   // ==========================================
+
+  function createSubheader() {
+    if (subheaderEl) return;
+    var div = document.createElement('div');
+    div.id = 'ftSubheader';
+    div.className = 'ft-subheader';
+    div.innerHTML = '<div class="ft-subheader-inner" id="ftSubheaderInner"></div>';
+    // Insert after header
+    var header = document.querySelector('.header');
+    if (header && header.nextSibling) {
+      header.parentNode.insertBefore(div, header.nextSibling);
+    } else {
+      document.body.appendChild(div);
+    }
+    subheaderEl = div;
+  }
+
+  function updateSubheader() {
+    createSubheader();
+    if (!nextStationData || !followedTrain) {
+      subheaderEl.classList.remove('active');
+      return;
+    }
+    var d = nextStationData;
+    var trainNr = d.trainNr;
+    var route = d.firstStation + ' → ' + d.lastStation;
+
+    // Delay status class for badge
+    var statusClass = 'ft-status-ok';
+    if (currentDelayInfo.status === 'major') statusClass = 'ft-status-major';
+    else if (currentDelayInfo.status === 'minor') statusClass = 'ft-status-minor';
+
+    var inner = document.getElementById('ftSubheaderInner');
+    if (inner) {
+      inner.innerHTML =
+        '<div class="ft-topbar-left">'
+        + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
+        + '<span class="ft-route">' + route + '</span>'
+        + '</div>'
+        + '<div class="ft-topbar-right">'
+        + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
+        + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
+        + '</div>';
+
+      document.getElementById('ftClosePanel').addEventListener('click', function() {
+        hidePanel();
+      });
+      document.getElementById('ftStopFollow').addEventListener('click', function() {
+        stopFollowing(false);
+      });
+    }
+    subheaderEl.classList.add('active');
+  }
+
+  function hideSubheader() {
+    if (subheaderEl) subheaderEl.classList.remove('active');
+  }
 
   function createPanel() {
     if (panelEl) return;
@@ -340,26 +398,42 @@
     div.className = 'ft-panel';
     div.innerHTML = '<div class="ft-panel-inner" id="ftPanelInner"></div>';
 
-    // Insert after header
-    var header = document.querySelector('.header');
-    if (header && header.nextSibling) {
-      header.parentNode.insertBefore(div, header.nextSibling);
+    // Insert after subheader (or header)
+    var after = subheaderEl || document.querySelector('.header');
+    if (after && after.nextSibling) {
+      after.parentNode.insertBefore(div, after.nextSibling);
+    } else if (after) {
+      after.parentNode.appendChild(div);
     } else {
       document.body.appendChild(div);
     }
     panelEl = div;
   }
 
+  function recalcPanelTop() {
+    var header = document.querySelector('.header');
+    var headerH = header ? header.offsetHeight : 56;
+
+    // Position subheader right below header
+    if (subheaderEl) {
+      subheaderEl.style.top = headerH + 'px';
+    }
+
+    // Position panel below header + subheader
+    if (panelEl) {
+      var top = headerH;
+      if (subheaderEl && subheaderEl.classList.contains('active')) {
+        top += subheaderEl.offsetHeight;
+      }
+      panelEl.style.top = top + 'px';
+    }
+  }
+
   function showPanel() {
     createPanel();
-    // Set top dynamically to match actual header height
-    var header = document.querySelector('.header');
-    if (header) {
-      panelEl.style.top = header.offsetHeight + 'px';
-    }
+    recalcPanelTop();
     panelEl.classList.add('active');
     panelVisible = true;
-    // Hide main content below
     document.body.classList.add('ft-panel-open');
   }
 
@@ -367,6 +441,7 @@
     if (panelEl) panelEl.classList.remove('active');
     panelVisible = false;
     document.body.classList.remove('ft-panel-open');
+    hideSubheader();
   }
 
   function showPanelLoading() {
@@ -517,38 +592,26 @@
     if (!inner || !nextStationData) return;
 
     var d = nextStationData;
-    var trainNr = d.trainNr;
-    // Short route using station signatures
-    var route = d.firstStation + ' → ' + d.lastStation;
     var stops = d.stops;
     var nextIdx = d.nextIdx;
 
-    // Determine delay status
-    var statusClass = 'ft-status-ok';
+    // Determine delay for next-station card
     var delayMin = 0;
     if (nextIdx >= 0 && stops[nextIdx]) {
       var ns = stops[nextIdx];
       var timeInfo = ns.arrival || ns.departure;
       if (timeInfo && timeInfo.estimated && timeInfo.planned) {
         delayMin = calcDelayMin(timeInfo.planned, timeInfo.estimated);
-        if (delayMin >= 6) statusClass = 'ft-status-major';
-        else if (delayMin >= 1) statusClass = 'ft-status-minor';
       }
     }
 
     var trainCompleted = nextIdx === -1 && stops.length > 0;
 
-    // === TOP BAR ===
-    var html = '<div class="ft-topbar">'
-      + '<div class="ft-topbar-left">'
-      + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
-      + '<span class="ft-route">' + route + '</span>'
-      + '</div>'
-      + '<div class="ft-topbar-right">'
-      + '<button class="ft-stop-follow-btn" id="ftStopFollow" title="Sluta följa">Sluta följa</button>'
-      + '<button class="ft-close-btn" id="ftClosePanel" title="Stäng">✕</button>'
-      + '</div>'
-      + '</div>';
+    // Update sticky subheader
+    updateSubheader();
+    recalcPanelTop();
+
+    var html = '';
 
     // === NEXT STATION CARD ===
     if (trainCompleted) {
@@ -637,14 +700,6 @@
     inner.innerHTML = html;
 
     // Event listeners
-    document.getElementById('ftClosePanel').addEventListener('click', function() {
-      hidePanel();
-    });
-
-    document.getElementById('ftStopFollow').addEventListener('click', function() {
-      stopFollowing(false);
-    });
-
     var stopsToggle = document.getElementById('ftStopsToggle');
     if (stopsToggle) {
       stopsToggle.addEventListener('click', function() {

@@ -133,13 +133,40 @@
 
 
 /* ==========================================
+   TRAIN FOLLOW — STICKY SUBHEADER
+   ========================================== */
+
+.ft-subheader {
+  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 850; /* between header (900) and panel (800) */
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.ft-subheader.active {
+  display: block;
+}
+.ft-subheader-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ==========================================
    TRAIN FOLLOW — REALTIME PANEL (fullscreen)
    ========================================== */
 
 .ft-panel {
   display: none;
   position: fixed;
-  top: 56px;  /* fallback; JS overrides with actual header height */
+  top: 100px;  /* fallback; JS overrides dynamically */
   left: 0;
   right: 0;
   bottom: 0;
@@ -195,14 +222,7 @@ body.ft-panel-open .departures-page {
   font-size: 14px;
 }
 
-/* Top bar */
-.ft-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  gap: 8px;
-}
+/* Topbar parts (used inside subheader-inner) */
 .ft-topbar-left {
   display: flex;
   align-items: center;
