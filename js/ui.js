@@ -255,17 +255,6 @@ function getBreakForEmployee(employeeId) {
   const dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
   if (!dayData || !dayData.segments) return null;
 
-  // DEBUG: log all segment activities (remove later)
-  const debugActivities = dayData.segments.map(function(s) {
-    return JSON.stringify({
-      act: s.activity,
-      from: s.fromStation,
-      to: s.toStation,
-      t: s.timeStart + '-' + s.timeEnd
-    });
-  });
-  console.log('[RAST DEBUG] ' + emp.name + ': ' + debugActivities.join(' | '));
-
   // Collect all rast segments and rlo segments
   const rastSegs = [];
   let rloCity = null;
@@ -367,7 +356,6 @@ function getBreakForEmployee(employeeId) {
   }
 
   const timeStr = combinedStartStr + '-' + combinedEndStr;
-  console.log('[RAST DEBUG] ' + emp.name + ' → rast: ' + timeStr + ', city: ' + (rloCity || '(ingen)'));
   return { time: timeStr, city: rloCity || '' };
 }
 
