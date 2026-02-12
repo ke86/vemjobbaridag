@@ -40,6 +40,7 @@
   var nextStationData = null;
   var pageActive = false;
   var currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+  var originDepartureTarget = null; // HH:MM string when waiting at origin
 
   // ==========================================
   // STATION NAME MAP
@@ -216,13 +217,38 @@
       followBtn.classList.add('following');
       applyBtnDelayClass();
       if (btnFlipShowingDelay) {
-        followBtn.textContent = currentDelayInfo.delayText;
+        // If waiting at origin, show countdown instead of "I tid"
+        if (originDepartureTarget) {
+          followBtn.textContent = getOriginCountdownText();
+        } else {
+          followBtn.textContent = currentDelayInfo.delayText;
+        }
       } else {
         followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
       }
     } else {
       followBtn.textContent = 'Följ tåg';
     }
+  }
+
+  /**
+   * Compute a short countdown text for the header button when at origin.
+   */
+  function getOriginCountdownText() {
+    if (!originDepartureTarget) return 'I tid';
+    var parts = originDepartureTarget.split(':');
+    var now = new Date();
+    var target = new Date();
+    target.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
+    var diff = Math.floor((target - now) / 1000);
+    if (diff <= 0) return 'Avgår nu';
+    var min = Math.floor(diff / 60);
+    if (min >= 60) {
+      var h = Math.floor(min / 60);
+      var m = min % 60;
+      return 'Avg. ' + h + 'h ' + m + 'm';
+    }
+    return 'Avg. ' + min + ' min';
   }
 
   function applyBtnDelayClass() {
@@ -394,12 +420,16 @@
   function renderPage() {
     if (!contentEl) return;
 
+    // Reset origin departure target (will be set if at origin)
+    originDepartureTarget = null;
+
     // If no API data yet, try to show DK timetable departure
     if (!nextStationData || nextStationData.stops.length === 0) {
       updateTopbar();
       var dkDep = followedTrain ? getDkDepartureInfo(followedTrain.trainNr) : null;
 
       if (dkDep) {
+        originDepartureTarget = dkDep.dep;
         var html = '<div class="ft-next-card">'
           + '<div class="ft-next-label">AVGÅNG FRÅN</div>'
           + '<div class="ft-next-station">' + dkDep.station + '</div>'
@@ -493,6 +523,7 @@
           var dkDep2 = getDkDepartureInfo(followedTrain.trainNr);
           if (dkDep2) {
             dkOriginUsed = true;
+            originDepartureTarget = dkDep2.dep;
             cardLabel = 'AVGÅNG FRÅN';
             countdownTarget = dkDep2.dep;
             countdownLabel = 'AVGÅNG OM';
@@ -522,6 +553,7 @@
         if (depTime) {
           countdownTarget = depTime;
           countdownLabel = 'AVGÅNG OM';
+          originDepartureTarget = depTime;
         }
       } else if (!dkOriginUsed && arrTime && (!next.arrival || !next.arrival.actual)) {
         countdownTarget = arrTime;
@@ -803,6 +835,8 @@
     if (diff <= 0) {
       el.textContent = 'Nu';
       el.className = 'ft-countdown-value ft-countdown-now';
+      // Also update header button when at origin
+      if (originDepartureTarget && btnFlipShowingDelay) updateButton();
       return;
     }
 
@@ -822,6 +856,9 @@
     } else {
       el.className = 'ft-countdown-value';
     }
+
+    // Keep header button countdown updated every second when at origin
+    if (originDepartureTarget && btnFlipShowingDelay) updateButton();
   }
 
   // ==========================================
