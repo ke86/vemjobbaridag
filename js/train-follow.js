@@ -484,14 +484,46 @@
       var countdownLabel = 'AVGÅNG OM';
       var cardLabel = 'NÄSTA STATION';
 
-      if (atOrigin) {
-        // At origin station — count down to departure
+      // Check if this is a DK→SE train at Swedish origin (Hyllie) but real origin is in DK
+      var dkOriginUsed = false;
+      if (atOrigin && typeof denmark !== 'undefined' && followedTrain) {
+        var dkCheck = denmark.getDanishStops(followedTrain.trainNr);
+        if (dkCheck && dkCheck.direction === 'toSE' && dkCheck.stops.length > 0) {
+          // Train starts in Denmark — use DK origin instead of Hyllie
+          var dkDep2 = getDkDepartureInfo(followedTrain.trainNr);
+          if (dkDep2) {
+            dkOriginUsed = true;
+            cardLabel = 'AVGÅNG FRÅN';
+            countdownTarget = dkDep2.dep;
+            countdownLabel = 'AVGÅNG OM';
+
+            // Build card with DK origin info
+            html += '<div class="ft-next-card">'
+              + '<div class="ft-next-label">' + cardLabel + '</div>'
+              + '<div class="ft-next-station">' + dkDep2.station + '</div>'
+              + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
+              + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
+              + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+              + '</div>'
+              + '<div class="ft-detail-row">'
+              + '<div class="ft-times">'
+              + '<div class="ft-time-box"><span class="ft-time-label">DK AVGÅNG</span><span class="ft-time-value">' + dkDep2.dep + '</span></div>'
+              + (depTime ? '<div class="ft-time-box"><span class="ft-time-label">HYLLIE</span><span class="ft-time-value">' + depTime + '</span></div>' : '')
+              + '</div>'
+              + '</div>'
+              + '</div>';
+          }
+        }
+      }
+
+      if (!dkOriginUsed && atOrigin) {
+        // Swedish-origin train — count down to departure
         cardLabel = 'AVGÅNG FRÅN';
         if (depTime) {
           countdownTarget = depTime;
           countdownLabel = 'AVGÅNG OM';
         }
-      } else if (arrTime && (!next.arrival || !next.arrival.actual)) {
+      } else if (!dkOriginUsed && arrTime && (!next.arrival || !next.arrival.actual)) {
         countdownTarget = arrTime;
         countdownLabel = 'ANKOMST OM';
       } else if (depTime && (!next.departure || !next.departure.actual)) {
@@ -499,26 +531,29 @@
         countdownLabel = 'AVGÅNG OM';
       }
 
-      var delayHtml = '';
-      if (delayMin > 0) {
-        delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
-      }
+      // Only build the standard card if DK origin card wasn't already built
+      if (!dkOriginUsed) {
+        var delayHtml = '';
+        if (delayMin > 0) {
+          delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
+        }
 
-      html += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">' + cardLabel + ' ' + delayHtml + '</div>'
-        + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
-        + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
-        + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
-        + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
-        + '</div>'
-        + '<div class="ft-detail-row">'
-        + '<div class="ft-track-circle"><span class="ft-track-nr">' + trackStr + '</span><span class="ft-track-label">SPÅR</span></div>'
-        + '<div class="ft-times">'
-        + (arrTime ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrTime + '</span></div>' : '')
-        + (depTime ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depTime + '</span></div>' : '')
-        + '</div>'
-        + '</div>'
-        + '</div>';
+        html += '<div class="ft-next-card">'
+          + '<div class="ft-next-label">' + cardLabel + ' ' + delayHtml + '</div>'
+          + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
+          + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
+          + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
+          + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+          + '</div>'
+          + '<div class="ft-detail-row">'
+          + '<div class="ft-track-circle"><span class="ft-track-nr">' + trackStr + '</span><span class="ft-track-label">SPÅR</span></div>'
+          + '<div class="ft-times">'
+          + (arrTime ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrTime + '</span></div>' : '')
+          + (depTime ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depTime + '</span></div>' : '')
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      }
     }
 
     // === ALL STOPS ===
