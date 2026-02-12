@@ -36,6 +36,36 @@ const stationNames = {};
 })();
 
 /**
+ * Signature → readable station name map (shared with train-follow.js logic).
+ * Trafikverket ToLocation.LocationName returns signature codes, not display names.
+ */
+var SIG_TO_NAME = {
+  'Mc': 'Malmö C', 'Hie': 'Hyllie', 'Tri': 'Triangeln', 'Lu': 'Lund C',
+  'Klv': 'Kävlinge', 'Lkr': 'Landskrona', 'Hb': 'Helsingborg C',
+  'Åp': 'Åstorp', 'Elv': 'Eslöv', 'Hör': 'Höör', 'Hm': 'Hässleholm C',
+  'Kr': 'Kristianstad C', 'Hd': 'Halmstad C', 'Av': 'Alvesta',
+  'Vö': 'Växjö', 'Eba': 'Emmaboda', 'Kac': 'Kalmar C', 'Ck': 'Karlskrona C',
+  'Tb': 'Trelleborg', 'Ys': 'Ystad', 'Sim': 'Simrishamn',
+  'G': 'Göteborg C', 'Cst': 'Stockholm C', 'Mö': 'Malmö Godsbangård',
+  'Smp': 'Sölvesborg', 'Bgs': 'Borås C', 'Fby': 'Falkenberg',
+  'Vb': 'Varberg', 'K': 'Kungsbacka', 'Fa': 'Falköping C',
+  'Sk': 'Skövde C', 'Lå': 'Linköping C', 'Nk': 'Norrköping C',
+  'Kn': 'Katrineholm C', 'Söc': 'Södertälje C', 'Fg': 'Flemingsberg',
+  'Äs': 'Arlöv', 'Brl': 'Burlöv', 'Sv': 'Svågertorp',
+  'Kh': 'Karlshamn', 'Rn': 'Ronneby', 'Hpbg': 'Höganäs',
+  'Å': 'Ängelholm', 'Bå': 'Båstad', 'La': 'Laholm',
+  'Mh': 'Markaryd', 'Ay': 'Älmhult', 'Ö': 'Örebro C',
+  'Hr': 'Hallsberg', 'Mjö': 'Mjölby', 'Km': 'Köpenhamn',
+  'Kk': 'Kastrup', 'Jö': 'Jönköping C', 'Nä': 'Nässjö C',
+  'Ht': 'Hestra', 'Bor': 'Borås', 'Vr': 'Värnamo',
+  'Lkö': 'Landskrona Ö', 'Bån': 'Båstad N', 'Laov': 'Laholm Ö'
+};
+
+function sigToName(sig) {
+  return SIG_TO_NAME[sig] || sig;
+}
+
+/**
  * Get product name from an announcement
  */
 function getTrainProduct(announcement) {
@@ -476,12 +506,6 @@ async function loadDanishDepartures(stationCode) {
     }
   }
 
-  // DEBUG: log border info
-  console.log('[DK-DEBUG] Total rows: ' + rows.length + ', border-crossing trains: ' + uniqueTrainNrs.length);
-  for (var dbr = 0; dbr < rows.length; dbr++) {
-    console.log('[DK-DEBUG] Row: ' + rows[dbr].trainNr + ' crossesBorder=' + rows[dbr].crossesBorder + ' dest="' + rows[dbr].dest + '"');
-  }
-
   // Cross-reference with Trafikverket API
   if (uniqueTrainNrs.length > 0) {
     try {
@@ -533,22 +557,17 @@ async function loadDanishDepartures(stationCode) {
 }
 
 /**
- * Fetch Swedish Trafikverket data for a batch of train numbers.
- * Returns object keyed by train number with destination, origin, delay info.
+ * Fetch Swedish Trafikverket data for a single train number.
+ * Returns { toLocation, fromLocation, lastStation, delayMin }.
+ * Uses EQ (not IN) because the CORS proxy doesn't support IN-clauses.
  */
-async function fetchSwedishTrainData(trainNrs) {
-  // Build IN-clause for train numbers
-  var inValues = '';
-  for (var i = 0; i < trainNrs.length; i++) {
-    inValues += '<Value>' + trainNrs[i] + '</Value>';
-  }
-
+async function fetchSingleTrainData(trainNr) {
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
     + '<FILTER>'
     + '<AND>'
-    + '<IN name="AdvertisedTrainIdent">' + inValues + '</IN>'
+    + '<EQ name="AdvertisedTrainIdent" value="' + trainNr + '" />'
     + '<EQ name="Advertised" value="true" />'
     + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-02:00:00)" />'
     + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(08:00:00)" />'
@@ -564,119 +583,80 @@ async function fetchSwedishTrainData(trainNrs) {
     + '</QUERY>'
     + '</REQUEST>';
 
-  console.log('[DK-DEBUG] XML query (' + trainNrs.length + ' trains):', xml);
   var data = await fetchTrafikverketData(xml);
   var announcements = [];
   if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
     announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
   }
-  console.log('[DK-DEBUG] Got ' + announcements.length + ' announcements');
+  if (announcements.length === 0) return null;
 
-  // ===== DEBUG: Log raw Trafikverket data per train =====
-  var debugPerTrain = {};
-  for (var d = 0; d < announcements.length; d++) {
-    var da = announcements[d];
-    var dtnr = da.AdvertisedTrainIdent || '?';
-    if (!debugPerTrain[dtnr]) debugPerTrain[dtnr] = [];
-    var dTo = da.ToLocation && da.ToLocation.length > 0
-      ? da.ToLocation.map(function(t) { return t.LocationName; }).join(',')
-      : '-';
-    var dFrom = da.FromLocation && da.FromLocation.length > 0
-      ? da.FromLocation.map(function(f) { return f.LocationName; }).join(',')
-      : '-';
-    debugPerTrain[dtnr].push(
-      da.ActivityType + ' @ ' + (da.LocationSignature || '?')
-      + ' | To: ' + dTo
-      + ' | From: ' + dFrom
-      + ' | ' + (da.AdvertisedTimeAtLocation || '')
-    );
-  }
-  var debugTrains = Object.keys(debugPerTrain);
-  for (var dt = 0; dt < debugTrains.length; dt++) {
-    var dtNr = debugTrains[dt];
-    console.log('[DK-DEBUG] Tåg ' + dtNr + ' (' + debugPerTrain[dtNr].length + ' announcements):');
-    for (var dl = 0; dl < debugPerTrain[dtNr].length; dl++) {
-      console.log('  ' + debugPerTrain[dtNr][dl]);
-    }
-  }
-  // ===== END DEBUG =====
+  // Find the last station (= destination) and first station (= origin).
+  // Trafikverket ToLocation.LocationName returns signature codes ("Hd"),
+  // not display names ("Halmstad C"), so we use sigToName() to translate.
+  var lastStation = '';
+  var firstStation = '';
+  var maxDelay = 0;
 
-  // Border stations — destinations on the short Swedish ØP leg.
-  // If the train continues beyond these, we want the REAL final destination.
-  var borderNames = ['malmö central', 'hyllie', 'svågertorp'];
-
-  function isBorderName(name) {
-    var low = (name || '').toLowerCase();
-    for (var b = 0; b < borderNames.length; b++) {
-      if (low === borderNames[b]) return true;
-    }
-    return false;
-  }
-
-  // Build lookup per train number
-  var result = {};
   for (var a = 0; a < announcements.length; a++) {
     var ann = announcements[a];
-    var tnr = ann.AdvertisedTrainIdent;
-    if (!tnr) continue;
-
-    if (!result[tnr]) {
-      result[tnr] = { toLocation: '', fromLocation: '', lastStation: '', delayMin: 0 };
-    }
-
-    // Capture To/From location.
-    // Strategy: announcements are sorted by time (earliest first).
-    // Later stops overwrite earlier ones — BUT we never overwrite a
-    // non-border destination with a border one. This ensures that if
-    // Trafikverket reports "Göteborg C" at any stop, we keep it even
-    // if later stops say "Malmö central".
     if (ann.ActivityType === 'Avgang') {
-      if (ann.ToLocation && ann.ToLocation.length > 0) {
-        var toLoc = ann.ToLocation[ann.ToLocation.length - 1];
-        var toName = toLoc.LocationName || '';
-        // Overwrite if: nothing yet, OR current is border, OR new is non-border
-        if (!result[tnr].toLocation || isBorderName(result[tnr].toLocation) || !isBorderName(toName)) {
-          result[tnr].toLocation = toName;
-        }
+      // First departure = origin station
+      if (!firstStation && ann.LocationSignature) {
+        firstStation = ann.LocationSignature;
       }
-      // Track the last departure station (furthest along the route)
+      // Last departure = furthest along route
       if (ann.LocationSignature) {
-        result[tnr].lastStation = ann.LocationSignature;
+        lastStation = ann.LocationSignature;
       }
     }
-    if (ann.ActivityType === 'Ankomst') {
-      if (ann.FromLocation && ann.FromLocation.length > 0) {
-        var fromLoc = ann.FromLocation[0];
-        var fromName = fromLoc.LocationName || '';
-        if (!result[tnr].fromLocation || isBorderName(result[tnr].fromLocation) || !isBorderName(fromName)) {
-          result[tnr].fromLocation = fromName;
-        }
-      }
+    // Last Ankomst station = ultimate destination
+    if (ann.ActivityType === 'Ankomst' && ann.LocationSignature) {
+      lastStation = ann.LocationSignature;
     }
-
-    // Track max delay across all announcements for this train
+    // Track max delay
     if (ann.EstimatedTimeAtLocation && ann.AdvertisedTimeAtLocation) {
       var estT = new Date(ann.EstimatedTimeAtLocation).getTime();
       var advT = new Date(ann.AdvertisedTimeAtLocation).getTime();
       var delayMs = estT - advT;
       if (delayMs > 0) {
         var dMin = Math.round(delayMs / 60000);
-        if (dMin > result[tnr].delayMin) {
-          result[tnr].delayMin = dMin;
-        }
+        if (dMin > maxDelay) maxDelay = dMin;
       }
     }
   }
 
-  // ===== DEBUG: Log final result =====
-  var resultTrains = Object.keys(result);
-  for (var rt = 0; rt < resultTrains.length; rt++) {
-    var rNr = resultTrains[rt];
-    var r = result[rNr];
-    console.log('[DK-DEBUG] RESULT tåg ' + rNr + ': toLocation="' + r.toLocation + '" fromLocation="' + r.fromLocation + '" lastStation="' + r.lastStation + '" delay=' + r.delayMin);
-  }
-  // ===== END DEBUG =====
+  return {
+    toLocation: sigToName(lastStation),
+    fromLocation: sigToName(firstStation),
+    lastStation: lastStation,
+    delayMin: maxDelay
+  };
+}
 
+/**
+ * Fetch Swedish Trafikverket data for a batch of train numbers.
+ * Makes parallel individual EQ queries (CORS proxy doesn't support IN-clause).
+ * Returns object keyed by train number.
+ */
+async function fetchSwedishTrainData(trainNrs) {
+  var promises = [];
+  for (var i = 0; i < trainNrs.length; i++) {
+    promises.push(
+      fetchSingleTrainData(trainNrs[i])
+        .then((function(nr) {
+          return function(data) { return { nr: nr, data: data }; };
+        })(trainNrs[i]))
+        .catch(function() { return null; })
+    );
+  }
+
+  var results = await Promise.all(promises);
+  var result = {};
+  for (var r = 0; r < results.length; r++) {
+    if (results[r] && results[r].data) {
+      result[results[r].nr] = results[r].data;
+    }
+  }
   return result;
 }
 
