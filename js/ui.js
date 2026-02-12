@@ -310,13 +310,25 @@ function getBreakForEmployee(employeeId) {
 
   if (rastSegs.length === 0) return null;
 
+  // Helper: resolve a station name to a city via RLO_CITY_MAP or STATION_CITY_MAP
+  function resolveCity(stationName) {
+    if (!stationName) return null;
+    const lower = stationName.toLowerCase().trim();
+    if (!lower) return null;
+    // Try rlo map first (e.g. "MCrlo" → Malmö)
+    if (RLO_CITY_MAP[lower]) return RLO_CITY_MAP[lower];
+    // Try station map (e.g. "MC" → Malmö)
+    if (STATION_CITY_MAP[lower]) return STATION_CITY_MAP[lower];
+    return null;
+  }
+
   // Fallback 1: check fromStation/toStation on the rast segments themselves
   if (!rloCity) {
     for (const rs of rastSegs) {
-      const from = (rs.fromStation || '').toLowerCase().trim();
-      const to = (rs.toStation || '').toLowerCase().trim();
-      if (from && STATION_CITY_MAP[from]) { rloCity = STATION_CITY_MAP[from]; break; }
-      if (to && STATION_CITY_MAP[to]) { rloCity = STATION_CITY_MAP[to]; break; }
+      const fromCity = resolveCity(rs.fromStation);
+      if (fromCity) { rloCity = fromCity; break; }
+      const toCity = resolveCity(rs.toStation);
+      if (toCity) { rloCity = toCity; break; }
     }
   }
 
@@ -327,14 +339,12 @@ function getBreakForEmployee(employeeId) {
     // Check segment before first rast
     if (firstIdx > 0) {
       const prev = dayData.segments[firstIdx - 1];
-      const to = (prev.toStation || '').toLowerCase().trim();
-      if (to && STATION_CITY_MAP[to]) rloCity = STATION_CITY_MAP[to];
+      rloCity = resolveCity(prev.toStation);
     }
     // Check segment after last rast
     if (!rloCity && lastIdx < dayData.segments.length - 1) {
       const next = dayData.segments[lastIdx + 1];
-      const from = (next.fromStation || '').toLowerCase().trim();
-      if (from && STATION_CITY_MAP[from]) rloCity = STATION_CITY_MAP[from];
+      rloCity = resolveCity(next.fromStation);
     }
   }
 
