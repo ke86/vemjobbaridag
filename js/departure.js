@@ -476,6 +476,12 @@ async function loadDanishDepartures(stationCode) {
     }
   }
 
+  // DEBUG: log border info
+  console.log('[DK-DEBUG] Total rows: ' + rows.length + ', border-crossing trains: ' + uniqueTrainNrs.length);
+  for (var dbr = 0; dbr < rows.length; dbr++) {
+    console.log('[DK-DEBUG] Row: ' + rows[dbr].trainNr + ' crossesBorder=' + rows[dbr].crossesBorder + ' dest="' + rows[dbr].dest + '"');
+  }
+
   // Cross-reference with Trafikverket API
   if (uniqueTrainNrs.length > 0) {
     try {
@@ -558,11 +564,13 @@ async function fetchSwedishTrainData(trainNrs) {
     + '</QUERY>'
     + '</REQUEST>';
 
+  console.log('[DK-DEBUG] XML query (' + trainNrs.length + ' trains):', xml);
   var data = await fetchTrafikverketData(xml);
   var announcements = [];
   if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
     announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
   }
+  console.log('[DK-DEBUG] Got ' + announcements.length + ' announcements');
 
   // ===== DEBUG: Log raw Trafikverket data per train =====
   var debugPerTrain = {};
