@@ -320,6 +320,16 @@
   font-size: 0.9em;
 }
 
+/* Danish timetable rows — past trains dimmed */
+.dep-dk-past td {
+  opacity: 0.4;
+}
+
+/* Danish no-track dash */
+.dep-dk-no-track {
+  opacity: 0.3;
+}
+
 /* Ny tid column - delay highlight */
 .dep-col-newtime {
   color: #ef4444;

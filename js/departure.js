@@ -333,6 +333,147 @@ function renderFilteredBoard() {
 }
 
 /**
+ * Check if a station value is a Danish station
+ */
+function isDanishStation(val) {
+  return val && val.indexOf('DK_') === 0;
+}
+
+/**
+ * Get Danish station code from select value (e.g. "DK_CPH" → "CPH")
+ */
+function getDanishStationCode(val) {
+  return val.replace('DK_', '');
+}
+
+/**
+ * Load Danish departures/arrivals from embedded timetable data
+ */
+function loadDanishDepartures(stationCode) {
+  var tbodyEl = document.getElementById('departureTableBody');
+  var statusEl = document.getElementById('departureStatus');
+  var filterPanel = document.getElementById('depFilterPanel');
+  var filterToggle = document.getElementById('depFilterToggle');
+
+  if (!tbodyEl) return;
+
+  // Hide filter panel for Danish stations (no product types)
+  if (filterPanel) filterPanel.style.display = 'none';
+  if (filterToggle) filterToggle.style.display = 'none';
+
+  if (typeof denmark === 'undefined') {
+    tbodyEl.innerHTML = '<tr><td colspan="6" class="dep-empty">Dansk data ej tillgänglig</td></tr>';
+    return;
+  }
+
+  var allTrainNrs = denmark.getAllDanishTrainNumbers();
+  var now = new Date();
+  var currentMin = now.getHours() * 60 + now.getMinutes();
+  var isDep = departureType === 'Avgang';
+
+  // Collect all trains that stop at this station
+  var rows = [];
+
+  for (var i = 0; i < allTrainNrs.length; i++) {
+    var tnr = allTrainNrs[i];
+    var dkInfo = denmark.getDanishStops(tnr, now);
+    if (!dkInfo || !dkInfo.stops.length) continue;
+
+    // Find this station in the stops
+    for (var j = 0; j < dkInfo.stops.length; j++) {
+      var stop = dkInfo.stops[j];
+      if (stop.code !== stationCode || !stop.pax) continue;
+
+      // For departures: need a departure time, and not the last stop
+      // For arrivals: need an arrival time, and not the first stop
+      var timeStr = isDep ? stop.dep : stop.arr;
+      if (!timeStr) continue;
+
+      var parts = timeStr.split(':');
+      var min = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+
+      // Show: from 30 min ago to 6 hours ahead
+      var diff = min - currentMin;
+      if (diff < -30 || diff > 360) continue;
+
+      // Determine destination/origin
+      var dest = '';
+      if (isDep) {
+        // Destination = last stop
+        var lastPax = null;
+        for (var lk = dkInfo.stops.length - 1; lk >= 0; lk--) {
+          if (dkInfo.stops[lk].pax) { lastPax = dkInfo.stops[lk]; break; }
+        }
+        dest = lastPax ? lastPax.name : '';
+        // If destination is this station, skip
+        if (lastPax && lastPax.code === stationCode) continue;
+      } else {
+        // Origin = first stop
+        var firstPax = null;
+        for (var fk = 0; fk < dkInfo.stops.length; fk++) {
+          if (dkInfo.stops[fk].pax) { firstPax = dkInfo.stops[fk]; break; }
+        }
+        dest = firstPax ? firstPax.name : '';
+        if (firstPax && firstPax.code === stationCode) continue;
+      }
+
+      rows.push({
+        time: timeStr,
+        min: min,
+        dest: dest,
+        trainNr: tnr,
+        route: dkInfo.route
+      });
+    }
+  }
+
+  // Sort by time
+  rows.sort(function(a, b) { return a.min - b.min; });
+
+  // Apply employee filter
+  if (depSelectedEmployee && depEmployeeTrainNrs.length > 0) {
+    rows = rows.filter(function(r) {
+      return depEmployeeTrainNrs.indexOf(r.trainNr) !== -1;
+    });
+  }
+
+  if (rows.length === 0) {
+    tbodyEl.innerHTML = '<tr><td colspan="6" class="dep-empty">Inga tåg</td></tr>';
+  } else {
+    var html = '';
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r];
+      var isPast = row.min < currentMin;
+      var rowClass = isPast ? 'dep-dk-past' : '';
+
+      // Highlight employee's own trains
+      if (depSelectedEmployee && depEmployeeTrainNrs.indexOf(row.trainNr) !== -1) {
+        rowClass += ' dep-my-train';
+      }
+
+      html += '<tr class="' + rowClass + '">'
+        + '<td class="dep-col-time">' + row.time + '</td>'
+        + '<td class="dep-col-dest">' + row.dest + '</td>'
+        + '<td class="dep-col-newtime no-delay"></td>'
+        + '<td class="dep-col-track dep-dk-no-track">—</td>'
+        + '<td class="dep-col-train">' + row.trainNr + '</td>'
+        + '<td class="dep-col-note">Öresundståg</td>'
+        + '</tr>';
+    }
+    tbodyEl.innerHTML = html;
+  }
+
+  // Status bar
+  if (statusEl) {
+    statusEl.innerHTML = '🇩🇰 Tidtabell (ej realtid)';
+    statusEl.classList.remove('error');
+  }
+
+  // Clear API announcements (not relevant for DK)
+  depAllAnnouncements = [];
+}
+
+/**
  * Load departures/arrivals from Trafikverket API
  */
 async function loadDepartures() {
@@ -343,6 +484,18 @@ async function loadDepartures() {
   if (!tbodyEl || !stationSelect) return;
 
   var stationSig = stationSelect.value;
+
+  // Danish station → use local timetable data
+  if (isDanishStation(stationSig)) {
+    loadDanishDepartures(getDanishStationCode(stationSig));
+    return;
+  }
+
+  // Swedish station → restore filter panel visibility
+  var filterPanel = document.getElementById('depFilterPanel');
+  var filterToggle = document.getElementById('depFilterToggle');
+  if (filterPanel) filterPanel.style.display = '';
+  if (filterToggle) filterToggle.style.display = '';
 
   // Show loading in bottom bar
   if (statusEl) {
@@ -463,6 +616,9 @@ function renderDepartureBoard(announcements, locationField) {
       hasDelay = true;
     }
 
+    // Train number
+    var trainId = a.AdvertisedTrainIdent || '';
+
     // Destination / Origin
     var locArr = a[locationField] || [];
     var destName = '';
@@ -489,9 +645,6 @@ function renderDepartureBoard(announcements, locationField) {
 
     // Track
     var track = a.TrackAtLocation || '';
-
-    // Train number
-    var trainId = a.AdvertisedTrainIdent || '';
 
     // Product name
     var product = getTrainProduct(a);
