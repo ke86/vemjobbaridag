@@ -330,6 +330,41 @@
   opacity: 0.3;
 }
 
+/* Swedish destination shown as primary for Danish station board */
+.dep-dk-se-dest {
+  color: #e0e0e0;
+  font-weight: 600;
+}
+
+/* Danish via-station (secondary, dimmer) */
+.dep-dk-via {
+  color: #60a5fa;
+  font-weight: 400;
+  font-size: 0.85em;
+}
+
+/* Small DK flag fallback when no Swedish data */
+.dep-dk-flag {
+  font-size: 0.8em;
+  opacity: 0.6;
+}
+
+/* Delay colors for Danish board (from Hyllie data) */
+.dep-delay-green {
+  color: #4ade80 !important;
+  font-weight: 600;
+}
+
+.dep-delay-yellow {
+  color: #facc15 !important;
+  font-weight: 700;
+}
+
+.dep-delay-red {
+  color: #ef4444 !important;
+  font-weight: 700;
+}
+
 /* Ny tid column - delay highlight */
 .dep-col-newtime {
   color: #ef4444;

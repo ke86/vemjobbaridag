@@ -347,9 +347,10 @@ function getDanishStationCode(val) {
 }
 
 /**
- * Load Danish departures/arrivals from embedded timetable data
+ * Load Danish departures/arrivals from embedded timetable data,
+ * then enrich with Swedish destination/delay from Trafikverket API
  */
-function loadDanishDepartures(stationCode) {
+async function loadDanishDepartures(stationCode) {
   var tbodyEl = document.getElementById('departureTableBody');
   var statusEl = document.getElementById('departureStatus');
   var filterPanel = document.getElementById('depFilterPanel');
@@ -396,32 +397,34 @@ function loadDanishDepartures(stationCode) {
       var diff = min - currentMin;
       if (diff < -30 || diff > 360) continue;
 
-      // Determine destination/origin
-      var dest = '';
+      // Determine Danish fallback destination/origin
+      var dkDest = '';
       if (isDep) {
-        // Destination = last stop
         var lastPax = null;
         for (var lk = dkInfo.stops.length - 1; lk >= 0; lk--) {
           if (dkInfo.stops[lk].pax) { lastPax = dkInfo.stops[lk]; break; }
         }
-        dest = lastPax ? lastPax.name : '';
-        // If destination is this station, skip
+        dkDest = lastPax ? lastPax.name : '';
         if (lastPax && lastPax.code === stationCode) continue;
       } else {
-        // Origin = first stop
         var firstPax = null;
         for (var fk = 0; fk < dkInfo.stops.length; fk++) {
           if (dkInfo.stops[fk].pax) { firstPax = dkInfo.stops[fk]; break; }
         }
-        dest = firstPax ? firstPax.name : '';
+        dkDest = firstPax ? firstPax.name : '';
         if (firstPax && firstPax.code === stationCode) continue;
       }
 
       rows.push({
         time: timeStr,
         min: min,
-        dest: dest,
+        dkDest: dkDest,
+        seDest: '',        // filled in by API
+        seDelay: '',       // filled in by API
+        seDelayClass: '',  // CSS class for delay
+        seTrack: '',       // filled in by API
         trainNr: tnr,
+        direction: dkInfo.direction,
         route: dkInfo.route
       });
     }
@@ -437,40 +440,225 @@ function loadDanishDepartures(stationCode) {
     });
   }
 
-  if (rows.length === 0) {
-    tbodyEl.innerHTML = '<tr><td colspan="6" class="dep-empty">Inga tåg</td></tr>';
-  } else {
-    var html = '';
-    for (var r = 0; r < rows.length; r++) {
-      var row = rows[r];
-      var isPast = row.min < currentMin;
-      var rowClass = isPast ? 'dep-dk-past' : '';
+  // Render initial board immediately (before API call)
+  renderDanishBoard(rows, currentMin, isDep);
 
-      // Highlight employee's own trains
-      if (depSelectedEmployee && depEmployeeTrainNrs.indexOf(row.trainNr) !== -1) {
-        rowClass += ' dep-my-train';
-      }
-
-      html += '<tr class="' + rowClass + '">'
-        + '<td class="dep-col-time">' + row.time + '</td>'
-        + '<td class="dep-col-dest">' + row.dest + '</td>'
-        + '<td class="dep-col-newtime no-delay"></td>'
-        + '<td class="dep-col-track dep-dk-no-track">—</td>'
-        + '<td class="dep-col-train">' + row.trainNr + '</td>'
-        + '<td class="dep-col-note">Öresundståg</td>'
-        + '</tr>';
-    }
-    tbodyEl.innerHTML = html;
+  if (statusEl) {
+    statusEl.innerHTML = '<span class="dep-loading-spinner"></span> 🇩🇰 Tidtabell · Hämtar svensk data...';
+    statusEl.classList.remove('error');
   }
 
-  // Status bar
-  if (statusEl) {
-    statusEl.innerHTML = '🇩🇰 Tidtabell (ej realtid)';
-    statusEl.classList.remove('error');
+  // Collect unique train numbers for API lookup
+  var trainNrSet = {};
+  for (var t = 0; t < rows.length; t++) {
+    trainNrSet[rows[t].trainNr] = true;
+  }
+  var uniqueTrainNrs = Object.keys(trainNrSet);
+
+  if (uniqueTrainNrs.length > 0) {
+    try {
+      var seData = await fetchSwedishTrainData(uniqueTrainNrs);
+      // Enrich rows with Swedish data
+      for (var r = 0; r < rows.length; r++) {
+        var info = seData[rows[r].trainNr];
+        if (!info) continue;
+
+        if (isDep) {
+          // For departures from DK: show where train ENDS in Sweden
+          if (info.toLocation) rows[r].seDest = info.toLocation;
+        } else {
+          // For arrivals to DK: show where train STARTED in Sweden
+          if (info.fromLocation) rows[r].seDest = info.fromLocation;
+        }
+
+        // Delay from Hyllie (first/last Swedish stop)
+        if (info.hyllieDelay) {
+          rows[r].seDelay = info.hyllieDelay.text;
+          rows[r].seDelayClass = info.hyllieDelay.cssClass;
+        }
+        if (info.hyllieTrack) {
+          rows[r].seTrack = info.hyllieTrack;
+        }
+      }
+
+      // Re-render with enriched data
+      renderDanishBoard(rows, currentMin, isDep);
+
+      if (statusEl) {
+        var nowStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        statusEl.innerHTML = '🇩🇰 Tidtabell + 🇸🇪 Realtid · ' + nowStr;
+        statusEl.classList.remove('error');
+      }
+    } catch (err) {
+      console.error('DK Swedish enrichment error:', JSON.stringify({message: err.message}));
+      if (statusEl) {
+        statusEl.innerHTML = '🇩🇰 Tidtabell (ej realtid)';
+        statusEl.classList.remove('error');
+      }
+    }
+  } else {
+    if (statusEl) {
+      statusEl.innerHTML = '🇩🇰 Tidtabell (ej realtid)';
+      statusEl.classList.remove('error');
+    }
   }
 
   // Clear API announcements (not relevant for DK)
   depAllAnnouncements = [];
+}
+
+/**
+ * Fetch Swedish train data for a list of train numbers (batch request)
+ * Returns: { trainNr: { toLocation, fromLocation, hyllieDelay, hyllieTrack } }
+ */
+async function fetchSwedishTrainData(trainNrs) {
+  // Build IN-filter: ('1042','1044',...)
+  var inValues = trainNrs.map(function(nr) { return "'" + nr + "'"; }).join(',');
+
+  var xml = '<REQUEST>'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+    + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
+    + '<FILTER>'
+    + '<AND>'
+    + '<IN name="AdvertisedTrainIdent" value="' + inValues + '" />'
+    + '<EQ name="Advertised" value="true" />'
+    + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-06:00:00)" />'
+    + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(12:00:00)" />'
+    + '</AND>'
+    + '</FILTER>'
+    + '<INCLUDE>AdvertisedTrainIdent</INCLUDE>'
+    + '<INCLUDE>ActivityType</INCLUDE>'
+    + '<INCLUDE>LocationSignature</INCLUDE>'
+    + '<INCLUDE>ToLocation</INCLUDE>'
+    + '<INCLUDE>FromLocation</INCLUDE>'
+    + '<INCLUDE>AdvertisedTimeAtLocation</INCLUDE>'
+    + '<INCLUDE>EstimatedTimeAtLocation</INCLUDE>'
+    + '<INCLUDE>TimeAtLocation</INCLUDE>'
+    + '<INCLUDE>TrackAtLocation</INCLUDE>'
+    + '</QUERY>'
+    + '</REQUEST>';
+
+  var data = await fetchTrafikverketData(xml);
+  var announcements = [];
+  if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
+    announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
+  }
+
+  // Group by train number
+  var result = {};
+
+  for (var i = 0; i < announcements.length; i++) {
+    var a = announcements[i];
+    var tnr = a.AdvertisedTrainIdent || '';
+    if (!tnr) continue;
+
+    if (!result[tnr]) {
+      result[tnr] = { toLocation: '', fromLocation: '', hyllieDelay: null, hyllieTrack: '' };
+    }
+
+    // Extract ToLocation (final destination)
+    if (a.ToLocation && a.ToLocation.length > 0) {
+      var toLoc = a.ToLocation[a.ToLocation.length - 1].LocationName || '';
+      if (toLoc && !result[tnr].toLocation) {
+        result[tnr].toLocation = toLoc;
+      }
+    }
+
+    // Extract FromLocation (origin)
+    if (a.FromLocation && a.FromLocation.length > 0) {
+      var fromLoc = a.FromLocation[0].LocationName || '';
+      if (fromLoc && !result[tnr].fromLocation) {
+        result[tnr].fromLocation = fromLoc;
+      }
+    }
+
+    // Check for Hyllie stop (border station — closest to Denmark)
+    var locSig = a.LocationSignature || '';
+    if (locSig === 'Hie') {
+      // Delay info
+      var advT = a.AdvertisedTimeAtLocation ? new Date(a.AdvertisedTimeAtLocation) : null;
+      var estT = a.EstimatedTimeAtLocation ? new Date(a.EstimatedTimeAtLocation) : null;
+      var actT = a.TimeAtLocation ? new Date(a.TimeAtLocation) : null;
+
+      // Use actual time if available, else estimated
+      var compareT = actT || estT;
+      if (compareT && advT) {
+        var delayMin = Math.round((compareT.getTime() - advT.getTime()) / 60000);
+        if (delayMin > 0) {
+          result[tnr].hyllieDelay = {
+            text: '+' + delayMin + ' min',
+            cssClass: delayMin >= 6 ? 'dep-delay-red' : 'dep-delay-yellow'
+          };
+        } else {
+          result[tnr].hyllieDelay = { text: 'I tid', cssClass: 'dep-delay-green' };
+        }
+      }
+
+      // Track at Hyllie
+      if (a.TrackAtLocation) {
+        result[tnr].hyllieTrack = a.TrackAtLocation;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Render the Danish departure/arrival board
+ */
+function renderDanishBoard(rows, currentMin, isDep) {
+  var tbodyEl = document.getElementById('departureTableBody');
+  if (!tbodyEl) return;
+
+  if (rows.length === 0) {
+    tbodyEl.innerHTML = '<tr><td colspan="6" class="dep-empty">Inga tåg</td></tr>';
+    return;
+  }
+
+  var html = '';
+  for (var r = 0; r < rows.length; r++) {
+    var row = rows[r];
+    var isPast = row.min < currentMin;
+    var rowClass = isPast ? 'dep-dk-past' : '';
+
+    // Highlight employee's own trains
+    if (depSelectedEmployee && depEmployeeTrainNrs.indexOf(row.trainNr) !== -1) {
+      rowClass += ' dep-my-train';
+    }
+
+    // Build destination cell: Swedish dest (primary) + Danish dest (secondary)
+    var destCell = '';
+    if (row.seDest) {
+      // Swedish destination found — show as primary
+      destCell = '<span class="dep-dk-se-dest">' + row.seDest + '</span>'
+        + '<span class="dep-dk-via"> · ' + row.dkDest + '</span>';
+    } else {
+      // No Swedish data yet — show Danish only with flag
+      destCell = row.dkDest + ' <span class="dep-dk-flag">🇩🇰</span>';
+    }
+
+    // Delay cell
+    var delayCell = '';
+    var delayClass = 'no-delay';
+    if (row.seDelay) {
+      delayCell = row.seDelay;
+      delayClass = row.seDelayClass;
+    }
+
+    // Track cell (from Hyllie)
+    var trackCell = row.seTrack ? row.seTrack : '<span class="dep-dk-no-track">—</span>';
+
+    html += '<tr class="' + rowClass + '">'
+      + '<td class="dep-col-time">' + row.time + '</td>'
+      + '<td class="dep-col-dest">' + destCell + '</td>'
+      + '<td class="dep-col-newtime ' + delayClass + '">' + delayCell + '</td>'
+      + '<td class="dep-col-track">' + trackCell + '</td>'
+      + '<td class="dep-col-train">' + row.trainNr + '</td>'
+      + '<td class="dep-col-note">Öresundståg</td>'
+      + '</tr>';
+  }
+  tbodyEl.innerHTML = html;
 }
 
 /**
