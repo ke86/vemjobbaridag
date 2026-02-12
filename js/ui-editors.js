@@ -796,6 +796,7 @@ function renderImportantDateCards() {
 
   if (relevantDates.length === 0) {
     container.innerHTML = '';
+    stopAWParty();
     return;
   }
 
