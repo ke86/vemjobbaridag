@@ -224,10 +224,23 @@ const RLO_CITY_MAP = {
   'vörlo': 'Växjö'
 };
 
+// Fallback: station signature → city (for fromStation/toStation on rast segments)
+const STATION_CITY_MAP = {
+  'mc': 'Malmö', 'mal': 'Malmö', 'malmö': 'Malmö', 'malmö c': 'Malmö',
+  'hb': 'Helsingborg', 'helsingborg': 'Helsingborg', 'helsingborg c': 'Helsingborg',
+  'hd': 'Halmstad', 'halmstad': 'Halmstad', 'halmstad c': 'Halmstad',
+  'hm': 'Hässleholm', 'hässleholm': 'Hässleholm', 'hässleholm c': 'Hässleholm',
+  'ck': 'Karlskrona', 'karlskrona': 'Karlskrona', 'karlskrona c': 'Karlskrona',
+  'kac': 'Kalmar', 'kalmar': 'Kalmar', 'kalmar c': 'Kalmar',
+  'g': 'Göteborg', 'göteborg': 'Göteborg', 'göteborg c': 'Göteborg',
+  'cr': 'Kristianstad', 'kristianstad': 'Kristianstad', 'kristianstad c': 'Kristianstad',
+  'vö': 'Växjö', 'växjö': 'Växjö'
+};
+
 /**
  * Get break info for an employee from dagvy data.
  * Combines consecutive "Rast" and "Rasto" segments.
- * Finds nearest *rlo segment for city name.
+ * Finds city from: 1) *rlo activity segment, 2) fromStation on rast segment, 3) nearby segment stations
  * Returns { time: "12:00-12:45", city: "Malmö" } or null.
  */
 function getBreakForEmployee(employeeId) {
@@ -242,16 +255,28 @@ function getBreakForEmployee(employeeId) {
   const dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
   if (!dayData || !dayData.segments) return null;
 
+  // DEBUG: log all segment activities (remove later)
+  const debugActivities = dayData.segments.map(function(s) {
+    return JSON.stringify({
+      act: s.activity,
+      from: s.fromStation,
+      to: s.toStation,
+      t: s.timeStart + '-' + s.timeEnd
+    });
+  });
+  console.log('[RAST DEBUG] ' + emp.name + ': ' + debugActivities.join(' | '));
+
   // Collect all rast segments and rlo segments
   const rastSegs = [];
   let rloCity = null;
+  let rastSegIndices = [];
 
   for (let i = 0; i < dayData.segments.length; i++) {
     const seg = dayData.segments[i];
     const act = (seg.activity || '').trim();
     const actLower = act.toLowerCase();
 
-    // Check for rlo location segment
+    // Check for rlo location segment (activity ends with "rlo")
     if (actLower.endsWith('rlo')) {
       const mapped = RLO_CITY_MAP[actLower];
       if (mapped) {
@@ -275,12 +300,43 @@ function getBreakForEmployee(employeeId) {
         timeStart: seg.timeStart || '',
         timeEnd: seg.timeEnd || '',
         startMin: startMin,
-        endMin: endMin
+        endMin: endMin,
+        fromStation: seg.fromStation || '',
+        toStation: seg.toStation || ''
       });
+      rastSegIndices.push(i);
     }
   }
 
   if (rastSegs.length === 0) return null;
+
+  // Fallback 1: check fromStation/toStation on the rast segments themselves
+  if (!rloCity) {
+    for (const rs of rastSegs) {
+      const from = (rs.fromStation || '').toLowerCase().trim();
+      const to = (rs.toStation || '').toLowerCase().trim();
+      if (from && STATION_CITY_MAP[from]) { rloCity = STATION_CITY_MAP[from]; break; }
+      if (to && STATION_CITY_MAP[to]) { rloCity = STATION_CITY_MAP[to]; break; }
+    }
+  }
+
+  // Fallback 2: check segments immediately before/after the rast
+  if (!rloCity && rastSegIndices.length > 0) {
+    const firstIdx = rastSegIndices[0];
+    const lastIdx = rastSegIndices[rastSegIndices.length - 1];
+    // Check segment before first rast
+    if (firstIdx > 0) {
+      const prev = dayData.segments[firstIdx - 1];
+      const to = (prev.toStation || '').toLowerCase().trim();
+      if (to && STATION_CITY_MAP[to]) rloCity = STATION_CITY_MAP[to];
+    }
+    // Check segment after last rast
+    if (!rloCity && lastIdx < dayData.segments.length - 1) {
+      const next = dayData.segments[lastIdx + 1];
+      const from = (next.fromStation || '').toLowerCase().trim();
+      if (from && STATION_CITY_MAP[from]) rloCity = STATION_CITY_MAP[from];
+    }
+  }
 
   // Combine consecutive rast segments: earliest start → latest end
   let combinedStart = rastSegs[0].startMin;
@@ -301,6 +357,7 @@ function getBreakForEmployee(employeeId) {
   }
 
   const timeStr = combinedStartStr + '-' + combinedEndStr;
+  console.log('[RAST DEBUG] ' + emp.name + ' → rast: ' + timeStr + ', city: ' + (rloCity || '(ingen)'));
   return { time: timeStr, city: rloCity || '' };
 }
 
