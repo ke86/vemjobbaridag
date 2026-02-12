@@ -537,17 +537,15 @@ async function fetchSwedishTrainData(trainNrs) {
     inValues += '<Value>' + trainNrs[i] + '</Value>';
   }
 
-  // Match train-follow.js query style: wider time window (±12h),
-  // no Advertised filter — this ensures we get ALL stops along the
-  // full Swedish route (not just the short ØP border segment).
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
     + '<FILTER>'
     + '<AND>'
     + '<IN name="AdvertisedTrainIdent">' + inValues + '</IN>'
-    + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-12:00:00)" />'
-    + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(12:00:00)" />'
+    + '<EQ name="Advertised" value="true" />'
+    + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-02:00:00)" />'
+    + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(08:00:00)" />'
     + '</AND>'
     + '</FILTER>'
     + '<INCLUDE>AdvertisedTrainIdent</INCLUDE>'
