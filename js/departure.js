@@ -400,21 +400,39 @@ async function loadDanishDepartures(stationCode) {
       if (diff < -30 || diff > 360) continue;
 
       // Determine DK-only destination/origin (fallback)
+      // For toSE departures: extract destination from route name (e.g. "Østerport - Malmø Central" → "Malmö Central")
+      // For toSE arrivals (odd nr, from SE): extract origin from route name (e.g. "Malmø Central - Østerport" → "Malmö Central")
       var dkDest = '';
+      var routeParts = dkInfo.route ? dkInfo.route.split(' - ') : [];
+      // Check if train actually crosses to Sweden (has Peberholm stop)
+      var crossesBorder = false;
+      for (var cb = 0; cb < dkInfo.stops.length; cb++) {
+        if (dkInfo.stops[cb].code === 'PHM') { crossesBorder = true; break; }
+      }
       if (isDep) {
-        var lastPax = null;
-        for (var lk = dkInfo.stops.length - 1; lk >= 0; lk--) {
-          if (dkInfo.stops[lk].pax) { lastPax = dkInfo.stops[lk]; break; }
+        if (dkInfo.direction === 'toSE' && crossesBorder && routeParts.length === 2) {
+          // toSE departure: destination is Sweden — use route's end
+          dkDest = routeParts[1].replace('Malmø', 'Malmö');
+        } else {
+          var lastPax = null;
+          for (var lk = dkInfo.stops.length - 1; lk >= 0; lk--) {
+            if (dkInfo.stops[lk].pax) { lastPax = dkInfo.stops[lk]; break; }
+          }
+          dkDest = lastPax ? lastPax.name : '';
+          if (lastPax && lastPax.code === stationCode) continue;
         }
-        dkDest = lastPax ? lastPax.name : '';
-        if (lastPax && lastPax.code === stationCode) continue;
       } else {
-        var firstPax = null;
-        for (var fk = 0; fk < dkInfo.stops.length; fk++) {
-          if (dkInfo.stops[fk].pax) { firstPax = dkInfo.stops[fk]; break; }
+        if (dkInfo.direction === 'toDK' && crossesBorder && routeParts.length === 2) {
+          // toDK arrival (odd nr coming from SE): origin is Sweden — use route's start
+          dkDest = routeParts[0].replace('Malmø', 'Malmö');
+        } else {
+          var firstPax = null;
+          for (var fk = 0; fk < dkInfo.stops.length; fk++) {
+            if (dkInfo.stops[fk].pax) { firstPax = dkInfo.stops[fk]; break; }
+          }
+          dkDest = firstPax ? firstPax.name : '';
+          if (firstPax && firstPax.code === stationCode) continue;
         }
-        dkDest = firstPax ? firstPax.name : '';
-        if (firstPax && firstPax.code === stationCode) continue;
       }
 
       rows.push({
