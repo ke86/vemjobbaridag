@@ -443,6 +443,7 @@ async function loadDanishDepartures(stationCode) {
         trainNr: tnr,
         route: dkInfo.route,
         direction: dkInfo.direction,
+        crossesBorder: crossesBorder, // true if PHM in stop list
         newTime: '',           // delay info
         hasDelay: false
       });
@@ -467,10 +468,10 @@ async function loadDanishDepartures(stationCode) {
     statusEl.classList.remove('error');
   }
 
-  // Collect unique train numbers for Trafikverket lookup
+  // Collect unique train numbers for Trafikverket lookup (only border-crossing trains)
   var uniqueTrainNrs = [];
   for (var u = 0; u < rows.length; u++) {
-    if (uniqueTrainNrs.indexOf(rows[u].trainNr) === -1) {
+    if (rows[u].crossesBorder && uniqueTrainNrs.indexOf(rows[u].trainNr) === -1) {
       uniqueTrainNrs.push(rows[u].trainNr);
     }
   }
@@ -479,38 +480,22 @@ async function loadDanishDepartures(stationCode) {
   if (uniqueTrainNrs.length > 0) {
     try {
       var seData = await fetchSwedishTrainData(uniqueTrainNrs);
-      // Border stations: if Trafikverket only reports one of these,
-      // it's just the short Swedish leg — keep DK fallback instead.
-      var borderStations = ['Malmö central', 'Hyllie', 'Svågertorp'];
 
       // Merge Swedish data into rows
+      // Border filtering is now handled inside fetchSwedishTrainData parser —
+      // it always prefers non-border destinations (e.g. "Göteborg C" over "Malmö central")
       for (var s = 0; s < rows.length; s++) {
         var row = rows[s];
+        // Skip SE merge for DK-internal trains (no PHM = never enters Sweden today)
+        if (!row.crossesBorder) continue;
         var seInfo = seData[row.trainNr];
         if (!seInfo) continue;
 
-        // Swedish destination/origin — only use if it's beyond the border zone
+        // Swedish destination/origin (already border-filtered by parser)
         if (isDep && seInfo.toLocation) {
-          var isBorder = false;
-          for (var bs = 0; bs < borderStations.length; bs++) {
-            if (seInfo.toLocation.toLowerCase() === borderStations[bs].toLowerCase()) {
-              isBorder = true; break;
-            }
-          }
-          if (!isBorder) {
-            row.seDest = seInfo.toLocation;
-          }
-          // If it IS a border station, keep the DK fallback (row.dest)
+          row.seDest = seInfo.toLocation;
         } else if (!isDep && seInfo.fromLocation) {
-          var isBorderFrom = false;
-          for (var bsf = 0; bsf < borderStations.length; bsf++) {
-            if (seInfo.fromLocation.toLowerCase() === borderStations[bsf].toLowerCase()) {
-              isBorderFrom = true; break;
-            }
-          }
-          if (!isBorderFrom) {
-            row.seDest = seInfo.fromLocation;
-          }
+          row.seDest = seInfo.fromLocation;
         }
 
         // Delay info from nearest Swedish station
@@ -579,6 +564,18 @@ async function fetchSwedishTrainData(trainNrs) {
     announcements = data.RESPONSE.RESULT[0].TrainAnnouncement || [];
   }
 
+  // Border stations — destinations on the short Swedish ØP leg.
+  // If the train continues beyond these, we want the REAL final destination.
+  var borderNames = ['malmö central', 'hyllie', 'svågertorp'];
+
+  function isBorderName(name) {
+    var low = (name || '').toLowerCase();
+    for (var b = 0; b < borderNames.length; b++) {
+      if (low === borderNames[b]) return true;
+    }
+    return false;
+  }
+
   // Build lookup per train number
   var result = {};
   for (var a = 0; a < announcements.length; a++) {
@@ -590,11 +587,20 @@ async function fetchSwedishTrainData(trainNrs) {
       result[tnr] = { toLocation: '', fromLocation: '', lastStation: '', delayMin: 0 };
     }
 
-    // Capture To/From location (last occurrence wins — we want the final destination)
+    // Capture To/From location.
+    // Strategy: announcements are sorted by time (earliest first).
+    // Later stops overwrite earlier ones — BUT we never overwrite a
+    // non-border destination with a border one. This ensures that if
+    // Trafikverket reports "Göteborg C" at any stop, we keep it even
+    // if later stops say "Malmö central".
     if (ann.ActivityType === 'Avgang') {
       if (ann.ToLocation && ann.ToLocation.length > 0) {
         var toLoc = ann.ToLocation[ann.ToLocation.length - 1];
-        result[tnr].toLocation = toLoc.LocationName || '';
+        var toName = toLoc.LocationName || '';
+        // Overwrite if: nothing yet, OR current is border, OR new is non-border
+        if (!result[tnr].toLocation || isBorderName(result[tnr].toLocation) || !isBorderName(toName)) {
+          result[tnr].toLocation = toName;
+        }
       }
       // Track the last departure station (furthest along the route)
       if (ann.LocationSignature) {
@@ -604,7 +610,10 @@ async function fetchSwedishTrainData(trainNrs) {
     if (ann.ActivityType === 'Ankomst') {
       if (ann.FromLocation && ann.FromLocation.length > 0) {
         var fromLoc = ann.FromLocation[0];
-        result[tnr].fromLocation = fromLoc.LocationName || '';
+        var fromName = fromLoc.LocationName || '';
+        if (!result[tnr].fromLocation || isBorderName(result[tnr].fromLocation) || !isBorderName(fromName)) {
+          result[tnr].fromLocation = fromName;
+        }
       }
     }
 
