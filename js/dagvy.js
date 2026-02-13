@@ -20,6 +20,78 @@ let dagvyCurrentName = '';
 // Latest known dagvy scrapedAt timestamp
 let dagvyLatestScrapedAt = null;
 
+// ==========================================
+// DAGVY LOCALSTORAGE CACHE
+// ==========================================
+var DAGVY_CACHE_KEY = 'dagvy_cache';
+var DAGVY_CACHE_MAX_AGE_DAYS = 3;
+
+/**
+ * Save current dagvyAllData + timestamp to localStorage.
+ * Called after Firebase delivers new dagvy data.
+ */
+function saveDagvyToCache() {
+  try {
+    var payload = {
+      savedAt: new Date().toISOString(),
+      scrapedAt: dagvyLatestScrapedAt || null,
+      data: dagvyAllData
+    };
+    localStorage.setItem(DAGVY_CACHE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn('Dagvy cache save failed:', e.message);
+  }
+}
+
+/**
+ * Load cached dagvy from localStorage.
+ * Returns { savedAt, scrapedAt, data } or null if no cache / expired.
+ */
+function loadDagvyFromCache() {
+  try {
+    var raw = localStorage.getItem(DAGVY_CACHE_KEY);
+    if (!raw) return null;
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.data || !payload.savedAt) return null;
+
+    // Check age — discard if older than 3 days
+    var ageMs = Date.now() - new Date(payload.savedAt).getTime();
+    var maxMs = DAGVY_CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if (ageMs > maxMs) {
+      localStorage.removeItem(DAGVY_CACHE_KEY);
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    console.warn('Dagvy cache load failed:', e.message);
+    return null;
+  }
+}
+
+/**
+ * Clean dagvy cache if older than 3 days.
+ * Called at app startup.
+ */
+function cleanOldDagvyCache() {
+  try {
+    var raw = localStorage.getItem(DAGVY_CACHE_KEY);
+    if (!raw) return;
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.savedAt) {
+      localStorage.removeItem(DAGVY_CACHE_KEY);
+      return;
+    }
+    var ageMs = Date.now() - new Date(payload.savedAt).getTime();
+    var maxMs = DAGVY_CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if (ageMs > maxMs) {
+      localStorage.removeItem(DAGVY_CACHE_KEY);
+      console.log('Dagvy cache cleaned (older than ' + DAGVY_CACHE_MAX_AGE_DAYS + ' days)');
+    }
+  } catch (e) {
+    localStorage.removeItem(DAGVY_CACHE_KEY);
+  }
+}
+
 /**
  * Update the dagvy timestamp display on the schedule page.
  * Called from firebase.js dagvy listener.
@@ -153,22 +225,10 @@ async function fetchDagvy(employeeName) {
     console.log('Dagvy REST error:', restErr.message);
   }
 
-  // Method 2: SDK list ALL dagvy docs and normalize-match
-  try {
-    const allDocs = await db.collection('dagvy').get();
-    let foundData = null;
-    allDocs.forEach(function(d) {
-      const normalizedDoc = normalizeName(d.id);
-      if (!foundData && normalizedDoc === normalizedSearch) {
-        foundData = d.data();
-      }
-    });
-    if (foundData) {
-      dagvyCache[normalizedSearch] = { data: foundData, timestamp: Date.now() };
-      return foundData;
-    }
-  } catch (listErr) {
-    console.log('Dagvy SDK error:', listErr.message);
+  // Method 2: Check in-memory dagvyAllData (already loaded at startup, zero reads)
+  if (dagvyAllData[normalizedSearch]) {
+    dagvyCache[normalizedSearch] = { data: dagvyAllData[normalizedSearch], timestamp: Date.now() };
+    return dagvyAllData[normalizedSearch];
   }
 
   return null;
@@ -293,6 +353,15 @@ async function showDagvyPopup(employeeId) {
   // Update turn info
   if (turnEl) {
     turnEl.innerHTML = 'Tur <strong>' + todayDagvy.turnr + '</strong> &middot; ' + todayDagvy.start + ' – ' + todayDagvy.end;
+  }
+
+  // Show badge if data is from previous dagvy (smart merge)
+  if (data.fromPrevious) {
+    var badge = document.createElement('div');
+    badge.className = 'dagvy-previous-badge';
+    badge.textContent = '⏳ Från föregående dagvy';
+    var personBar = dagvyPage.querySelector('.dagvy-person-bar');
+    if (personBar) personBar.appendChild(badge);
   }
 
   // Store for re-render on mode toggle

@@ -62,6 +62,224 @@ function getNextColor() {
   return color;
 }
 
+// ---- Schedule + employees cache (localStorage) ----
+var SCHEDULE_CACHE_KEY = 'schedule_cache';
+var SCHEDULE_CACHE_MAX_AGE_DAYS = 3;
+
+/**
+ * Save employees + schedules to localStorage cache.
+ */
+function saveScheduleToCache() {
+  try {
+    var payload = {
+      savedAt: new Date().toISOString(),
+      employees: registeredEmployees,
+      schedules: employeesData
+    };
+    localStorage.setItem(SCHEDULE_CACHE_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn('Schedule cache save failed:', e.message);
+  }
+}
+
+/**
+ * Load employees + schedules from localStorage cache.
+ * Returns { savedAt, employees, schedules } or null.
+ */
+function loadScheduleFromCache() {
+  try {
+    var raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+    if (!raw) return null;
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.savedAt || !payload.employees) return null;
+    var ageMs = Date.now() - new Date(payload.savedAt).getTime();
+    var maxMs = SCHEDULE_CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+    if (ageMs > maxMs) {
+      localStorage.removeItem(SCHEDULE_CACHE_KEY);
+      return null;
+    }
+    return payload;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Remove schedule cache if older than max age.
+ */
+function cleanOldScheduleCache() {
+  try {
+    var raw = localStorage.getItem(SCHEDULE_CACHE_KEY);
+    if (!raw) return;
+    var payload = JSON.parse(raw);
+    if (!payload || !payload.savedAt) {
+      localStorage.removeItem(SCHEDULE_CACHE_KEY);
+      return;
+    }
+    var ageMs = Date.now() - new Date(payload.savedAt).getTime();
+    if (ageMs > SCHEDULE_CACHE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(SCHEDULE_CACHE_KEY);
+    }
+  } catch (e) {
+    localStorage.removeItem(SCHEDULE_CACHE_KEY);
+  }
+}
+
+// ---- Dagvy auto-check / manual sync ----
+// Track last successful dagvy fetch per time-window to avoid repeated calls
+let dagvyLastCheckWindow = null; // e.g. "2026-02-13_06" or "2026-02-13_12"
+let dagvyAutoCheckTimer = null;
+
+/**
+ * Determine current time-window key (used for dedup).
+ * Returns e.g. "2026-02-13_06" if hour is 06 or 07, "2026-02-13_12" if 12 or 13, else null.
+ */
+function dagvyWindowKey() {
+  var now = new Date();
+  var h = now.getHours();
+  var d = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  if (h === 6 || h === 7) return d + '_06';
+  if (h === 12 || h === 13) return d + '_12';
+  return null;
+}
+
+/**
+ * Check if an automatic dagvy refresh should run.
+ * Returns true if we're inside the 06–07 or 12–13 window AND haven't fetched this window yet.
+ */
+function shouldAutoCheckDagvy() {
+  var key = dagvyWindowKey();
+  if (!key) return false;
+  return key !== dagvyLastCheckWindow;
+}
+
+/**
+ * Fetch all dagvy docs from Firebase (one-shot getDocs).
+ * Replaces the old onSnapshot listener to save quota.
+ * @param {string} source - descriptive label for logging ('startup'|'auto'|'manual')
+ */
+async function fetchDagvyFromFirebase(source) {
+  try {
+    console.log('[DAGVY-SYNC] Fetching from Firebase (' + source + ')…');
+
+    // Smart merge: remember which persons existed before this fetch
+    var previousNames = {};
+    if (typeof dagvyAllData !== 'undefined') {
+      for (var pn in dagvyAllData) {
+        if (dagvyAllData.hasOwnProperty(pn)) {
+          previousNames[pn] = true;
+        }
+      }
+    }
+
+    var snapshot = await db.collection('dagvy').get();
+    var latestScrapedAt = null;
+    var newNames = {};
+
+    snapshot.forEach(function(doc) {
+      var empName = doc.id;
+      var dagvyData = doc.data();
+
+      // Clear any previous fromPrevious flag on fresh data
+      delete dagvyData.fromPrevious;
+
+      if (dagvyData.scrapedAt) {
+        if (!latestScrapedAt || dagvyData.scrapedAt > latestScrapedAt) {
+          latestScrapedAt = dagvyData.scrapedAt;
+        }
+      }
+      if (typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
+        var norm = normalizeName(empName);
+        dagvyAllData[norm] = dagvyData;
+        newNames[norm] = true;
+      }
+      if (typeof dagvyCache !== 'undefined' && typeof normalizeName === 'function') {
+        dagvyCache[normalizeName(empName)] = { data: dagvyData, timestamp: Date.now() };
+      }
+      if (typeof applyDagvyToSchedule === 'function') {
+        applyDagvyToSchedule(empName, dagvyData);
+      }
+    });
+
+    // Smart merge: keep persons that existed before but are missing in this fetch
+    var kept = [];
+    for (var oldName in previousNames) {
+      if (!newNames[oldName] && dagvyAllData[oldName]) {
+        // Mark as kept from previous dagvy (don't overwrite, just flag)
+        dagvyAllData[oldName].fromPrevious = true;
+        kept.push(oldName);
+        // Update dagvyCache so popup sees fromPrevious flag
+        if (typeof dagvyCache !== 'undefined') {
+          dagvyCache[oldName] = { data: dagvyAllData[oldName], timestamp: Date.now() };
+        }
+        // Re-apply so schedule stays correct
+        if (typeof applyDagvyToSchedule === 'function') {
+          applyDagvyToSchedule(oldName, dagvyAllData[oldName]);
+        }
+      }
+    }
+    if (kept.length > 0) {
+      console.log('[DAGVY-SYNC] Smart merge: kept ' + kept.length + ' from previous dagvy:', kept.join(', '));
+    }
+
+    if (typeof updateDagvyTimestamp === 'function') {
+      updateDagvyTimestamp(latestScrapedAt);
+    }
+    if (typeof saveDagvyToCache === 'function') {
+      saveDagvyToCache();
+    }
+
+    // Mark this time-window as checked
+    var wk = dagvyWindowKey();
+    if (wk) dagvyLastCheckWindow = wk;
+
+    console.log('[DAGVY-SYNC] Done (' + source + '): ' + snapshot.size + ' from Firebase + ' + kept.length + ' kept from previous');
+    return snapshot.size;
+  } catch (err) {
+    console.error('[DAGVY-SYNC] Error (' + source + '):', err);
+    throw err;
+  }
+}
+
+/**
+ * Start the interval that auto-checks dagvy at 06 and 12.
+ * Checks every 10 minutes, but only fetches when inside the correct window.
+ */
+function startDagvyAutoCheck() {
+  if (dagvyAutoCheckTimer) return; // already running
+  dagvyAutoCheckTimer = setInterval(function() {
+    if (shouldAutoCheckDagvy()) {
+      fetchDagvyFromFirebase('auto');
+    }
+  }, 10 * 60 * 1000); // every 10 min
+  console.log('[DAGVY-SYNC] Auto-check timer started (06:00 & 12:00 windows)');
+}
+
+/**
+ * Manual dagvy sync triggered from hamburger menu button.
+ * Always fetches regardless of time window.
+ */
+async function manualDagvySync() {
+  var btn = document.getElementById('dagvySyncBtn');
+  var icon = btn ? btn.querySelector('.icon') : null;
+  try {
+    if (icon) icon.textContent = '⏳';
+    if (btn) btn.classList.add('syncing');
+    var count = await fetchDagvyFromFirebase('manual');
+    if (icon) icon.textContent = '✅';
+    setTimeout(function() {
+      if (icon) icon.textContent = '🔄';
+      if (btn) btn.classList.remove('syncing');
+    }, 2000);
+  } catch (err) {
+    if (icon) icon.textContent = '❌';
+    setTimeout(function() {
+      if (icon) icon.textContent = '🔄';
+      if (btn) btn.classList.remove('syncing');
+    }, 3000);
+  }
+}
+
 /**
  * Load initial data from Firebase
  */
@@ -90,6 +308,35 @@ function setupRealtimeListeners() {
   let schedulesInitialLoad = true;
 
   try {
+    // Load cached schedule + employees from localStorage (instant display before Firebase)
+    cleanOldScheduleCache();
+    var cachedSchedule = loadScheduleFromCache();
+    if (cachedSchedule) {
+      // Restore employees
+      if (cachedSchedule.employees) {
+        var empKeys = Object.keys(cachedSchedule.employees);
+        for (var ei = 0; ei < empKeys.length; ei++) {
+          registeredEmployees[empKeys[ei]] = cachedSchedule.employees[empKeys[ei]];
+        }
+      }
+      // Restore schedules
+      if (cachedSchedule.schedules) {
+        var schKeys = Object.keys(cachedSchedule.schedules);
+        for (var si = 0; si < schKeys.length; si++) {
+          employeesData[schKeys[si]] = cachedSchedule.schedules[schKeys[si]];
+        }
+      }
+      console.log('[SCHEDULE-CACHE] Loaded from cache (' +
+        Object.keys(cachedSchedule.employees || {}).length + ' employees, ' +
+        Object.keys(cachedSchedule.schedules || {}).length + ' schedule days, saved ' +
+        cachedSchedule.savedAt + ')');
+      // Render immediately from cache
+      if (isLoggedIn && typeof renderEmployees === 'function') {
+        renderEmployees();
+        if (typeof renderPersonList === 'function') renderPersonList();
+      }
+    }
+
     // Listen for employee changes
     db.collection('employees').onSnapshot(
       { includeMetadataChanges: false },
@@ -129,55 +376,33 @@ function setupRealtimeListeners() {
       switchScheduleListener(getDateKey(currentDate));
     }
 
-    // Listen for dagvy changes — auto-update schedule from dagvy
-    db.collection('dagvy').onSnapshot(
-      { includeMetadataChanges: false },
-      (snapshot) => {
-        let latestScrapedAt = null;
-
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' || change.type === 'modified') {
-            const empName = change.doc.id;
-            const dagvyData = change.doc.data();
-
-            // Track the latest scrapedAt timestamp
-            if (dagvyData.scrapedAt) {
-              if (!latestScrapedAt || dagvyData.scrapedAt > latestScrapedAt) {
-                latestScrapedAt = dagvyData.scrapedAt;
-              }
-            }
-
-            // Store in global dagvyAllData so corrections survive schedule reloads
-            if (typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
-              dagvyAllData[normalizeName(empName)] = dagvyData;
-            }
-
-            // Populate dagvyCache so popup doesn't need to re-fetch
-            if (typeof dagvyCache !== 'undefined' && typeof normalizeName === 'function') {
-              dagvyCache[normalizeName(empName)] = { data: dagvyData, timestamp: Date.now() };
-            }
-
-            // Auto-update schedule if possible
-            if (typeof applyDagvyToSchedule === 'function') {
-              applyDagvyToSchedule(empName, dagvyData);
-            }
-          } else if (change.type === 'removed') {
-            // Clean up removed dagvy data
-            if (typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
-              delete dagvyAllData[normalizeName(change.doc.id)];
-            }
+    // Load cached dagvy from localStorage (instant display before Firebase responds)
+    if (typeof cleanOldDagvyCache === 'function') cleanOldDagvyCache();
+    if (typeof loadDagvyFromCache === 'function') {
+      var cached = loadDagvyFromCache();
+      if (cached && cached.data) {
+        var cacheKeys = Object.keys(cached.data);
+        for (var ci = 0; ci < cacheKeys.length; ci++) {
+          dagvyAllData[cacheKeys[ci]] = cached.data[cacheKeys[ci]];
+          if (typeof dagvyCache !== 'undefined') {
+            dagvyCache[cacheKeys[ci]] = { data: cached.data[cacheKeys[ci]], timestamp: Date.now() };
           }
-        });
-
-        // Update dagvy timestamp display
-        if (typeof updateDagvyTimestamp === 'function') {
-          updateDagvyTimestamp(latestScrapedAt);
+          if (typeof applyDagvyToSchedule === 'function') {
+            applyDagvyToSchedule(cacheKeys[ci], cached.data[cacheKeys[ci]]);
+          }
         }
-      },
-      (error) => {
-        console.error('Dagvy listener error:', error);
+        if (cached.scrapedAt && typeof updateDagvyTimestamp === 'function') {
+          updateDagvyTimestamp(cached.scrapedAt);
+        }
+        console.log('Dagvy loaded from cache (' + cacheKeys.length + ' employees, saved ' + cached.savedAt + ')');
       }
-    );
+    }
+
+    // Fetch dagvy once at startup (instead of realtime onSnapshot — saves reads)
+    fetchDagvyFromFirebase('startup');
+
+    // Start auto-check timer for dagvy (fetches at 06:00–07:59 and 12:00–13:59)
+    startDagvyAutoCheck();
 
     console.log('Realtime listeners active - auto-sync enabled');
   } catch (error) {
