@@ -100,13 +100,16 @@ function sigToName(sig) {
  * Get product name from an announcement
  */
 function getTrainProduct(announcement) {
+  var name = 'Övrigt';
   if (announcement.ProductInformation && announcement.ProductInformation.length > 0) {
     var info = announcement.ProductInformation[0];
     var desc = info.Description || info;
-    if (typeof desc === 'string') return desc;
-    if (desc && desc.Description) return desc.Description;
+    if (typeof desc === 'string') name = desc;
+    else if (desc && desc.Description) name = desc.Description;
   }
-  return 'Övrigt';
+  // Normalize Öresundståg → Ötåg everywhere (SE + DK)
+  if (name === 'Öresundståg') name = 'Ötåg';
+  return name;
 }
 
 /**
