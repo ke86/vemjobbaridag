@@ -260,6 +260,41 @@
     return apiStationNames[sig] || SIG_NAMES[sig] || sig;
   }
 
+  /**
+   * Fetch all TrainStation names from Trafikverket (one-time).
+   * Populates apiStationNames { LocationSignature → AdvertisedLocationName }.
+   */
+  async function fetchStationNames() {
+    if (Object.keys(apiStationNames).length > 0) return; // already loaded
+    var xml = '<REQUEST>'
+      + '<LOGIN authenticationkey="' + API_KEY + '" />'
+      + '<QUERY objecttype="TrainStation" schemaversion="1">'
+      + '<INCLUDE>LocationSignature</INCLUDE>'
+      + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
+      + '</QUERY>'
+      + '</REQUEST>';
+    try {
+      var resp = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml' },
+        body: xml
+      });
+      if (!resp.ok) return;
+      var data = await resp.json();
+      var stations = data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]
+        ? data.RESPONSE.RESULT[0].TrainStation : [];
+      for (var i = 0; i < stations.length; i++) {
+        var s = stations[i];
+        if (s.LocationSignature && s.AdvertisedLocationName) {
+          apiStationNames[s.LocationSignature] = s.AdvertisedLocationName;
+        }
+      }
+      console.log('[FT] Loaded ' + Object.keys(apiStationNames).length + ' station names');
+    } catch (e) {
+      console.log('[FT] Could not load station names: ' + e.message);
+    }
+  }
+
   // ==========================================
   // COOKIE HELPERS
   // ==========================================
@@ -375,6 +410,9 @@
     // Navigate to train page & show loading
     showPage('trainFollow');
     showLoading();
+
+    // Load station names (one-time, non-blocking)
+    fetchStationNames();
 
     // Fetch immediately then poll
     fetchAndRender();
@@ -1257,7 +1295,6 @@
       + '<INCLUDE>TrackAtLocation</INCLUDE>'
       + '<INCLUDE>AdvertisedTrainIdent</INCLUDE>'
       + '<INCLUDE>LocationSignature</INCLUDE>'
-      + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
       + '<INCLUDE>ActivityType</INCLUDE>'
       + '<INCLUDE>ToLocation</INCLUDE>'
       + '<INCLUDE>FromLocation</INCLUDE>'
@@ -1322,10 +1359,6 @@
     for (var i = 0; i < announcements.length; i++) {
       var a = announcements[i];
       var loc = a.LocationSignature;
-      // Store API-provided station name for this signature
-      if (a.AdvertisedLocationName && !apiStationNames[loc]) {
-        apiStationNames[loc] = a.AdvertisedLocationName;
-      }
       if (!stopsMap[loc]) {
         stopsMap[loc] = { station: loc, arrival: null, departure: null, track: null, passed: false };
         stopsOrder.push(loc);
