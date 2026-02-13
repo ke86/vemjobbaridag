@@ -1059,11 +1059,9 @@
     var trainCompleted = nextIdx === -1 && stops.length > 0;
 
     // Detect "at origin, not departed" = nextIdx is 0 and nothing is passed
-    var atOrigin = nextIdx === 0 && stops.length > 0 && !stops[0].passed;
+    var seNotStarted = nextIdx === 0 && stops.length > 0 && !stops[0].passed;
     // If train comes from DK (toSE), first SE stop is NOT origin — it's an arrival
-    if (atOrigin && dkState && dkState.direction === 'toSE') {
-      atOrigin = false;
-    }
+    var atOrigin = seNotStarted && !(dkState && dkState.direction === 'toSE');
 
     updateTopbar();
 
@@ -1077,7 +1075,7 @@
       // Train completed Swedish part, now entering Denmark
       dkCardUsed = true;
       html += buildDkNextCard(dkState);
-    } else if (atOrigin && dkState && dkState.direction === 'toSE' && dkState.phase !== 'allPassed') {
+    } else if (seNotStarted && dkState && dkState.direction === 'toSE' && dkState.phase !== 'allPassed') {
       // Train hasn't departed Sweden yet — still in DK
       dkCardUsed = true;
       html += buildDkNextCard(dkState);
