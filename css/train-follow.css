@@ -547,3 +547,51 @@
   font-size: 13px;
   opacity: 0.7;
 }
+
+/* Rejseplanen LIVE badge */
+.ft-dk-live {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.15);
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+  margin-left: 4px;
+  animation: ft-live-pulse 2s ease-in-out infinite;
+}
+@keyframes ft-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* DK realtime: planned time struck through */
+.ft-dk-planned {
+  text-decoration: line-through;
+  opacity: 0.5;
+  font-size: 0.9em;
+}
+
+/* DK realtime: actual time in orange */
+.ft-dk-rt {
+  color: #f97316;
+  font-weight: 600;
+}
+
+/* DK track column */
+.ft-dk-track {
+  color: #60a5fa;
+  font-weight: 600;
+  text-align: center;
+  min-width: 36px;
+}
+
+/* Delay colors (used in DK next card) */
+.ft-delay-minor {
+  color: #f59e0b;
+}
+.ft-delay-major {
+  color: #ef4444;
+}
