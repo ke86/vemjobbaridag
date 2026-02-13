@@ -44,6 +44,7 @@
   var dkStopsCache = {};            // trainNr → { ts, data }
   var DK_CACHE_TTL = 60000;         // 1 min
   var dkStopsData = null;           // latest getDkStopsAsync() result for current train
+  var apiStationNames = {};         // LocationSignature → AdvertisedLocationName (from Trafikverket)
 
   // ==========================================
   // REJSEPLANEN DK STOPS  (two-step: departureBoard → journeyDetail)
@@ -255,7 +256,8 @@
 
   function stationName(sig) {
     if (!sig) return sig;
-    return SIG_NAMES[sig] || sig;
+    // Prefer API-provided name, then static fallback, then raw signature
+    return apiStationNames[sig] || SIG_NAMES[sig] || sig;
   }
 
   // ==========================================
@@ -1255,6 +1257,7 @@
       + '<INCLUDE>TrackAtLocation</INCLUDE>'
       + '<INCLUDE>AdvertisedTrainIdent</INCLUDE>'
       + '<INCLUDE>LocationSignature</INCLUDE>'
+      + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
       + '<INCLUDE>ActivityType</INCLUDE>'
       + '<INCLUDE>ToLocation</INCLUDE>'
       + '<INCLUDE>FromLocation</INCLUDE>'
@@ -1319,6 +1322,10 @@
     for (var i = 0; i < announcements.length; i++) {
       var a = announcements[i];
       var loc = a.LocationSignature;
+      // Store API-provided station name for this signature
+      if (a.AdvertisedLocationName && !apiStationNames[loc]) {
+        apiStationNames[loc] = a.AdvertisedLocationName;
+      }
       if (!stopsMap[loc]) {
         stopsMap[loc] = { station: loc, arrival: null, departure: null, track: null, passed: false };
         stopsOrder.push(loc);
