@@ -149,29 +149,28 @@
       console.log('[DK-fetch] journeyDetail keys: ' + Object.keys(jdData).join(', '));
 
       var stops = null;
-      if (jdData.JourneyDetail && jdData.JourneyDetail.Stop) {
+      if (jdData.Stops && jdData.Stops.Stop) {
+        stops = jdData.Stops.Stop;
+      } else if (jdData.JourneyDetail && jdData.JourneyDetail.Stop) {
         stops = jdData.JourneyDetail.Stop;
       } else if (jdData.Stop) {
         stops = jdData.Stop;
       }
       if (!stops || !Array.isArray(stops)) {
-        console.log('[DK-fetch] No stops array found. Data: ' + JSON.stringify(jdData).substring(0, 500));
+        console.log('[DK-fetch] No stops array found. Keys: ' + Object.keys(jdData).join(', '));
         return null;
       }
 
-      // Debug: log raw first stop to see actual field names from API
-      if (stops.length > 0) {
-        console.log('[DK-track debug] Raw stop keys: ' + Object.keys(stops[0]).join(', '));
-        console.log('[DK-track debug] First stop: ' + JSON.stringify(stops[0]));
-      }
+      console.log('[DK-fetch] Got ' + stops.length + ' stops from journeyDetail');
 
       // Map to our normalized format
-      // Rejseplanen journeyDetail uses "track"/"rtTrack" as primary field names
+      // API 2.0 uses rtDepPlatform/rtArrPlatform objects with .text for track
       var result = [];
       for (var i = 0; i < stops.length; i++) {
         var s = stops[i];
-        var trackVal = s.track || s.depTrack || s.arrTrack || '';
-        var rtTrackVal = s.rtTrack || s.rtDepTrack || s.rtArrTrack || '';
+        // Track: rtDepPlatform.text > rtArrPlatform.text > legacy fields
+        var depPlatform = (s.rtDepPlatform && s.rtDepPlatform.text) || s.rtDepTrack || s.depTrack || s.track || '';
+        var arrPlatform = (s.rtArrPlatform && s.rtArrPlatform.text) || s.rtArrTrack || s.arrTrack || s.track || '';
         result.push({
           name:           s.name || '',
           extId:          s.extId || s.id || '',
@@ -179,10 +178,10 @@
           arrTime:        fmtDkTime(s.arrTime),
           rtDepTime:      fmtDkTime(s.rtDepTime),
           rtArrTime:      fmtDkTime(s.rtArrTime),
-          depTrack:       trackVal,
-          rtDepTrack:     rtTrackVal,
-          arrTrack:       trackVal,
-          rtArrTrack:     rtTrackVal,
+          depTrack:       depPlatform,
+          rtDepTrack:     depPlatform,
+          arrTrack:       arrPlatform,
+          rtArrTrack:     arrPlatform,
           prognosisType:  s.depPrognosisType || s.arrPrognosisType || ''
         });
       }
