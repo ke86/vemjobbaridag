@@ -359,7 +359,20 @@
   font-size: 11px;
   max-width: 90px;
   overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dep-note-scroll {
+  display: inline-block;
+  white-space: nowrap;
+}
+.dep-col-note.dep-note-overflows .dep-note-scroll {
+  animation: dep-note-marquee 5s linear infinite;
+  animation-delay: 1s;
+}
+@keyframes dep-note-marquee {
+  0%, 10% { transform: translateX(0); }
+  45%, 55% { transform: translateX(calc(-100% + 80px)); }
+  90%, 100% { transform: translateX(0); }
 }
 
 /* Empty state */

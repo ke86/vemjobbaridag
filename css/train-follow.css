@@ -489,16 +489,55 @@
 }
 
 /* Next stop (highlighted) */
+.ft-stop-next {
+  position: relative;
+  background: linear-gradient(90deg, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.04) 70%, transparent 100%);
+  border-left: 3px solid #22c55e;
+}
 .ft-stop-next td {
   font-weight: 700;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  font-size: 1.05em;
 }
 .ft-stop-next td:first-child {
-  color: var(--accent-blue);
+  color: #22c55e;
 }
 .ft-marker {
-  color: var(--accent-blue);
+  color: #22c55e;
   font-size: 10px;
-  margin-right: 2px;
+  margin-right: 3px;
+  animation: ft-marker-pulse 2s ease-in-out infinite;
+}
+@keyframes ft-marker-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Scrolling text for long station names */
+.ft-scroll-wrap {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.ft-stops-table td:first-child {
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ft-scroll-wrap .ft-scroll-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+.ft-scroll-wrap.ft-overflows .ft-scroll-text {
+  animation: ft-scroll 6s linear infinite;
+  animation-delay: 1s;
+}
+@keyframes ft-scroll {
+  0%, 10% { transform: translateX(0); }
+  45%, 55% { transform: translateX(calc(-100% + 130px)); }
+  90%, 100% { transform: translateX(0); }
 }
 
 /* Danish stops section */

@@ -25,7 +25,7 @@ var DK_STATION_IDS = {
 };
 
 // Default active product — only this type is active by default (Swedish)
-const DEFAULT_ACTIVE_PRODUCTS = ['Öresundståg'];
+const DEFAULT_ACTIVE_PRODUCTS = ['Ötåg'];
 
 // Filter state
 var depActiveFilters = {};       // { 'Pågatågen': true/false, ... }
@@ -37,6 +37,7 @@ var depSelectedEmployee = '';     // '' = alla, or normalized employee name
 var depEmployeeTrainNrs = [];    // train numbers from dagvy for selected employee
 var depLastStationType = '';     // 'SE' or 'DK' — reset filters on switch
 var depUsingRejseplanen = false; // true when showing Rejseplanen live data
+var depApiStationNames = {};     // LocationSignature → AdvertisedLocationName (from Trafikverket TrainStation API)
 
 /**
  * Station name lookup from signature
@@ -52,33 +53,47 @@ const stationNames = {};
 })();
 
 /**
- * Signature → readable station name map (shared with train-follow.js logic).
- * Trafikverket ToLocation.LocationName returns signature codes, not display names.
+ * Fetch all station names from Trafikverket TrainStation API (one-time).
+ * Populates depApiStationNames { sig → fullName }.
  */
-var SIG_TO_NAME = {
-  'Mc': 'Malmö C', 'Hie': 'Hyllie', 'Tri': 'Triangeln', 'Lu': 'Lund C',
-  'Klv': 'Kävlinge', 'Lkr': 'Landskrona', 'Hb': 'Helsingborg C',
-  'Åp': 'Åstorp', 'Elv': 'Eslöv', 'Hör': 'Höör', 'Hm': 'Hässleholm C',
-  'Kr': 'Kristianstad C', 'Hd': 'Halmstad C', 'Av': 'Alvesta',
-  'Vö': 'Växjö', 'Eba': 'Emmaboda', 'Kac': 'Kalmar C', 'Ck': 'Karlskrona C',
-  'Tb': 'Trelleborg', 'Ys': 'Ystad', 'Sim': 'Simrishamn',
-  'G': 'Göteborg C', 'Cst': 'Stockholm C', 'Mö': 'Malmö Godsbangård',
-  'Smp': 'Sölvesborg', 'Bgs': 'Borås C', 'Fby': 'Falkenberg',
-  'Vb': 'Varberg', 'K': 'Kungsbacka', 'Fa': 'Falköping C',
-  'Sk': 'Skövde C', 'Lå': 'Linköping C', 'Nk': 'Norrköping C',
-  'Kn': 'Katrineholm C', 'Söc': 'Södertälje C', 'Fg': 'Flemingsberg',
-  'Äs': 'Arlöv', 'Brl': 'Burlöv', 'Sv': 'Svågertorp',
-  'Kh': 'Karlshamn', 'Rn': 'Ronneby', 'Hpbg': 'Höganäs',
-  'Å': 'Ängelholm', 'Bå': 'Båstad', 'La': 'Laholm',
-  'Mh': 'Markaryd', 'Ay': 'Älmhult', 'Ö': 'Örebro C',
-  'Hr': 'Hallsberg', 'Mjö': 'Mjölby', 'Km': 'Köpenhamn',
-  'Kk': 'Kastrup', 'Jö': 'Jönköping C', 'Nä': 'Nässjö C',
-  'Ht': 'Hestra', 'Bor': 'Borås', 'Vr': 'Värnamo',
-  'Lkö': 'Landskrona Ö', 'Bån': 'Båstad N', 'Laov': 'Laholm Ö'
-};
+async function fetchDepStationNames() {
+  if (Object.keys(depApiStationNames).length > 0) return; // already loaded
+  var xml = '<REQUEST>'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+    + '<QUERY objecttype="TrainStation" schemaversion="1">'
+    + '<INCLUDE>LocationSignature</INCLUDE>'
+    + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
+    + '</QUERY>'
+    + '</REQUEST>';
+  try {
+    var resp = await fetch(TRAFIKVERKET_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml' },
+      body: xml
+    });
+    if (!resp.ok) return;
+    var data = await resp.json();
+    var stations = data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]
+      ? data.RESPONSE.RESULT[0].TrainStation : [];
+    for (var i = 0; i < stations.length; i++) {
+      var s = stations[i];
+      if (s.LocationSignature && s.AdvertisedLocationName) {
+        depApiStationNames[s.LocationSignature] = s.AdvertisedLocationName;
+      }
+    }
+    console.log('[DEP] Loaded ' + Object.keys(depApiStationNames).length + ' station names');
+  } catch (e) {
+    console.log('[DEP] Could not load station names: ' + e.message);
+  }
+}
 
+/**
+ * Signature → readable station name.
+ * Priority: API name (fullständigt) → hardcoded fallback → raw signature.
+ */
 function sigToName(sig) {
-  return SIG_TO_NAME[sig] || sig;
+  if (!sig) return sig;
+  return depApiStationNames[sig] || sig;
 }
 
 /**
@@ -242,8 +257,9 @@ function initDeparturePage() {
 /**
  * Called when departure page becomes visible
  */
-function onDeparturePageShow() {
+async function onDeparturePageShow() {
   departurePageActive = true;
+  await fetchDepStationNames(); // ensure station names are loaded before rendering
   populateEmployeeSelect();
   loadDepartures();
   departureRefreshTimer = setInterval(function() {
@@ -304,9 +320,9 @@ function mapRejseplanenToAnnouncements(items, isDep) {
       if (match) trainNr = match[0];
     }
 
-    // Identify Öresundståg via denmark.js data (DK_DATA covers all Öresund trains)
+    // Identify Ötåg via denmark.js data (DK_DATA covers all Öresund trains)
     if (typeof denmark !== 'undefined' && trainNr && denmark.hasDanishData(trainNr)) {
-      productName = 'Öresundståg';
+      productName = 'Ötåg';
     }
 
     // Direction = destination for departures, origin for arrivals
@@ -357,7 +373,7 @@ function buildFilterChips(announcements) {
   if (!depFiltersInitialized) {
     depFiltersInitialized = true;
     for (var t = 0; t < types.length; t++) {
-      // Both SE and DK: only Öresundståg active by default
+      // Both SE and DK: only Ötåg active by default
       depActiveFilters[types[t]] = DEFAULT_ACTIVE_PRODUCTS.indexOf(types[t]) !== -1;
     }
   } else {
@@ -535,7 +551,7 @@ async function loadDanishDepartures(stationCode) {
   // ── Fallback: static DK_DATA + Trafikverket cross-reference ──
   depUsingRejseplanen = false;
 
-  // Hide product filter for static data (only Öresundståg)
+  // Hide product filter for static data (only Ötåg)
   if (filterPanel) filterPanel.style.display = 'none';
   if (filterToggle) filterToggle.style.display = 'none';
   if (filterBar) filterBar.style.display = 'none';
@@ -804,7 +820,7 @@ function renderDanishBoard(tbodyEl, rows, currentMin) {
       + '<td class="dep-col-newtime' + delayClass + '">' + delayText + '</td>'
       + '<td class="dep-col-track dep-dk-no-track">—</td>'
       + '<td class="dep-col-train">' + row.trainNr + '</td>'
-      + '<td class="dep-col-note">Öresundståg</td>'
+      + '<td class="dep-col-note"><span class="dep-note-scroll">Ötåg</span></td>'
       + '</tr>';
   }
   tbodyEl.innerHTML = html;
@@ -967,16 +983,19 @@ function renderDepartureBoard(announcements, locationField) {
 
     // Destination / Origin
     var locArr = a[locationField] || [];
+    var rawSig = '';
     var destName = '';
     if (locArr.length > 0) {
-      destName = locArr[locArr.length - 1].LocationName || '';
+      rawSig = locArr[locArr.length - 1].LocationName || '';
+      destName = sigToName(rawSig);
     }
 
     // Danish extension: if train ends at Hyllie and has Danish data, show Danish destination
     var dkDest = '';
     if (typeof denmark !== 'undefined' && trainId) {
-      var lastSig = locArr.length > 0 ? (locArr[locArr.length - 1].LocationName || '') : '';
-      if (lastSig === 'Hyllie' || lastSig === 'Kastrup' || lastSig === 'Malmö central') {
+      // Compare against both raw signature and resolved name (Rejseplanen uses full names)
+      if (rawSig === 'Hie' || rawSig === 'Kk' || rawSig === 'Mc'
+        || destName === 'Hyllie' || destName === 'Kastrup' || destName === 'Malmö central') {
         var dkStops = denmark.getDanishStops(trainId);
         if (dkStops && dkStops.stops.length > 0) {
           if (dkStops.direction === 'toDK') {
@@ -1028,9 +1047,19 @@ function renderDepartureBoard(announcements, locationField) {
       + '<td class="dep-col-newtime' + (hasDelay ? '' : ' no-delay') + '">' + (newTimeStr || '') + '</td>'
       + '<td class="dep-col-track">' + track + '</td>'
       + '<td class="dep-col-train">' + trainId + '</td>'
-      + '<td class="dep-col-note" title="' + noteStr.replace(/"/g, '&quot;') + '">' + noteStr + '</td>'
+      + '<td class="dep-col-note" title="' + noteStr.replace(/"/g, '&quot;') + '"><span class="dep-note-scroll">' + noteStr + '</span></td>'
       + '</tr>';
   }
 
   tbodyEl.innerHTML = html;
+
+  // Detect overflowing note cells and enable scroll animation
+  var noteCells = tbodyEl.querySelectorAll('.dep-col-note');
+  for (var ni = 0; ni < noteCells.length; ni++) {
+    var cell = noteCells[ni];
+    var scroll = cell.querySelector('.dep-note-scroll');
+    if (scroll && scroll.scrollWidth > cell.clientWidth + 2) {
+      cell.classList.add('dep-note-overflows');
+    }
+  }
 }

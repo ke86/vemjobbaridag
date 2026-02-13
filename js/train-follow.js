@@ -1031,7 +1031,7 @@
           var earlyTrack = earlyHasTrack ? '<td class="ft-dk-track">' + (ds.track || '') + '</td>' : '';
 
           html += '<tr class="' + dkRowClass + '">'
-            + '<td>' + dkCheck + dkMarker + ds.name + '</td>'
+            + '<td>' + dkCheck + dkMarker + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + ds.name + '</span></span></td>'
             + '<td>' + earlyArr + '</td>'
             + '<td>' + earlyDep + '</td>'
             + earlyTrack
@@ -1043,6 +1043,7 @@
 
         contentEl.innerHTML = html;
         startCountdown();
+        detectScrollOverflows();
         return;
       }
 
@@ -1211,7 +1212,7 @@
         var trackCell = hasTrack ? '<td class="ft-dk-track">' + (dkStop.track || '') + '</td>' : '';
 
         dkHtml += '<tr class="' + rowCls + '">'
-          + '<td>' + chk + mrk + dkStop.name + '</td>'
+          + '<td>' + chk + mrk + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + dkStop.name + '</span></span></td>'
           + '<td>' + arrCell + '</td>'
           + '<td>' + depCell + '</td>'
           + trackCell
@@ -1243,7 +1244,7 @@
         var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
         var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
         seHtml += '<tr class="' + rowClass + '">'
-          + '<td>' + check + marker + st.station + '</td>'
+          + '<td>' + check + marker + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + st.station + '</span></span></td>'
           + '<td>' + st.arr + '</td>'
           + '<td>' + st.dep + '</td>'
           + (comboHasTrack ? '<td></td>' : '')
@@ -1270,6 +1271,7 @@
     contentEl.innerHTML = html;
 
     startCountdown();
+    detectScrollOverflows();
   }
 
   function scrollToNextStop(container) {
@@ -1468,6 +1470,23 @@
   // ==========================================
   // COUNTDOWN
   // ==========================================
+
+  /**
+   * Detect scroll-wrap elements that overflow and add ft-overflows class.
+   * Called after rendering to enable scroll animation only where needed.
+   */
+  function detectScrollOverflows() {
+    var wraps = document.querySelectorAll('.ft-scroll-wrap');
+    for (var i = 0; i < wraps.length; i++) {
+      var wrap = wraps[i];
+      var text = wrap.querySelector('.ft-scroll-text');
+      if (text && text.scrollWidth > wrap.clientWidth + 2) {
+        wrap.classList.add('ft-overflows');
+      } else {
+        wrap.classList.remove('ft-overflows');
+      }
+    }
+  }
 
   function startCountdown() {
     if (countdownTimer) clearInterval(countdownTimer);
