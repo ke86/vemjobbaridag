@@ -14,8 +14,7 @@ const employeesData = {};
 // Color index for assigning colors to new employees
 let colorIndex = 0;
 
-// Single-doc schedule listener state (for quota optimization)
-let currentScheduleUnsubscribe = null;
+// Track current schedule date for navigation
 let currentScheduleDateKey = null;
 
 // Sync icon element reference
@@ -125,13 +124,75 @@ function cleanOldScheduleCache() {
   }
 }
 
-// ---- Dagvy auto-check / manual sync ----
-// Track last successful dagvy fetch per time-window to avoid repeated calls
-let dagvyLastCheckWindow = null; // e.g. "2026-02-13_06" or "2026-02-13_12"
-let dagvyAutoCheckTimer = null;
+/**
+ * Fetch employees + schedules from Firebase (one-shot getDocs).
+ * Replaces the old onSnapshot listeners to save quota.
+ * @param {string} source - descriptive label for logging ('startup'|'auto'|'manual')
+ */
+async function fetchScheduleFromFirebase(source) {
+  try {
+    console.log('[SCHEDULE-SYNC] Fetching from Firebase (' + source + ')…');
+
+    // Fetch employees + schedules in parallel
+    var results = await Promise.all([
+      db.collection('employees').get(),
+      db.collection('schedules').get()
+    ]);
+
+    var empSnapshot = results[0];
+    var schSnapshot = results[1];
+
+    // Update employees
+    empSnapshot.forEach(function(doc) {
+      registeredEmployees[doc.id] = doc.data();
+    });
+
+    // Update schedules
+    schSnapshot.forEach(function(doc) {
+      employeesData[doc.id] = doc.data().shifts || [];
+    });
+
+    // Save to localStorage cache
+    saveScheduleToCache();
+
+    // Re-render if logged in
+    if (isLoggedIn && typeof renderEmployees === 'function') {
+      renderEmployees();
+      if (typeof renderPersonList === 'function') renderPersonList();
+      // Re-apply dagvy corrections after schedule update
+      if (typeof reapplyDagvyCorrections === 'function') {
+        reapplyDagvyCorrections();
+      }
+      if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
+        if (typeof renderPersonSchedule === 'function') renderPersonSchedule();
+      }
+    }
+
+    // Mark today as checked (for auto-check dedup)
+    if (typeof scheduleLastCheckDay !== 'undefined') {
+      scheduleLastCheckDay = new Date().toISOString().slice(0, 10);
+    }
+
+    updateSyncStatus('syncing');
+
+    console.log('[SCHEDULE-SYNC] Done (' + source + '): ' +
+      empSnapshot.size + ' employees, ' + schSnapshot.size + ' schedule days');
+    return { employees: empSnapshot.size, schedules: schSnapshot.size };
+  } catch (err) {
+    console.error('[SCHEDULE-SYNC] Error (' + source + '):', err);
+    updateSyncStatus('offline');
+    throw err;
+  }
+}
+
+// ---- Auto-check / manual sync ----
+// Track last successful fetch per time-window to avoid repeated calls
+let dagvyLastCheckWindow = null;   // e.g. "2026-02-13_06" or "2026-02-13_12"
+let scheduleLastCheckDay = null;   // e.g. "2026-02-13" (once per day)
+let autoCheckTimer = null;
 
 /**
- * Determine current time-window key (used for dedup).
+ * Determine current dagvy time-window key (used for dedup).
  * Returns e.g. "2026-02-13_06" if hour is 06 or 07, "2026-02-13_12" if 12 or 13, else null.
  */
 function dagvyWindowKey() {
@@ -151,6 +212,19 @@ function shouldAutoCheckDagvy() {
   var key = dagvyWindowKey();
   if (!key) return false;
   return key !== dagvyLastCheckWindow;
+}
+
+/**
+ * Check if an automatic schedule refresh should run.
+ * Returns true if we're inside the 06:00–07:59 window AND haven't fetched today yet.
+ * Runs in same window as dagvy auto-check.
+ */
+function shouldAutoCheckSchedule() {
+  var now = new Date();
+  var h = now.getHours();
+  if (h !== 6 && h !== 7) return false;
+  var today = now.toISOString().slice(0, 10);
+  return today !== scheduleLastCheckDay;
 }
 
 /**
@@ -242,30 +316,42 @@ async function fetchDagvyFromFirebase(source) {
 }
 
 /**
- * Start the interval that auto-checks dagvy at 06 and 12.
- * Checks every 10 minutes, but only fetches when inside the correct window.
+ * Start the combined auto-check timer.
+ * Checks every 10 minutes:
+ *  - Dagvy: fetches at 06:00–07:59 and 12:00–13:59 (twice per day)
+ *  - Schedule + employees: fetches at 05:00–05:59 (once per day)
  */
-function startDagvyAutoCheck() {
-  if (dagvyAutoCheckTimer) return; // already running
-  dagvyAutoCheckTimer = setInterval(function() {
+function startAutoCheckTimer() {
+  if (autoCheckTimer) return; // already running
+  autoCheckTimer = setInterval(function() {
     if (shouldAutoCheckDagvy()) {
       fetchDagvyFromFirebase('auto');
     }
+    if (shouldAutoCheckSchedule()) {
+      fetchScheduleFromFirebase('auto');
+    }
   }, 10 * 60 * 1000); // every 10 min
-  console.log('[DAGVY-SYNC] Auto-check timer started (06:00 & 12:00 windows)');
+  console.log('[AUTO-CHECK] Timer started (schema+dagvy 06:00, dagvy 12:00)');
 }
 
 /**
- * Manual dagvy sync triggered from hamburger menu button.
- * Always fetches regardless of time window.
+ * Manual sync triggered from hamburger menu button.
+ * Always fetches ALL data regardless of time window:
+ * dagvy + employees + schedules.
  */
-async function manualDagvySync() {
-  var btn = document.getElementById('dagvySyncBtn');
+async function manualSyncAll() {
+  var btn = document.getElementById('syncAllBtn');
   var icon = btn ? btn.querySelector('.icon') : null;
   try {
     if (icon) icon.textContent = '⏳';
     if (btn) btn.classList.add('syncing');
-    var count = await fetchDagvyFromFirebase('manual');
+
+    // Fetch everything in parallel
+    await Promise.all([
+      fetchScheduleFromFirebase('manual'),
+      fetchDagvyFromFirebase('manual')
+    ]);
+
     if (icon) icon.textContent = '✅';
     setTimeout(function() {
       if (icon) icon.textContent = '🔄';
@@ -281,32 +367,17 @@ async function manualDagvySync() {
 }
 
 /**
- * Load initial data from Firebase
+ * Load initial data from Firebase.
+ * Now delegates to fetchScheduleFromFirebase (parallel fetch + cache).
  */
 async function loadDataFromFirebase() {
-  // Load employees
-  const employeesSnapshot = await db.collection('employees').get();
-  employeesSnapshot.forEach(doc => {
-    registeredEmployees[doc.id] = doc.data();
-  });
-
-  // Load schedule data
-  const scheduleSnapshot = await db.collection('schedules').get();
-  scheduleSnapshot.forEach(doc => {
-    employeesData[doc.id] = doc.data().shifts || [];
-  });
-
-  console.log('Data loaded from Firebase:', Object.keys(registeredEmployees).length, 'employees');
+  await fetchScheduleFromFirebase('initial-load');
 }
 
 /**
  * Setup realtime listeners for automatic updates
  */
 function setupRealtimeListeners() {
-  // Track if initial load is done
-  let employeesInitialLoad = true;
-  let schedulesInitialLoad = true;
-
   try {
     // Load cached schedule + employees from localStorage (instant display before Firebase)
     cleanOldScheduleCache();
@@ -337,44 +408,8 @@ function setupRealtimeListeners() {
       }
     }
 
-    // Listen for employee changes
-    db.collection('employees').onSnapshot(
-      { includeMetadataChanges: false },
-      (snapshot) => {
-        const hasChanges = snapshot.docChanges().length > 0;
-
-        snapshot.docChanges().forEach((change) => {
-          if (change.type === 'added' || change.type === 'modified') {
-            registeredEmployees[change.doc.id] = change.doc.data();
-          } else if (change.type === 'removed') {
-            delete registeredEmployees[change.doc.id];
-          }
-        });
-
-        // Show syncing animation (but not on initial load)
-        if (hasChanges && !employeesInitialLoad && isLoggedIn) {
-          updateSyncStatus('syncing');
-        }
-        employeesInitialLoad = false;
-
-        // Re-render if logged in
-        if (isLoggedIn) {
-          renderEmployees();
-          renderPersonList();
-        }
-      },
-      (error) => {
-        console.error('Employee listener error:', error);
-        updateSyncStatus('offline');
-      }
-    );
-
-    // Start single-doc schedule listener for current date (quota optimization)
-    // Instead of listening to ALL schedule documents, we only listen to the current day's doc.
-    // This reduces Firebase reads from ~180+ per reconnect to just 1.
-    if (typeof getDateKey === 'function' && typeof currentDate !== 'undefined') {
-      switchScheduleListener(getDateKey(currentDate));
-    }
+    // NOTE: employees + schedules already fetched by loadDataFromFirebase() in auth.js
+    // No onSnapshot listeners needed — use manual sync or auto-check instead.
 
     // Load cached dagvy from localStorage (instant display before Firebase responds)
     if (typeof cleanOldDagvyCache === 'function') cleanOldDagvyCache();
@@ -401,10 +436,10 @@ function setupRealtimeListeners() {
     // Fetch dagvy once at startup (instead of realtime onSnapshot — saves reads)
     fetchDagvyFromFirebase('startup');
 
-    // Start auto-check timer for dagvy (fetches at 06:00–07:59 and 12:00–13:59)
-    startDagvyAutoCheck();
+    // Start combined auto-check timer (schema 05:00, dagvy 06:00 & 12:00)
+    startAutoCheckTimer();
 
-    console.log('Realtime listeners active - auto-sync enabled');
+    console.log('Auto-sync enabled (schema+dagvy 06:00, dagvy 12:00)');
   } catch (error) {
     console.error('Failed to setup realtime listeners:', error);
     updateSyncStatus('offline');
@@ -438,65 +473,30 @@ function setupConnectionMonitor() {
 }
 
 /**
- * Switch the realtime schedule listener to a specific date.
- * Unsubscribes from the previous date's listener and creates a new one
- * for the given dateKey. This drastically reduces Firebase reads compared
- * to listening to the entire schedules collection.
+ * Handle date navigation — re-render schedule for the given date.
+ * All schedule data is already in memory (loaded at startup + cache).
+ * No Firebase reads needed on date switch.
  *
  * @param {string} dateKey - Date in format 'YYYY-MM-DD'
  */
 function switchScheduleListener(dateKey) {
-  // Skip if already listening to this date
-  if (dateKey === currentScheduleDateKey && currentScheduleUnsubscribe) {
+  // Skip if already showing this date
+  if (dateKey === currentScheduleDateKey) {
     return;
   }
 
-  // Unsubscribe from previous listener
-  if (currentScheduleUnsubscribe) {
-    currentScheduleUnsubscribe();
-    currentScheduleUnsubscribe = null;
-  }
-
   currentScheduleDateKey = dateKey;
-  let isInitialSnapshot = true;
 
-  console.log('[SCHEDULE-LISTENER] Switching to date:', dateKey);
-
-  // Listen to a single document: schedules/{dateKey}
-  currentScheduleUnsubscribe = db.collection('schedules').doc(dateKey).onSnapshot(
-    { includeMetadataChanges: false },
-    (doc) => {
-      if (doc.exists) {
-        employeesData[dateKey] = doc.data().shifts || [];
-      } else {
-        // Document doesn't exist (no schedule for this date)
-        employeesData[dateKey] = [];
-      }
-
-      // Show syncing animation (but not on initial load)
-      if (!isInitialSnapshot && isLoggedIn) {
-        updateSyncStatus('syncing');
-      }
-      isInitialSnapshot = false;
-
-      // Re-render if logged in
-      if (isLoggedIn) {
-        renderEmployees();
-        // Re-apply dagvy corrections after schedule update
-        if (typeof reapplyDagvyCorrections === 'function') {
-          reapplyDagvyCorrections();
-        }
-        // Also update schedule view if a person is selected
-        if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
-          renderPersonSchedule();
-        }
-      }
-    },
-    (error) => {
-      console.error('Schedule listener error for', dateKey, ':', error);
-      updateSyncStatus('offline');
+  // Re-render from in-memory data
+  if (isLoggedIn && typeof renderEmployees === 'function') {
+    renderEmployees();
+    if (typeof reapplyDagvyCorrections === 'function') {
+      reapplyDagvyCorrections();
     }
-  );
+    if (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) {
+      if (typeof renderPersonSchedule === 'function') renderPersonSchedule();
+    }
+  }
 }
 
 /**
