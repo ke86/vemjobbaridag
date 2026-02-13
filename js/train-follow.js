@@ -19,6 +19,18 @@
   var COUNTDOWN_INTERVAL = 1000;
   var COOKIE_NAME = 'ft_train';
 
+  // Rejseplanen API (for DK track data)
+  var REJSEPLANEN_API_KEY = '91f18a75-699b-4901-aa3e-eb7d52d0a034';
+  var REJSEPLANEN_BASE = 'https://www.rejseplanen.dk/api';
+  var DK_STATION_IDS = {
+    'Københavns Lufthavn': '8600858',
+    'Tårnby':              '8600857',
+    'Ørestad':             '8600856',
+    'København H':         '8600626',
+    'Nørreport':           '8600646',
+    'Østerport':           '8600650'
+  };
+
   // ==========================================
   // DOM REFS  (resolved in init)
   // ==========================================
@@ -41,6 +53,7 @@
   var pageActive = false;
   var currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
   var originDepartureTarget = null; // HH:MM string when waiting at origin
+  var dkTrackCache = {};            // { 'StationName': 'trackNr', ... } from Rejseplanen
 
   // ==========================================
   // STATION NAME MAP
@@ -180,6 +193,7 @@
 
     announcements = [];
     nextStationData = null;
+    dkTrackCache = {};
 
     startBtnFlipTimer();
 
@@ -458,6 +472,13 @@
       phase = 'enRoute';
     }
 
+    // Apply cached track data from Rejseplanen
+    for (var tc = 0; tc < paxStops.length; tc++) {
+      if (dkTrackCache[paxStops[tc].name]) {
+        paxStops[tc].track = dkTrackCache[paxStops[tc].name];
+      }
+    }
+
     return {
       phase: phase,
       direction: dkInfo.direction,
@@ -468,12 +489,120 @@
   }
 
   /**
+   * Fetch real-time DK track data from Rejseplanen for a given train number.
+   * Looks for departures/arrivals at DK stations and extracts rtTrack/track.
+   * Populates dkTrackCache and assigns .track on each stop in dkState.stops[].
+   */
+  async function fetchDkTrackData(trainNr, dkState) {
+    if (!dkState || !dkState.stops.length) return;
+
+    // Pick a reference station that the train visits — first pax stop with a known ID
+    var refStation = null;
+    var refId = null;
+    for (var i = 0; i < dkState.stops.length; i++) {
+      var sid = DK_STATION_IDS[dkState.stops[i].name];
+      if (sid) { refStation = dkState.stops[i]; refId = sid; break; }
+    }
+    if (!refId) return;
+
+    // Determine if we need departureBoard or arrivalBoard
+    var isDep = !!refStation.dep;
+    var endpoint = isDep ? 'departureBoard' : 'arrivalBoard';
+    var url = REJSEPLANEN_BASE + '/' + endpoint
+      + '?accessId=' + REJSEPLANEN_API_KEY
+      + '&id=' + refId
+      + '&format=json'
+      + '&duration=120';
+
+    try {
+      var resp = await fetch(url);
+      if (!resp.ok) return;
+      var data = await resp.json();
+      var list = (isDep ? data.DepartureBoard : data.ArrivalBoard);
+      var items = list ? (list.Departure || list.Arrival || []) : [];
+
+      // Find items matching our train number
+      for (var j = 0; j < items.length; j++) {
+        var item = items[j];
+        var num = String(item.displayNumber || item.num || '');
+        if (!num && item.name) {
+          var m = item.name.match(/\d+/);
+          if (m) num = m[0];
+        }
+        if (num === String(trainNr)) {
+          // Found our train — extract track for reference station
+          var track = item.rtTrack || item.track || '';
+          if (track) {
+            dkTrackCache[refStation.name] = track;
+          }
+          break;
+        }
+      }
+
+      // Also try to get tracks for other DK stops by querying each station
+      for (var k = 0; k < dkState.stops.length; k++) {
+        var stop = dkState.stops[k];
+        if (stop.name === refStation.name) {
+          stop.track = dkTrackCache[stop.name] || '';
+          continue;
+        }
+        var sId = DK_STATION_IDS[stop.name];
+        if (!sId) continue;
+        if (dkTrackCache[stop.name]) { stop.track = dkTrackCache[stop.name]; continue; }
+
+        var ep2 = stop.dep ? 'departureBoard' : 'arrivalBoard';
+        var url2 = REJSEPLANEN_BASE + '/' + ep2
+          + '?accessId=' + REJSEPLANEN_API_KEY
+          + '&id=' + sId
+          + '&format=json'
+          + '&duration=120';
+        try {
+          var resp2 = await fetch(url2);
+          if (!resp2.ok) continue;
+          var data2 = await resp2.json();
+          var list2 = (ep2 === 'departureBoard' ? data2.DepartureBoard : data2.ArrivalBoard);
+          var items2 = list2 ? (list2.Departure || list2.Arrival || []) : [];
+
+          for (var n = 0; n < items2.length; n++) {
+            var it2 = items2[n];
+            var num2 = String(it2.displayNumber || it2.num || '');
+            if (!num2 && it2.name) {
+              var m2 = it2.name.match(/\d+/);
+              if (m2) num2 = m2[0];
+            }
+            if (num2 === String(trainNr)) {
+              var trk2 = it2.rtTrack || it2.track || '';
+              if (trk2) {
+                dkTrackCache[stop.name] = trk2;
+                stop.track = trk2;
+              }
+              break;
+            }
+          }
+        } catch (_ignore) { /* skip this station */ }
+      }
+
+      // Assign cached tracks to any stops that don't have one yet
+      for (var p = 0; p < dkState.stops.length; p++) {
+        if (!dkState.stops[p].track && dkTrackCache[dkState.stops[p].name]) {
+          dkState.stops[p].track = dkTrackCache[dkState.stops[p].name];
+        }
+      }
+    } catch (_err) {
+      // Silently fail — track data is optional
+    }
+  }
+
+  /**
    * Build the DK "next station" card HTML based on tracking state.
    */
   function buildDkNextCard(dkState) {
     var html = '';
     var stop = dkState.stops[dkState.nextIdx];
     if (!stop) return html;
+
+    var dkTrackStr = stop.track || '—';
+    var dkTrackHtml = '<div class="ft-track-circle"><span class="ft-track-nr">' + dkTrackStr + '</span><span class="ft-track-label">SPÅR</span></div>';
 
     if (dkState.phase === 'beforeDeparture') {
       originDepartureTarget = stop.dep;
@@ -485,6 +614,7 @@
         + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
         + '</div>'
         + '<div class="ft-detail-row">'
+        + dkTrackHtml
         + '<div class="ft-times">'
         + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + stop.dep + '</span></div>'
         + '</div>'
@@ -502,6 +632,7 @@
         + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
         + '</div>'
         + '<div class="ft-detail-row">'
+        + dkTrackHtml
         + '<div class="ft-times">'
         + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + stop.arr + '</span></div>' : '')
         + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + stop.dep + '</span></div>' : '')
@@ -541,9 +672,9 @@
         // Stops list
         html += '<div class="ft-stops-card">'
           + '<table class="ft-stops-table"><thead><tr>'
-          + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
+          + '<th>Station</th><th>Ank.</th><th>Avg.</th><th>Spår</th>'
           + '</tr></thead><tbody>';
-        html += '<tr class="ft-dk-separator"><td colspan="3">🇩🇰 Danmark</td></tr>';
+        html += '<tr class="ft-dk-separator"><td colspan="4">🇩🇰 Danmark</td></tr>';
         for (var dj = 0; dj < dkState.stops.length; dj++) {
           var ds = dkState.stops[dj];
           var dkRowClass = ds._passed ? 'ft-stop-passed ft-dk-stop' : (ds._isNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
@@ -553,10 +684,11 @@
             + '<td>' + dkCheck + dkMarker + ds.name + '</td>'
             + '<td>' + (ds.arr || '') + '</td>'
             + '<td>' + (ds.dep || '') + '</td>'
+            + '<td>' + (ds.track || '') + '</td>'
             + '</tr>';
         }
-        html += '<tr class="ft-se-separator"><td colspan="3">🇸🇪 Sverige</td></tr>';
-        html += '<tr><td colspan="3" class="ft-waiting-api">Väntar på tågdata...</td></tr>';
+        html += '<tr class="ft-se-separator"><td colspan="4">🇸🇪 Sverige</td></tr>';
+        html += '<tr><td colspan="4" class="ft-waiting-api">Väntar på tågdata...</td></tr>';
         html += '</tbody></table></div>';
 
         contentEl.innerHTML = html;
@@ -666,6 +798,7 @@
         station: stationName(s.station),
         arr: arr,
         dep: dep,
+        track: s.track || '',
         passed: s.passed,
         isNext: k === nextIdx
       });
@@ -675,7 +808,7 @@
     function buildDkRows() {
       var dkHtml = '';
       if (!dkState || !dkState.stops.length) return dkHtml;
-      dkHtml += '<tr class="ft-dk-separator"><td colspan="3">🇩🇰 Danmark</td></tr>';
+      dkHtml += '<tr class="ft-dk-separator"><td colspan="4">🇩🇰 Danmark</td></tr>';
       for (var di = 0; di < dkState.stops.length; di++) {
         var dkStop = dkState.stops[di];
         var rowCls = dkStop._passed ? 'ft-stop-passed ft-dk-stop' : (dkStop._isNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
@@ -685,6 +818,7 @@
           + '<td>' + chk + mrk + dkStop.name + '</td>'
           + '<td>' + (dkStop.arr || '') + '</td>'
           + '<td>' + (dkStop.dep || '') + '</td>'
+          + '<td>' + (dkStop.track || '') + '</td>'
           + '</tr>';
       }
       return dkHtml;
@@ -695,7 +829,7 @@
       var seHtml = '';
       var hasDk = dkState && dkState.stops.length > 0;
       if (hasDk) {
-        seHtml += '<tr class="ft-se-separator"><td colspan="3">🇸🇪 Sverige</td></tr>';
+        seHtml += '<tr class="ft-se-separator"><td colspan="4">🇸🇪 Sverige</td></tr>';
       }
       for (var m = 0; m < upcomingStops.length; m++) {
         var st = upcomingStops[m];
@@ -707,6 +841,7 @@
           + '<td>' + check + marker + st.station + '</td>'
           + '<td>' + st.arr + '</td>'
           + '<td>' + st.dep + '</td>'
+          + '<td>' + st.track + '</td>'
           + '</tr>';
       }
       return seHtml;
@@ -714,7 +849,7 @@
 
     html += '<div class="ft-stops-card">'
       + '<table class="ft-stops-table"><thead><tr>'
-      + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
+      + '<th>Station</th><th>Ank.</th><th>Avg.</th><th>Spår</th>'
       + '</tr></thead><tbody>';
 
     // Order: DK first for trains FROM Denmark, SE first for trains TO Denmark
@@ -792,9 +927,21 @@
       processAnnouncements();
       computeDelayInfo();
       updateButton();
+
+      // Fetch DK track data before rendering (if applicable)
+      var dkPre = getDkTrackingState(trainNr);
+      if (dkPre && dkPre.stops.length > 0) {
+        try { await fetchDkTrackData(trainNr, dkPre); } catch (_e) { /* ignore */ }
+      }
+
       renderPage();
     } catch (err) {
-      if (contentEl && announcements.length === 0) {
+      // Even if Trafikverket fails, try to show DK data with tracks
+      var dkFallback = getDkTrackingState(trainNr);
+      if (dkFallback && dkFallback.stops.length > 0) {
+        try { await fetchDkTrackData(trainNr, dkFallback); } catch (_e2) { /* ignore */ }
+        renderPage();
+      } else if (contentEl && announcements.length === 0) {
         contentEl.innerHTML =
           '<div class="ft-error">Kunde inte hämta data. Försöker igen...</div>';
       }
