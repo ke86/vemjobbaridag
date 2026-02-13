@@ -100,9 +100,13 @@
       var station = REJSE_SCAN_STATIONS[si];
       try {
         var dbUrl = REJSE_BASE + '/departureBoard?id=' + station.id
-          + '&format=json&accessId=' + REJSE_KEY;
+          + '&format=json&accessId=' + REJSE_KEY
+          + '&duration=360';
         var dbResp = await fetch(dbUrl);
-        if (!dbResp.ok) continue;
+        if (!dbResp.ok) {
+          console.log('[DK-fetch] departureBoard ' + station.name + ' HTTP ' + dbResp.status);
+          continue;
+        }
         var dbData = await dbResp.json();
         var deps = dbData.DepartureBoard ? dbData.DepartureBoard.Departure : (dbData.Departure || []);
         if (!Array.isArray(deps)) deps = [deps];
@@ -116,16 +120,20 @@
           }
           if (num === targetNr && item.JourneyDetailRef && item.JourneyDetailRef.ref) {
             ref = item.JourneyDetailRef.ref;
+            console.log('[DK-fetch] Found train ' + targetNr + ' at ' + station.name);
             break;
           }
         }
       } catch (e) {
-        // ignore, try next station
+        console.log('[DK-fetch] Error at ' + station.name + ': ' + e.message);
       }
       if (ref) break;
     }
 
-    if (!ref) return null;
+    if (!ref) {
+      console.log('[DK-fetch] No JourneyDetailRef found for train ' + targetNr);
+      return null;
+    }
 
     // Step 2 — fetch full journey detail
     try {
