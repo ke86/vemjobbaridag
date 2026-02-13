@@ -304,6 +304,11 @@ function mapRejseplanenToAnnouncements(items, isDep) {
       if (match) trainNr = match[0];
     }
 
+    // Identify Öresundståg via denmark.js data (DK_DATA covers all Öresund trains)
+    if (typeof denmark !== 'undefined' && trainNr && denmark.hasDanishData(trainNr)) {
+      productName = 'Öresundståg';
+    }
+
     // Direction = destination for departures, origin for arrivals
     var direction = item.direction || '';
 
@@ -352,13 +357,8 @@ function buildFilterChips(announcements) {
   if (!depFiltersInitialized) {
     depFiltersInitialized = true;
     for (var t = 0; t < types.length; t++) {
-      if (depUsingRejseplanen) {
-        // DK stations (Rejseplanen): all types active by default
-        depActiveFilters[types[t]] = true;
-      } else {
-        // Swedish stations: only default products active
-        depActiveFilters[types[t]] = DEFAULT_ACTIVE_PRODUCTS.indexOf(types[t]) !== -1;
-      }
+      // Both SE and DK: only Öresundståg active by default
+      depActiveFilters[types[t]] = DEFAULT_ACTIVE_PRODUCTS.indexOf(types[t]) !== -1;
     }
   } else {
     // Subsequent loads: init new types as inactive, keep existing
