@@ -185,46 +185,104 @@ async function fetchScheduleFromFirebase(source) {
   }
 }
 
-// ---- Auto-check / manual sync ----
-// Track last successful fetch per time-window to avoid repeated calls
-let dagvyLastCheckWindow = null;   // e.g. "2026-02-13_06" or "2026-02-13_12"
-let scheduleLastCheckDay = null;   // e.g. "2026-02-13" (once per day)
-let autoCheckTimer = null;
+// ---- Sync signal + auto-check ----
+// Dedup: track last time we fetched all data (prevent rapid re-fetches)
+var lastSyncFetchTime = 0;
+var SYNC_DEDUP_MS = 2 * 60 * 1000; // 2 minutes
+var autoCheckTimer = null;
+
+// Auto-check dedup per window
+var lastAutoCheckWindow = null; // e.g. "2026-02-13_06" or "2026-02-13_12"
 
 /**
- * Determine current dagvy time-window key (used for dedup).
- * Returns e.g. "2026-02-13_06" if hour is 06 or 07, "2026-02-13_12" if 12 or 13, else null.
+ * Determine current auto-check window key.
+ * Returns e.g. "2026-02-13_06" if hour is 06–07, "2026-02-13_12" if 12–13, else null.
  */
-function dagvyWindowKey() {
+function autoCheckWindowKey() {
   var now = new Date();
   var h = now.getHours();
-  var d = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  var d = now.toISOString().slice(0, 10);
   if (h === 6 || h === 7) return d + '_06';
   if (h === 12 || h === 13) return d + '_12';
   return null;
 }
 
 /**
- * Check if an automatic dagvy refresh should run.
- * Returns true if we're inside the 06–07 or 12–13 window AND haven't fetched this window yet.
+ * Check if an automatic sync should run.
+ * Returns true if inside 06–07 or 12–13 AND not checked this window yet.
  */
-function shouldAutoCheckDagvy() {
-  var key = dagvyWindowKey();
+function shouldAutoCheck() {
+  var key = autoCheckWindowKey();
   if (!key) return false;
-  return key !== dagvyLastCheckWindow;
+  return key !== lastAutoCheckWindow;
 }
 
 /**
- * Check if an automatic schedule refresh should run.
- * Returns true if we're inside the 06:00–07:59 window AND haven't fetched today yet.
- * Runs in same window as dagvy auto-check.
+ * Fetch ALL data: schedule + employees + dagvy.
+ * Used by sync-signal callback and manual sync.
+ * Dedup: skips if fetched less than 2 min ago.
+ * @param {string} source - label for logging
+ * @returns {boolean} true if fetch ran, false if deduped
  */
-function shouldAutoCheckSchedule() {
-  var now = new Date();
-  var h = now.getHours();
-  if (h !== 6 && h !== 7) return false;
-  var today = now.toISOString().slice(0, 10);
-  return today !== scheduleLastCheckDay;
+async function fetchAllData(source) {
+  var now = Date.now();
+  if (now - lastSyncFetchTime < SYNC_DEDUP_MS) {
+    console.log('[SYNC] Skipped (' + source + ') — last fetch ' +
+      Math.round((now - lastSyncFetchTime) / 1000) + 's ago');
+    return false;
+  }
+  lastSyncFetchTime = now;
+
+  await Promise.all([
+    fetchScheduleFromFirebase(source),
+    fetchDagvyFromFirebase(source)
+  ]);
+
+  // Mark auto-check window as done
+  var wk = autoCheckWindowKey();
+  if (wk) lastAutoCheckWindow = wk;
+
+  return true;
+}
+
+/**
+ * Write a sync signal to Firestore — triggers all connected apps to fetch.
+ */
+async function writeSyncSignal() {
+  try {
+    await db.collection('meta').doc('syncSignal').set({
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      triggeredBy: (typeof selectedEmployeeId !== 'undefined' && selectedEmployeeId) ? selectedEmployeeId : 'user'
+    });
+    console.log('[SYNC-SIGNAL] Written to Firestore');
+  } catch (err) {
+    console.error('[SYNC-SIGNAL] Write failed:', err);
+  }
+}
+
+/**
+ * Start listening for sync signals from other apps/users.
+ * Uses onSnapshot on a single tiny document — 1 read per reconnect.
+ */
+function startSyncSignalListener() {
+  var isInitial = true;
+  db.collection('meta').doc('syncSignal').onSnapshot(
+    function(doc) {
+      if (isInitial) {
+        isInitial = false;
+        return; // Skip initial snapshot (data already loaded at startup)
+      }
+      if (doc.exists) {
+        var data = doc.data();
+        console.log('[SYNC-SIGNAL] Received push from ' + (data.triggeredBy || '?'));
+        fetchAllData('push');
+      }
+    },
+    function(err) {
+      console.error('[SYNC-SIGNAL] Listener error:', err);
+    }
+  );
+  console.log('[SYNC-SIGNAL] Listener started on meta/syncSignal');
 }
 
 /**
@@ -316,28 +374,24 @@ async function fetchDagvyFromFirebase(source) {
 }
 
 /**
- * Start the combined auto-check timer.
- * Checks every 10 minutes:
- *  - Dagvy: fetches at 06:00–07:59 and 12:00–13:59 (twice per day)
- *  - Schedule + employees: fetches at 05:00–05:59 (once per day)
+ * Start the auto-check timer.
+ * Checks every 10 minutes — if inside 06–07 or 12–13 window,
+ * writes sync signal (which triggers ALL connected apps to fetch).
  */
 function startAutoCheckTimer() {
   if (autoCheckTimer) return; // already running
   autoCheckTimer = setInterval(function() {
-    if (shouldAutoCheckDagvy()) {
-      fetchDagvyFromFirebase('auto');
-    }
-    if (shouldAutoCheckSchedule()) {
-      fetchScheduleFromFirebase('auto');
+    if (shouldAutoCheck()) {
+      console.log('[AUTO-CHECK] Window active — writing sync signal');
+      writeSyncSignal();
     }
   }, 10 * 60 * 1000); // every 10 min
-  console.log('[AUTO-CHECK] Timer started (schema+dagvy 06:00, dagvy 12:00)');
+  console.log('[AUTO-CHECK] Timer started (06:00 & 12:00 windows)');
 }
 
 /**
- * Manual sync triggered from hamburger menu button.
- * Always fetches ALL data regardless of time window:
- * dagvy + employees + schedules.
+ * Manual "Synka alla" triggered from hamburger menu button.
+ * Writes sync signal → all connected apps (incl. this one) will fetch.
  */
 async function manualSyncAll() {
   var btn = document.getElementById('syncAllBtn');
@@ -346,21 +400,20 @@ async function manualSyncAll() {
     if (icon) icon.textContent = '⏳';
     if (btn) btn.classList.add('syncing');
 
-    // Fetch everything in parallel
-    await Promise.all([
-      fetchScheduleFromFirebase('manual'),
-      fetchDagvyFromFirebase('manual')
-    ]);
+    // Write sync signal — our own onSnapshot will trigger fetchAllData
+    await writeSyncSignal();
+    // Also fetch immediately (don't wait for onSnapshot round-trip)
+    await fetchAllData('manual');
 
     if (icon) icon.textContent = '✅';
     setTimeout(function() {
-      if (icon) icon.textContent = '🔄';
+      if (icon) icon.textContent = '📡';
       if (btn) btn.classList.remove('syncing');
     }, 2000);
   } catch (err) {
     if (icon) icon.textContent = '❌';
     setTimeout(function() {
-      if (icon) icon.textContent = '🔄';
+      if (icon) icon.textContent = '📡';
       if (btn) btn.classList.remove('syncing');
     }, 3000);
   }
@@ -433,13 +486,16 @@ function setupRealtimeListeners() {
       }
     }
 
-    // Fetch dagvy once at startup (instead of realtime onSnapshot — saves reads)
+    // Fetch dagvy once at startup
     fetchDagvyFromFirebase('startup');
 
-    // Start combined auto-check timer (schema 05:00, dagvy 06:00 & 12:00)
+    // Start sync-signal listener (push from other users — 1 tiny doc)
+    startSyncSignalListener();
+
+    // Start auto-check timer (writes sync-signal at 06:00 & 12:00)
     startAutoCheckTimer();
 
-    console.log('Auto-sync enabled (schema+dagvy 06:00, dagvy 12:00)');
+    console.log('Sync system active (signal listener + auto-check 06:00 & 12:00)');
   } catch (error) {
     console.error('Failed to setup realtime listeners:', error);
     updateSyncStatus('offline');
