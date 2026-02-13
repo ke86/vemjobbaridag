@@ -414,6 +414,8 @@ html.dark .follow-train-btn.ft-btn-major {
   transition: transform 0.3s ease;
   padding: 20px;
   padding-top: env(safe-area-inset-top, 50px);
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar.active {
@@ -501,6 +503,76 @@ html.dark .sidebar-menu a {
   font-size: 22px;
   width: 30px;
   text-align: center;
+}
+
+/* --- Sidebar sync button (bottom) --- */
+.sidebar-sync {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: env(safe-area-inset-bottom, 8px);
+}
+
+.sidebar-sync-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 20px;
+  background: transparent;
+  border: 1.5px dashed var(--text-secondary);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  letter-spacing: 0.3px;
+}
+
+.sidebar-sync-btn:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.sidebar-sync-btn:active {
+  transform: scale(0.97);
+}
+
+.sidebar-sync-btn.syncing {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  pointer-events: none;
+}
+
+.sidebar-sync-btn.syncing .sidebar-sync-icon {
+  animation: syncSpin 1s linear infinite;
+}
+
+@keyframes syncSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.sidebar-sync-icon {
+  font-size: 18px;
+  display: inline-block;
+}
+
+.sidebar-sync-timestamp {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+html.dark .sidebar-sync-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
 }
 
 /* ==========================================

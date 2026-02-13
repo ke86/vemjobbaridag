@@ -242,6 +242,9 @@ async function fetchAllData(source) {
   var wk = autoCheckWindowKey();
   if (wk) lastAutoCheckWindow = wk;
 
+  // Update sidebar timestamp
+  if (typeof updateSyncTimestamp === 'function') updateSyncTimestamp();
+
   return true;
 }
 
@@ -395,7 +398,7 @@ function startAutoCheckTimer() {
  */
 async function manualSyncAll() {
   var btn = document.getElementById('syncAllBtn');
-  var icon = btn ? btn.querySelector('.icon') : null;
+  var icon = document.getElementById('syncAllIcon');
   try {
     if (icon) icon.textContent = '⏳';
     if (btn) btn.classList.add('syncing');
@@ -406,6 +409,7 @@ async function manualSyncAll() {
     await fetchAllData('manual');
 
     if (icon) icon.textContent = '✅';
+    updateSyncTimestamp();
     setTimeout(function() {
       if (icon) icon.textContent = '📡';
       if (btn) btn.classList.remove('syncing');
@@ -417,6 +421,18 @@ async function manualSyncAll() {
       if (btn) btn.classList.remove('syncing');
     }, 3000);
   }
+}
+
+/**
+ * Update the "Senast synkad" timestamp shown below the sync button.
+ */
+function updateSyncTimestamp() {
+  var el = document.getElementById('syncTimestamp');
+  if (!el) return;
+  var now = new Date();
+  var hh = String(now.getHours()).padStart(2, '0');
+  var mm = String(now.getMinutes()).padStart(2, '0');
+  el.textContent = 'Senast synkad ' + hh + ':' + mm;
 }
 
 /**

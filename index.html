@@ -88,9 +88,15 @@
       <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema</a></li>
       <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
       <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
-      <li><a href="#" id="syncAllBtn" onclick="manualSyncAll(); return false;"><span class="icon">📡</span> Synka alla</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
+    <div class="sidebar-sync">
+      <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
+        <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
+        <span class="sidebar-sync-text">Synka alla</span>
+      </button>
+      <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
+    </div>
   </nav>
 
   <!-- Header -->
@@ -486,7 +492,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.24.0</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.24.1</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
