@@ -486,7 +486,8 @@ async function loadDanishDepartures(stationCode) {
       var url = REJSEPLANEN_BASE_URL + '/' + endpoint
         + '?accessId=' + REJSEPLANEN_API_KEY
         + '&format=json'
-        + '&id=' + rejseplanenId;
+        + '&id=' + rejseplanenId
+        + '&duration=360';
 
       var response = await fetch(url);
       if (!response.ok) throw new Error('HTTP ' + response.status);

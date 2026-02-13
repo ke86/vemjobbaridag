@@ -142,10 +142,19 @@
       }
       if (!stops || !Array.isArray(stops)) return null;
 
+      // Debug: log raw first stop to see actual field names from API
+      if (stops.length > 0) {
+        console.log('[DK-track debug] Raw stop keys: ' + Object.keys(stops[0]).join(', '));
+        console.log('[DK-track debug] First stop: ' + JSON.stringify(stops[0]));
+      }
+
       // Map to our normalized format
+      // Rejseplanen journeyDetail uses "track"/"rtTrack" as primary field names
       var result = [];
       for (var i = 0; i < stops.length; i++) {
         var s = stops[i];
+        var trackVal = s.track || s.depTrack || s.arrTrack || '';
+        var rtTrackVal = s.rtTrack || s.rtDepTrack || s.rtArrTrack || '';
         result.push({
           name:           s.name || '',
           extId:          s.extId || s.id || '',
@@ -153,10 +162,10 @@
           arrTime:        fmtDkTime(s.arrTime),
           rtDepTime:      fmtDkTime(s.rtDepTime),
           rtArrTime:      fmtDkTime(s.rtArrTime),
-          depTrack:       s.depTrack || s.track || '',
-          rtDepTrack:     s.rtDepTrack || s.rtTrack || '',
-          arrTrack:       s.arrTrack || s.track || '',
-          rtArrTrack:     s.rtArrTrack || s.rtTrack || '',
+          depTrack:       trackVal,
+          rtDepTrack:     rtTrackVal,
+          arrTrack:       trackVal,
+          rtArrTrack:     rtTrackVal,
           prognosisType:  s.depPrognosisType || s.arrPrognosisType || ''
         });
       }
@@ -686,8 +695,8 @@
 
     if (!paxStops.length) return null;
 
-    // Three-phase tracking with 90s hold after departure
-    var HOLD_MIN = 1.5; // 90 seconds in minutes
+    // Three-phase tracking with 30s hold after departure
+    var HOLD_MIN = 0.5; // 30 seconds in minutes
     var nextIdx = -1;
 
     for (var k = 0; k < paxStops.length; k++) {
@@ -844,22 +853,44 @@
         + '</div>'
         + '</div>';
     } else if (dkState.phase === 'beforeDeparture') {
-      // === FIRST STOP — countdown to departure ===
-      originDepartureTarget = stop.dep;
-      html += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">AVGÅNG FRÅN ' + liveBadge + '</div>'
-        + '<div class="ft-next-station">' + stop.name + '</div>'
-        + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
-        + '<span class="ft-countdown-label">AVGÅNG OM</span>'
-        + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
-        + '</div>'
-        + '<div class="ft-detail-row">'
-        + trackHtml
-        + '<div class="ft-times">'
-        + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>'
-        + '</div>'
-        + '</div>'
-        + '</div>';
+      // Check if this is truly origin (toDK = coming from SE, so first DK stop is arrival, not origin)
+      if (dkState.direction === 'toDK') {
+        // === ARRIVING at first DK stop (not origin) — countdown to arrival ===
+        var arrTarget = stop.arr || stop.dep || '';
+        var arrLabel = stop.arr ? 'ANKOMST OM' : 'AVGÅNG OM';
+        html += '<div class="ft-next-card">'
+          + '<div class="ft-next-label">NÄSTA STATION <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + ' ' + delayHtml + '</div>'
+          + '<div class="ft-next-station">' + stop.name + '</div>'
+          + '<div class="ft-countdown-row" data-target="' + arrTarget + '">'
+          + '<span class="ft-countdown-label">' + arrLabel + '</span>'
+          + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+          + '</div>'
+          + '<div class="ft-detail-row">'
+          + trackHtml
+          + '<div class="ft-times">'
+          + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+          + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      } else {
+        // === TRUE ORIGIN (toSE) — countdown to departure ===
+        originDepartureTarget = stop.dep;
+        html += '<div class="ft-next-card">'
+          + '<div class="ft-next-label">AVGÅNG FRÅN ' + liveBadge + '</div>'
+          + '<div class="ft-next-station">' + stop.name + '</div>'
+          + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
+          + '<span class="ft-countdown-label">AVGÅNG OM</span>'
+          + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+          + '</div>'
+          + '<div class="ft-detail-row">'
+          + trackHtml
+          + '<div class="ft-times">'
+          + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>'
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      }
     } else {
       // === APPROACHING — countdown to arrival ===
       var countdownTarget = stop.arr || stop.dep || '';
@@ -981,6 +1012,10 @@
 
     // Detect "at origin, not departed" = nextIdx is 0 and nothing is passed
     var atOrigin = nextIdx === 0 && stops.length > 0 && !stops[0].passed;
+    // If train comes from DK (toSE), first SE stop is NOT origin — it's an arrival
+    if (atOrigin && dkState && dkState.direction === 'toSE') {
+      atOrigin = false;
+    }
 
     updateTopbar();
 
@@ -1325,8 +1360,8 @@
       if (!stops[j].passed) { nextIdx = j; break; }
     }
 
-    // 90s hold: if previous stop departed within 90s, hold on it
-    var SE_HOLD_MS = 90000;
+    // 30s hold: if previous stop departed within 30s, hold on it
+    var SE_HOLD_MS = 30000;
     var now = new Date();
     if (nextIdx > 0) {
       var prevStop = stops[nextIdx - 1];
