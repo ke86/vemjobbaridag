@@ -139,9 +139,14 @@
     try {
       var jdUrl = REJSE_BASE + '/journeyDetail?id=' + encodeURIComponent(ref)
         + '&format=json&accessId=' + REJSE_KEY;
+      console.log('[DK-fetch] journeyDetail URL: ' + jdUrl);
       var jdResp = await fetch(jdUrl);
-      if (!jdResp.ok) return null;
+      if (!jdResp.ok) {
+        console.log('[DK-fetch] journeyDetail HTTP ' + jdResp.status);
+        return null;
+      }
       var jdData = await jdResp.json();
+      console.log('[DK-fetch] journeyDetail keys: ' + Object.keys(jdData).join(', '));
 
       var stops = null;
       if (jdData.JourneyDetail && jdData.JourneyDetail.Stop) {
@@ -149,7 +154,10 @@
       } else if (jdData.Stop) {
         stops = jdData.Stop;
       }
-      if (!stops || !Array.isArray(stops)) return null;
+      if (!stops || !Array.isArray(stops)) {
+        console.log('[DK-fetch] No stops array found. Data: ' + JSON.stringify(jdData).substring(0, 500));
+        return null;
+      }
 
       // Debug: log raw first stop to see actual field names from API
       if (stops.length > 0) {
