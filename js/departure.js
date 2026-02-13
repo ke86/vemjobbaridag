@@ -10,7 +10,21 @@ let departurePageActive = false;
 const TRAFIKVERKET_API_KEY = 'dbd424f3abd74e19be0b4f18009c4000';
 const TRAFIKVERKET_PROXY_URL = 'https://trafikverket-proxy.kenny-eriksson1986.workers.dev';
 
-// Default active product — only this type is active by default
+// Rejseplanen API config (Danish trains)
+const REJSEPLANEN_API_KEY = '91f18a75-699b-4901-aa3e-eb7d52d0a034';
+const REJSEPLANEN_BASE_URL = 'https://www.rejseplanen.dk/api';
+
+// Map our DK station codes → Rejseplanen station IDs
+var DK_STATION_IDS = {
+  'CPH': '8600858',   // Københavns Lufthavn
+  'TÅT': '8600857',   // Tårnby
+  'ØRE': '8600856',   // Ørestad
+  'KH':  '8600626',   // København H
+  'KN':  '8600646',   // Nørreport
+  'KK':  '8600650'    // Østerport
+};
+
+// Default active product — only this type is active by default (Swedish)
 const DEFAULT_ACTIVE_PRODUCTS = ['Öresundståg'];
 
 // Filter state
@@ -21,6 +35,8 @@ var depLastLocationField = 'ToLocation';
 var depFilterExpanded = false;
 var depSelectedEmployee = '';     // '' = alla, or normalized employee name
 var depEmployeeTrainNrs = [];    // train numbers from dagvy for selected employee
+var depLastStationType = '';     // 'SE' or 'DK' — reset filters on switch
+var depUsingRejseplanen = false; // true when showing Rejseplanen data
 
 /**
  * Station name lookup from signature
@@ -262,6 +278,55 @@ async function fetchTrafikverketData(xmlBody) {
 }
 
 /**
+ * Convert Rejseplanen departures/arrivals to Trafikverket-like announcements
+ * so we can reuse the existing filter + render pipeline.
+ */
+function mapRejseplanenToAnnouncements(items, isDep) {
+  var announcements = [];
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+
+    // Time: build parseable datetime string "YYYY-MM-DDTHH:MM:SS"
+    var advTime = item.date + 'T' + item.time;
+    var estTime = null;
+    if (item.rtTime && item.rtTime !== item.time) {
+      estTime = (item.rtDate || item.date) + 'T' + item.rtTime;
+    }
+
+    // Product / train type — use catOut ("Re", "IC", "Bus", "S" etc.)
+    var productName = item.catOut || 'Övrigt';
+
+    // Train number
+    var trainNr = item.trainNumber || item.displayNumber || item.num || '';
+
+    // Direction (= destination for departures, origin for arrivals)
+    var direction = item.direction || '';
+
+    // Track (prefer realtime track)
+    var track = item.rtTrack || item.track || '';
+
+    // Cancelled check
+    var cancelled = item.cancelled === true;
+
+    // Build location array
+    var locArr = [{ LocationName: direction }];
+
+    announcements.push({
+      AdvertisedTimeAtLocation: advTime,
+      EstimatedTimeAtLocation: estTime,
+      TrackAtLocation: track,
+      AdvertisedTrainIdent: trainNr,
+      ToLocation: isDep ? locArr : [],
+      FromLocation: isDep ? [] : locArr,
+      ProductInformation: [{ Description: productName }],
+      Deviation: [],
+      Canceled: cancelled
+    });
+  }
+  return announcements;
+}
+
+/**
  * Build and render filter chips from announcements
  */
 function buildFilterChips(announcements) {
@@ -278,11 +343,17 @@ function buildFilterChips(announcements) {
 
   var types = Object.keys(typeCounts).sort();
 
-  // First load: set defaults (only DEFAULT_ACTIVE_PRODUCTS active)
+  // First load: set defaults
   if (!depFiltersInitialized) {
     depFiltersInitialized = true;
     for (var t = 0; t < types.length; t++) {
-      depActiveFilters[types[t]] = DEFAULT_ACTIVE_PRODUCTS.indexOf(types[t]) !== -1;
+      if (depUsingRejseplanen) {
+        // DK stations (Rejseplanen): all types active by default
+        depActiveFilters[types[t]] = true;
+      } else {
+        // Swedish stations: only default products active
+        depActiveFilters[types[t]] = DEFAULT_ACTIVE_PRODUCTS.indexOf(types[t]) !== -1;
+      }
     }
   } else {
     // Subsequent loads: init new types as inactive, keep existing
@@ -377,8 +448,9 @@ function getDanishStationCode(val) {
 }
 
 /**
- * Load Danish departures/arrivals from embedded timetable data,
- * then cross-reference with Trafikverket API for Swedish destinations + delay info.
+ * Load Danish departures/arrivals.
+ * Tries Rejseplanen API first (real-time data with delays, tracks, all train types).
+ * Falls back to embedded DK_DATA + Trafikverket cross-reference if API fails.
  */
 async function loadDanishDepartures(stationCode) {
   var tbodyEl = document.getElementById('departureTableBody');
@@ -389,7 +461,75 @@ async function loadDanishDepartures(stationCode) {
 
   if (!tbodyEl) return;
 
-  // Hide product filter for Danish stations, but keep employee filter accessible
+  // Reset filter defaults when switching from SE → DK
+  if (depLastStationType !== 'DK') {
+    depFiltersInitialized = false;
+    depLastStationType = 'DK';
+  }
+
+  // ── Try Rejseplanen API (real-time) ──
+  var rejseplanenId = DK_STATION_IDS[stationCode];
+  if (rejseplanenId) {
+    try {
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="dep-loading-spinner"></span> 🇩🇰 Hämtar från Rejseplanen...';
+        statusEl.classList.remove('error');
+      }
+
+      var isDep = departureType === 'Avgang';
+      var endpoint = isDep ? 'departureBoard' : 'arrivalBoard';
+      var url = REJSEPLANEN_BASE_URL + '/' + endpoint
+        + '?accessId=' + REJSEPLANEN_API_KEY
+        + '&format=json'
+        + '&id=' + rejseplanenId;
+
+      var response = await fetch(url);
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      var data = await response.json();
+      var items = data.Departure || data.Arrival || [];
+
+      if (items.length > 0) {
+        // Map to Trafikverket-like format → reuse existing filter + render pipeline
+        var announcements = mapRejseplanenToAnnouncements(items, isDep);
+
+        // Show filter bar (now we have real product types!)
+        if (filterPanel) filterPanel.style.display = '';
+        if (filterToggle) filterToggle.style.display = '';
+        if (filterBar) filterBar.style.display = '';
+
+        // Store for filter re-renders
+        depUsingRejseplanen = true;
+        depAllAnnouncements = announcements;
+        depLastLocationField = isDep ? 'ToLocation' : 'FromLocation';
+
+        // Build filter chips + render
+        buildFilterChips(announcements);
+        renderFilteredBoard();
+
+        // Update employee select
+        populateEmployeeSelect();
+
+        // Status bar with countdown
+        var now = new Date();
+        var timeStr = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
+        if (statusEl) {
+          statusEl.innerHTML = '🇩🇰 Rejseplanen · ' + timeStr + ' · <span id="depCountdown">30</span>s';
+          statusEl.classList.remove('error');
+          startCountdown();
+        }
+
+        return; // Success — skip fallback
+      }
+    } catch (err) {
+      console.error('Rejseplanen error:', JSON.stringify({ message: err.message }));
+      // Fall through to static DK_DATA fallback
+    }
+  }
+
+  // ── Fallback: static DK_DATA + Trafikverket cross-reference ──
+  depUsingRejseplanen = false;
+
+  // Hide product filter for static data (only Öresundståg)
   if (filterPanel) filterPanel.style.display = 'none';
   if (filterToggle) filterToggle.style.display = 'none';
   if (filterBar) filterBar.style.display = 'none';
@@ -400,48 +540,38 @@ async function loadDanishDepartures(stationCode) {
   }
 
   var allTrainNrs = denmark.getAllDanishTrainNumbers();
-  var now = new Date();
-  var currentMin = now.getHours() * 60 + now.getMinutes();
-  var isDep = departureType === 'Avgang';
+  var now2 = new Date();
+  var currentMin = now2.getHours() * 60 + now2.getMinutes();
+  var isDep2 = departureType === 'Avgang';
 
   // Collect all trains that stop at this station
   var rows = [];
 
   for (var i = 0; i < allTrainNrs.length; i++) {
     var tnr = allTrainNrs[i];
-    var dkInfo = denmark.getDanishStops(tnr, now);
+    var dkInfo = denmark.getDanishStops(tnr, now2);
     if (!dkInfo || !dkInfo.stops.length) continue;
 
-    // Find this station in the stops
     for (var j = 0; j < dkInfo.stops.length; j++) {
       var stop = dkInfo.stops[j];
       if (stop.code !== stationCode || !stop.pax) continue;
 
-      // For departures: need a departure time, and not the last stop
-      // For arrivals: need an arrival time, and not the first stop
-      var timeStr = isDep ? stop.dep : stop.arr;
-      if (!timeStr) continue;
+      var timeStr2 = isDep2 ? stop.dep : stop.arr;
+      if (!timeStr2) continue;
 
-      var parts = timeStr.split(':');
+      var parts = timeStr2.split(':');
       var min = parseInt(parts[0]) * 60 + parseInt(parts[1]);
 
-      // Show: from 30 min ago to 6 hours ahead
       var diff = min - currentMin;
       if (diff < -30 || diff > 360) continue;
 
-      // Determine DK-only destination/origin (fallback)
-      // For toSE trains that cross the bridge: generic "Malmö Central" fallback
-      // (Trafikverket merge will upgrade to real destination if it goes further)
-      // For toDK trains arriving from SE: generic "Malmö Central" fallback
       var dkDest = '';
-      // Check if train actually crosses to Sweden (has Peberholm stop)
       var crossesBorder = false;
       for (var cb = 0; cb < dkInfo.stops.length; cb++) {
         if (dkInfo.stops[cb].code === 'PHM') { crossesBorder = true; break; }
       }
-      if (isDep) {
+      if (isDep2) {
         if (dkInfo.direction === 'toSE' && crossesBorder) {
-          // toSE departure: destination is Sweden — generic fallback
           dkDest = 'Malmö Central';
         } else {
           var lastPax = null;
@@ -453,7 +583,6 @@ async function loadDanishDepartures(stationCode) {
         }
       } else {
         if (dkInfo.direction === 'toDK' && crossesBorder) {
-          // toDK arrival (odd nr coming from SE): generic fallback
           dkDest = 'Malmö Central';
         } else {
           var firstPax = null;
@@ -466,31 +595,21 @@ async function loadDanishDepartures(stationCode) {
       }
 
       rows.push({
-        time: timeStr,
-        min: min,
-        dest: dkDest,         // DK fallback destination
-        seDest: '',            // will be filled from Trafikverket
-        trainNr: tnr,
-        route: dkInfo.route,
-        direction: dkInfo.direction,
-        crossesBorder: crossesBorder, // true if PHM in stop list
-        newTime: '',           // delay info
-        hasDelay: false
+        time: timeStr2, min: min, dest: dkDest, seDest: '',
+        trainNr: tnr, route: dkInfo.route, direction: dkInfo.direction,
+        crossesBorder: crossesBorder, newTime: '', hasDelay: false
       });
     }
   }
 
-  // Sort by time
   rows.sort(function(a, b) { return a.min - b.min; });
 
-  // Apply employee filter
   if (depSelectedEmployee && depEmployeeTrainNrs.length > 0) {
     rows = rows.filter(function(r) {
       return depEmployeeTrainNrs.indexOf(r.trainNr) !== -1;
     });
   }
 
-  // Render initial table immediately (with DK-only destinations)
   renderDanishBoard(tbodyEl, rows, currentMin);
 
   if (statusEl) {
@@ -498,7 +617,6 @@ async function loadDanishDepartures(stationCode) {
     statusEl.classList.remove('error');
   }
 
-  // Collect unique train numbers for Trafikverket lookup (only border-crossing trains)
   var uniqueTrainNrs = [];
   for (var u = 0; u < rows.length; u++) {
     if (rows[u].crossesBorder && uniqueTrainNrs.indexOf(rows[u].trainNr) === -1) {
@@ -506,53 +624,35 @@ async function loadDanishDepartures(stationCode) {
     }
   }
 
-  // Cross-reference with Trafikverket API
   if (uniqueTrainNrs.length > 0) {
     try {
       var seData = await fetchSwedishTrainData(uniqueTrainNrs);
-
-      // Merge Swedish data into rows
-      // Border filtering is now handled inside fetchSwedishTrainData parser —
-      // it always prefers non-border destinations (e.g. "Göteborg C" over "Malmö central")
       for (var s = 0; s < rows.length; s++) {
         var row = rows[s];
-        // Skip SE merge for DK-internal trains (no PHM = never enters Sweden today)
         if (!row.crossesBorder) continue;
         var seInfo = seData[row.trainNr];
         if (!seInfo) continue;
-
-        // Swedish destination/origin (already border-filtered by parser)
-        if (isDep && seInfo.toLocation) {
-          row.seDest = seInfo.toLocation;
-        } else if (!isDep && seInfo.fromLocation) {
-          row.seDest = seInfo.fromLocation;
-        }
-
-        // Delay info from nearest Swedish station
+        if (isDep2 && seInfo.toLocation) row.seDest = seInfo.toLocation;
+        else if (!isDep2 && seInfo.fromLocation) row.seDest = seInfo.fromLocation;
         if (seInfo.delayMin > 0) {
           row.hasDelay = true;
-          // Estimate new time at DK station based on Swedish delay
           var newMin = row.min + seInfo.delayMin;
           var newH = Math.floor(newMin / 60) % 24;
           var newM = newMin % 60;
           row.newTime = String(newH).padStart(2, '0') + ':' + String(newM).padStart(2, '0');
         }
       }
-
-      // Re-render with enriched data
       renderDanishBoard(tbodyEl, rows, currentMin);
     } catch (err) {
       console.error('DK cross-ref error:', JSON.stringify({ message: err.message }));
     }
   }
 
-  // Status bar
   if (statusEl) {
-    statusEl.innerHTML = '🇩🇰 Tidtabell · Svensk korsreferens aktiv';
+    statusEl.innerHTML = '🇩🇰 Tidtabell (fallback) · Svensk korsreferens aktiv';
     statusEl.classList.remove('error');
   }
 
-  // Clear API announcements (not relevant for DK)
   depAllAnnouncements = [];
 }
 
@@ -729,6 +829,13 @@ async function loadDepartures() {
   if (filterPanel) filterPanel.style.display = '';
   if (filterToggle) filterToggle.style.display = '';
   if (filterBar) filterBar.style.display = '';
+
+  // Reset filter defaults when switching from DK → SE
+  if (depLastStationType !== 'SE') {
+    depFiltersInitialized = false;
+    depLastStationType = 'SE';
+    depUsingRejseplanen = false;
+  }
 
   // Show loading in bottom bar
   if (statusEl) {
