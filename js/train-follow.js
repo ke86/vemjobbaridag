@@ -154,9 +154,9 @@
           rtDepTime:      fmtDkTime(s.rtDepTime),
           rtArrTime:      fmtDkTime(s.rtArrTime),
           depTrack:       s.depTrack || s.track || '',
-          rtDepTrack:     s.rtDepTrack || '',
-          arrTrack:       s.arrTrack || '',
-          rtArrTrack:     s.rtArrTrack || '',
+          rtDepTrack:     s.rtDepTrack || s.rtTrack || '',
+          arrTrack:       s.arrTrack || s.track || '',
+          rtArrTrack:     s.rtArrTrack || s.rtTrack || '',
           prognosisType:  s.depPrognosisType || s.arrPrognosisType || ''
         });
       }
@@ -686,31 +686,75 @@
 
     if (!paxStops.length) return null;
 
-    // Mark passed: a stop is passed when now >= its departure time (or arr for last stop)
+    // Three-phase tracking with 90s hold after departure
+    var HOLD_MIN = 1.5; // 90 seconds in minutes
     var nextIdx = -1;
+
     for (var k = 0; k < paxStops.length; k++) {
       var depM = timeToMin(paxStops[k].dep);
       var arrM = timeToMin(paxStops[k].arr);
-      var passTime = depM >= 0 ? depM : arrM;
-      if (passTime >= 0 && nowTotal >= passTime) {
-        paxStops[k]._passed = true;
-      } else {
-        if (nextIdx === -1) {
-          nextIdx = k;
-          paxStops[k]._isNext = true;
+      var isLast = (k === paxStops.length - 1);
+      var isFirst = (k === 0);
+
+      if (isFirst && !paxStops[k].arr) {
+        // First stop — only departure
+        if (depM >= 0 && nowTotal < depM) {
+          paxStops[k]._phase = 'approaching';
+        } else if (depM >= 0 && nowTotal < depM + HOLD_MIN) {
+          paxStops[k]._phase = 'departed';
+        } else if (depM >= 0) {
+          paxStops[k]._phase = 'passed';
+          paxStops[k]._passed = true;
+        } else {
+          paxStops[k]._phase = 'approaching';
         }
+      } else if (isLast && !paxStops[k].dep) {
+        // Last stop — only arrival
+        if (arrM >= 0 && nowTotal < arrM) {
+          paxStops[k]._phase = 'approaching';
+        } else if (arrM >= 0) {
+          paxStops[k]._phase = 'passed';
+          paxStops[k]._passed = true;
+        } else {
+          paxStops[k]._phase = 'approaching';
+        }
+      } else if (arrM >= 0 && depM >= 0) {
+        // Mid stop — has both arrival and departure
+        if (nowTotal < arrM) {
+          paxStops[k]._phase = 'approaching';
+        } else if (nowTotal < depM) {
+          paxStops[k]._phase = 'atStation';
+        } else if (nowTotal < depM + HOLD_MIN) {
+          paxStops[k]._phase = 'departed';
+        } else {
+          paxStops[k]._phase = 'passed';
+          paxStops[k]._passed = true;
+        }
+      } else {
+        // Fallback — use whichever time exists
+        var t = depM >= 0 ? depM : arrM;
+        if (t >= 0 && nowTotal >= t + HOLD_MIN) {
+          paxStops[k]._phase = 'passed';
+          paxStops[k]._passed = true;
+        } else if (t >= 0 && nowTotal >= t) {
+          paxStops[k]._phase = 'departed';
+        } else {
+          paxStops[k]._phase = 'approaching';
+        }
+      }
+
+      // First non-passed stop becomes nextIdx
+      if (!paxStops[k]._passed && nextIdx === -1) {
+        nextIdx = k;
+        paxStops[k]._isNext = true;
       }
     }
 
-    var firstDepMin = timeToMin(paxStops[0].dep);
     var phase;
-    if (firstDepMin >= 0 && nowTotal < firstDepMin) {
-      phase = 'beforeDeparture';
-      for (var r = 0; r < paxStops.length; r++) { paxStops[r]._passed = false; paxStops[r]._isNext = false; }
-      nextIdx = 0;
-      paxStops[0]._isNext = true;
-    } else if (nextIdx === -1) {
+    if (nextIdx === -1) {
       phase = 'allPassed';
+    } else if (nextIdx === 0 && (paxStops[0]._phase === 'approaching')) {
+      phase = 'beforeDeparture';
     } else {
       phase = 'enRoute';
     }
@@ -727,6 +771,7 @@
 
   /**
    * Build the DK "next station" card HTML based on tracking state.
+   * Uses per-stop _phase: approaching, atStation, departed.
    * Shows realtime delay, track, and LIVE badge when live data is available.
    */
   function buildDkNextCard(dkState) {
@@ -734,6 +779,7 @@
     var stop = dkState.stops[dkState.nextIdx];
     if (!stop) return html;
 
+    var stopPhase = stop._phase || 'approaching';
     var liveBadge = stop._isLive ? '<span class="ft-dk-live">LIVE</span>' : '';
     var trackHtml = '';
     if (stop.track) {
@@ -760,9 +806,46 @@
       return planned || rt || '';
     }
 
-    if (dkState.phase === 'beforeDeparture') {
+    var arrDisplay = timeVal(stop.arrPlanned, stop.rtArr);
+    var depDisplay = timeVal(stop.depPlanned, stop.rtDep);
+
+    if (stopPhase === 'departed') {
+      // === AVGÅTT — count up from departure time ===
+      html += '<div class="ft-next-card ft-card-departed">'
+        + '<div class="ft-next-label">AVGÅTT FRÅN <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + '</div>'
+        + '<div class="ft-next-station">' + stop.name + '</div>'
+        + '<div class="ft-countdown-row" data-target="' + stop.dep + '" data-direction="up">'
+        + '<span class="ft-countdown-label">AVGICK FÖR</span>'
+        + '<span class="ft-countdown-value" id="ftCountdown">0:00</span>'
+        + '</div>'
+        + '<div class="ft-detail-row">'
+        + trackHtml
+        + '<div class="ft-times">'
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    } else if (stopPhase === 'atStation') {
+      // === VID STATION — countdown to departure ===
       originDepartureTarget = stop.dep;
-      var depDisplay = timeVal(stop.depPlanned, stop.rtDep);
+      html += '<div class="ft-next-card ft-card-atstation">'
+        + '<div class="ft-next-label">VID STATION <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + ' ' + delayHtml + '</div>'
+        + '<div class="ft-next-station">' + stop.name + '</div>'
+        + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
+        + '<span class="ft-countdown-label">AVGÅNG OM</span>'
+        + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+        + '</div>'
+        + '<div class="ft-detail-row">'
+        + trackHtml
+        + '<div class="ft-times">'
+        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    } else if (dkState.phase === 'beforeDeparture') {
+      // === FIRST STOP — countdown to departure ===
+      originDepartureTarget = stop.dep;
       html += '<div class="ft-next-card">'
         + '<div class="ft-next-label">AVGÅNG FRÅN ' + liveBadge + '</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
@@ -778,11 +861,9 @@
         + '</div>'
         + '</div>';
     } else {
-      // enRoute — show next station with arrival countdown
+      // === APPROACHING — countdown to arrival ===
       var countdownTarget = stop.arr || stop.dep || '';
       var countdownLabel = stop.arr ? 'ANKOMST OM' : 'AVGÅNG OM';
-      var arrDisplay = timeVal(stop.arrPlanned, stop.rtArr);
-      var depDisplay2 = timeVal(stop.depPlanned, stop.rtDep);
       html += '<div class="ft-next-card">'
         + '<div class="ft-next-label">NÄSTA STATION <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + ' ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
@@ -794,7 +875,7 @@
         + trackHtml
         + '<div class="ft-times">'
         + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay2 + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -930,6 +1011,25 @@
       var depTime = next.departure ? (next.departure.estimated || next.departure.planned) : '';
       var trackStr = next.track || '—';
 
+      // SE departed hold — show "AVGÅTT FRÅN" with count-up
+      if (next._phase === 'departed') {
+        var seDepartedTime = next.departure ? next.departure.actual : depTime;
+        html += '<div class="ft-next-card ft-card-departed">'
+          + '<div class="ft-next-label">AVGÅTT FRÅN</div>'
+          + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
+          + '<div class="ft-countdown-row" data-target="' + seDepartedTime + '" data-direction="up">'
+          + '<span class="ft-countdown-label">AVGICK FÖR</span>'
+          + '<span class="ft-countdown-value" id="ftCountdown">0:00</span>'
+          + '</div>'
+          + '<div class="ft-detail-row">'
+          + '<div class="ft-track-circle"><span class="ft-track-nr">' + trackStr + '</span><span class="ft-track-label">SPÅR</span></div>'
+          + '<div class="ft-times">'
+          + (depTime ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depTime + '</span></div>' : '')
+          + '</div>'
+          + '</div>'
+          + '</div>';
+      } else {
+      // Normal SE station card
       var countdownTarget = '';
       var countdownLabel = 'AVGÅNG OM';
       var cardLabel = 'NÄSTA STATION';
@@ -969,6 +1069,7 @@
         + '</div>'
         + '</div>'
         + '</div>';
+      } // end else (normal SE card)
     }
 
     // === ALL STOPS ===
@@ -1224,6 +1325,41 @@
       if (!stops[j].passed) { nextIdx = j; break; }
     }
 
+    // 90s hold: if previous stop departed within 90s, hold on it
+    var SE_HOLD_MS = 90000;
+    var now = new Date();
+    if (nextIdx > 0) {
+      var prevStop = stops[nextIdx - 1];
+      if (prevStop.departure && prevStop.departure.actual) {
+        var pp = prevStop.departure.actual.split(':');
+        var depDate = new Date();
+        depDate.setHours(parseInt(pp[0]), parseInt(pp[1]), 0, 0);
+        var elapsed = now - depDate;
+        if (elapsed >= 0 && elapsed < SE_HOLD_MS) {
+          prevStop.passed = false;
+          prevStop._phase = 'departed';
+          prevStop._departedSecsAgo = Math.floor(elapsed / 1000);
+          nextIdx = nextIdx - 1;
+        }
+      }
+    }
+    // Also handle: all stops passed but last departure within 90s
+    if (nextIdx === -1 && stops.length > 0) {
+      var lastDep = stops[stops.length - 1];
+      if (lastDep.departure && lastDep.departure.actual) {
+        var lp = lastDep.departure.actual.split(':');
+        var ldDate = new Date();
+        ldDate.setHours(parseInt(lp[0]), parseInt(lp[1]), 0, 0);
+        var lElapsed = now - ldDate;
+        if (lElapsed >= 0 && lElapsed < SE_HOLD_MS) {
+          lastDep.passed = false;
+          lastDep._phase = 'departed';
+          lastDep._departedSecsAgo = Math.floor(lElapsed / 1000);
+          nextIdx = stops.length - 1;
+        }
+      }
+    }
+
     var product = '';
     if (announcements.length > 0 && announcements[0].ProductInformation) {
       var pi = announcements[0].ProductInformation;
@@ -1259,11 +1395,28 @@
     var target = row.getAttribute('data-target');
     if (!target) { el.textContent = '--:--'; return; }
 
+    var direction = row.getAttribute('data-direction') || 'down';
     var now = new Date();
     var parts = target.split(':');
     var targetDate = new Date();
     targetDate.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
 
+    // === COUNT UP (departed) ===
+    if (direction === 'up') {
+      var elapsed = Math.floor((now - targetDate) / 1000);
+      if (elapsed < 0) elapsed = 0;
+      var eMin = Math.floor(elapsed / 60);
+      var eSec = elapsed % 60;
+      if (eMin > 0) {
+        el.textContent = eMin + ' min ' + (eSec < 10 ? '0' : '') + eSec + ' sek sedan';
+      } else {
+        el.textContent = eSec + ' sek sedan';
+      }
+      el.className = 'ft-countdown-value ft-countdown-departed';
+      return;
+    }
+
+    // === COUNT DOWN (normal) ===
     var diff = Math.floor((targetDate - now) / 1000);
 
     if (diff <= 0) {

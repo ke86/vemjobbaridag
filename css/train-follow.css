@@ -595,3 +595,26 @@
 .ft-delay-major {
   color: #ef4444;
 }
+
+/* Departed card styling */
+.ft-card-departed {
+  border-left: 3px solid #6b7280;
+  opacity: 0.85;
+}
+.ft-card-departed .ft-next-label {
+  color: #6b7280;
+}
+
+/* At station card styling */
+.ft-card-atstation {
+  border-left: 3px solid #22c55e;
+}
+.ft-card-atstation .ft-next-label {
+  color: #22c55e;
+}
+
+/* Count-up departed countdown */
+.ft-countdown-departed {
+  color: #6b7280 !important;
+  font-size: 1.3em;
+}
