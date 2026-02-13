@@ -2295,7 +2295,12 @@ function collectVisibleTrainNumbers() {
 }
 
 /**
- * Fetch realtime train data from Trafikverket for a list of train numbers
+ * Fetch realtime train data from Trafikverket for a list of train numbers.
+ * Queries ALL stations along each train's route and picks the most relevant
+ * announcement per train:
+ *   1. Next upcoming station (not yet passed) — shows current delay estimate
+ *   2. Most recently passed station — shows last known actual delay
+ *   3. Canceled announcement — always prioritized
  */
 async function fetchTrainRealtimeData(trainNumbers) {
   if (!trainNumbers.length) return;
@@ -2311,8 +2316,8 @@ async function fetchTrainRealtimeData(trainNumbers) {
     + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
     + '<FILTER>'
     + '<AND>'
-    + '<EQ name="LocationSignature" value="Mc" />'
     + '<OR>' + orParts + '</OR>'
+    + '<EQ name="Advertised" value="true" />'
     + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-02:00:00)" />'
     + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(08:00:00)" />'
     + '</AND>'
@@ -2339,34 +2344,61 @@ async function fetchTrainRealtimeData(trainNumbers) {
       ? data.RESPONSE.RESULT[0].TrainAnnouncement || []
       : [];
 
-    // Group by train number and find the most relevant announcement
-    const byTrain = {};
-    const now = new Date();
-
+    // Group announcements by train number
+    const groupedByTrain = {};
     for (const a of announcements) {
       const nr = a.AdvertisedTrainIdent;
       if (!nr) continue;
+      if (!groupedByTrain[nr]) groupedByTrain[nr] = [];
+      groupedByTrain[nr].push(a);
+    }
 
-      const advTime = new Date(a.AdvertisedTimeAtLocation);
-      const estTime = a.EstimatedTimeAtLocation ? new Date(a.EstimatedTimeAtLocation) : null;
-      const actTime = a.TimeAtLocation ? new Date(a.TimeAtLocation) : null;
-      const canceled = a.Canceled === true;
+    const byTrain = {};
 
-      // Calculate delay in minutes
+    // For each train, find the best announcement
+    for (const nr of Object.keys(groupedByTrain)) {
+      const anns = groupedByTrain[nr];
+      let bestUpcoming = null;   // next station not yet passed
+      let bestRecent = null;     // most recently passed station
+      let isCanceled = false;
+
+      for (const a of anns) {
+        if (a.Canceled === true) { isCanceled = true; break; }
+
+        const advTime = new Date(a.AdvertisedTimeAtLocation);
+        const estTime = a.EstimatedTimeAtLocation ? new Date(a.EstimatedTimeAtLocation) : null;
+        const actTime = a.TimeAtLocation ? new Date(a.TimeAtLocation) : null;
+
+        if (!actTime) {
+          // Not yet passed — upcoming station
+          if (!bestUpcoming || advTime < bestUpcoming.advTime) {
+            bestUpcoming = { advTime, estTime, actTime };
+          }
+        } else {
+          // Already passed — recent station
+          if (!bestRecent || actTime > bestRecent.actTime) {
+            bestRecent = { advTime, estTime, actTime };
+          }
+        }
+      }
+
+      if (isCanceled) {
+        byTrain[nr] = { delayMin: 999, canceled: true };
+        continue;
+      }
+
+      // Prefer upcoming (estimated delay at next stop), fallback to most recently passed
+      const pick = bestUpcoming || bestRecent;
+      if (!pick) continue;
+
       let delayMin = 0;
-      if (canceled) {
-        delayMin = 999;
-      } else if (actTime) {
-        delayMin = Math.round((actTime - advTime) / 60000);
-      } else if (estTime) {
-        delayMin = Math.round((estTime - advTime) / 60000);
+      if (pick.actTime) {
+        delayMin = Math.round((pick.actTime - pick.advTime) / 60000);
+      } else if (pick.estTime) {
+        delayMin = Math.round((pick.estTime - pick.advTime) / 60000);
       }
 
-      // Pick the announcement closest to now (prefer Avgang, then future ones)
-      const diff = Math.abs(advTime - now);
-      if (!byTrain[nr] || diff < byTrain[nr].diff) {
-        byTrain[nr] = { delayMin, canceled, diff, advTime };
-      }
+      byTrain[nr] = { delayMin, canceled: false };
     }
 
     // Update the store
