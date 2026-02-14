@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.25.21';
+const CACHE_VERSION = 'v4.25.22';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -58,6 +58,22 @@ const FILES_TO_CACHE = [
   './icons/NO.svg'
 ];
 
+// External CDN resources needed for offline start
+const EXTERNAL_TO_CACHE = [
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-auth-compat.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js',
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+];
+
+// CDN domains that should be cached for offline use
+const CACHEABLE_CDN_DOMAINS = [
+  'cdnjs.cloudflare.com',
+  'fonts.googleapis.com',
+  'fonts.gstatic.com'
+];
+
 // Install event - cache files
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing version:', CACHE_VERSION);
@@ -67,6 +83,19 @@ self.addEventListener('install', (event) => {
       .then((cache) => {
         console.log('[SW] Caching app files');
         return cache.addAll(FILES_TO_CACHE);
+      })
+      .then(() => {
+        // Cache external CDN resources (non-blocking — don't fail install if CDN is down)
+        return caches.open(CACHE_NAME).then((cache) => {
+          console.log('[SW] Caching external CDN resources');
+          return Promise.allSettled(
+            EXTERNAL_TO_CACHE.map((url) =>
+              cache.add(url).catch((err) => {
+                console.warn('[SW] Failed to cache:', url, err);
+              })
+            )
+          );
+        });
       })
       .then(() => {
         // Force this service worker to become active
@@ -96,13 +125,26 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - cache first for app files, network first for API calls
+// Check if URL belongs to a cacheable CDN domain
+function isCacheableCDN(url) {
+  try {
+    const hostname = new URL(url).hostname;
+    return CACHEABLE_CDN_DOMAINS.some((domain) => hostname === domain);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Fetch event - cache first (stale-while-revalidate) for app files + CDN
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip external requests (Firebase, CDN, etc.)
-  if (!event.request.url.startsWith(self.location.origin)) return;
+  const isLocal = event.request.url.startsWith(self.location.origin);
+  const isCDN = isCacheableCDN(event.request.url);
+
+  // Only handle local files and whitelisted CDN domains
+  if (!isLocal && !isCDN) return;
 
   event.respondWith(
     caches.match(event.request)
@@ -121,10 +163,12 @@ self.addEventListener('fetch', (event) => {
 
         // Not in cache — try network and cache the result
         return fetch(event.request).then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          if (response && response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone);
+            });
+          }
           return response;
         });
       })

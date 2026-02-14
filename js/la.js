@@ -100,6 +100,22 @@
     }).catch(function() {});
   }
 
+  // ── View toggling ──────────────────────────────────────
+
+  function showCards() {
+    var cards = document.getElementById('laCards');
+    var pdfView = document.getElementById('laPdfView');
+    if (cards) cards.style.display = '';
+    if (pdfView) { pdfView.style.display = 'none'; pdfView.innerHTML = ''; }
+  }
+
+  function showPdfView() {
+    var cards = document.getElementById('laCards');
+    var pdfView = document.getElementById('laPdfView');
+    if (cards) cards.style.display = 'none';
+    if (pdfView) pdfView.style.display = '';
+  }
+
   // ── Build card list ────────────────────────────────────
 
   function buildCards() {
@@ -213,24 +229,22 @@
   }
 
   window._laOpen = function(nr, date, name) {
-    var viewer = document.getElementById('laViewer');
-    var contentEl = document.getElementById('laViewerContent');
-    if (!viewer || !contentEl) return;
+    var pdfView = document.getElementById('laPdfView');
+    if (!pdfView) return;
 
     var label = name + ' — ' + formatDateLabel(date);
 
-    // Show loading
-    contentEl.innerHTML = backBtnHtml(label)
+    // Switch to PDF view
+    pdfView.innerHTML = backBtnHtml(label)
       + '<div class="la-viewer-loading">'
       + '<div class="la-card-loading"></div>'
       + '<span>Hämtar PDF…</span>'
       + '</div>';
-
-    viewer.classList.add('active');
+    showPdfView();
 
     fetchPdf(nr, date)
       .then(function(result) {
-        renderPdf(result.buffer, contentEl, label);
+        renderPdf(result.buffer, pdfView, label);
         // Update cards to reflect new cache status
         if (result.source === 'network') {
           updateCardBadge(nr, date);
@@ -255,7 +269,7 @@
             + err.message + '</div>'
             + '</div>';
         }
-        contentEl.innerHTML = backBtnHtml(label) + errorHtml;
+        pdfView.innerHTML = backBtnHtml(label) + errorHtml;
       });
   };
 
@@ -300,7 +314,8 @@
         })(p);
       }
     }).catch(function(err) {
-      container.innerHTML = '<div class="la-viewer-error">'
+      container.innerHTML = backBtnHtml(label || '')
+        + '<div class="la-viewer-error">'
         + '<div class="la-viewer-error-icon">⚠️</div>'
         + '<div class="la-viewer-error-text">Kunde inte läsa PDF.<br>'
         + err.message + '</div>'
@@ -308,30 +323,22 @@
     });
   }
 
-  // ── Close viewer ───────────────────────────────────────
+  // ── Close PDF view (back to cards) ─────────────────────
 
   window._laClose = function() {
-    var viewer = document.getElementById('laViewer');
-    if (viewer) {
-      viewer.classList.remove('active');
-      // Clear canvases after transition to free memory
-      setTimeout(function() {
-        var content = document.getElementById('laViewerContent');
-        if (content && !viewer.classList.contains('active')) {
-          content.innerHTML = '';
-        }
-      }, 300);
-    }
+    showCards();
+    buildCards(); // refresh badges
   };
 
   // ── Page show/hide hooks ───────────────────────────────
 
   window.onLaPageShow = function() {
+    showCards();
     buildCards();
   };
 
   window.onLaPageHide = function() {
-    window._laClose();
+    showCards(); // reset to cards view
   };
 
 })();
