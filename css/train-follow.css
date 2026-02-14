@@ -207,30 +207,28 @@ html.dark .ft-la-bar {
   min-width: 0;
 }
 
-.ft-la-bar-back {
-  background: none;
-  border: none;
-  color: var(--accent-blue, #3b82f6);
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 6px;
-  line-height: 1;
-  flex-shrink: 0;
-  transition: background 0.15s;
-}
-.ft-la-bar-back:active {
-  background: rgba(59,130,246,0.12);
-}
-
 .ft-la-bar-label {
+  display: inline-block;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
+}
+.ft-la-bar-label-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+.ft-la-bar-marquee .ft-la-bar-label-text {
+  animation: ft-bar-marquee 8s linear infinite;
+  animation-delay: 1s;
+}
+@keyframes ft-bar-marquee {
+  0%, 12%   { transform: translateX(0); }
+  45%, 55%  { transform: translateX(calc(-100% + var(--ft-bar-w, 120px))); }
+  88%, 100% { transform: translateX(0); }
 }
 
 .ft-la-bar-right {

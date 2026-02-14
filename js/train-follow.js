@@ -46,6 +46,7 @@
   var dkStopsData = null;           // latest getDkStopsAsync() result for current train
   var apiStationNames = {};         // LocationSignature → AdvertisedLocationName (from Trafikverket)
   var clockTimer = null;            // setInterval id for the live clock
+  var autoUnfollowTimer = null;     // setTimeout id for auto-unfollow 5 min after final station
 
   // ==========================================
   // REJSEPLANEN DK STOPS  (two-step: departureBoard → journeyDetail)
@@ -452,6 +453,7 @@
     ftLaPage = null;
     clearCookie();
     stopBtnFlipTimer();
+    if (autoUnfollowTimer) { clearTimeout(autoUnfollowTimer); autoUnfollowTimer = null; }
     updateButton();
     restoreHeader();
 
@@ -797,8 +799,7 @@
     var barHtml =
       '<div class="ft-la-bar">'
       + '<div class="ft-la-bar-left">'
-      +   '<button class="ft-la-bar-back" id="ftLaBarBack">←</button>'
-      +   '<span class="ft-la-bar-label">' + strName + ' — ' + today + '</span>'
+      +   '<span class="ft-la-bar-label"><span class="ft-la-bar-label-text">' + strName + ' — ' + today + '</span></span>'
       + '</div>'
       + '<div class="ft-la-bar-right">'
       +   '<div class="ft-tab-toggle ft-la-page-toggle">'
@@ -819,14 +820,7 @@
       + '</div>'
       + '</div>';
 
-    // Wire up sträcka-bar events
-    document.getElementById('ftLaBarBack').addEventListener('click', function() {
-      activeTopbarTab = 'timetable';
-      updateTopbar();
-      showTabContent('timetable');
-    });
-
-    // Page toggle buttons
+    // Wire up sträcka-bar events — page toggle buttons
     var pageBtns = container.querySelectorAll('.ft-la-page-toggle .ft-tab-btn');
     for (var i = 0; i < pageBtns.length; i++) {
       pageBtns[i].addEventListener('click', function() {
@@ -875,6 +869,9 @@
 
     // Render mini timetable
     renderMiniTimetable();
+
+    // Detect overflow on sträcka-bar label and add marquee animation
+    detectBarLabelOverflow();
   }
 
   /**
@@ -980,6 +977,21 @@
     }
     html += '</tbody></table>';
     el.innerHTML = html;
+  }
+
+  /**
+   * Detect if sträcka-bar label text overflows and toggle marquee class.
+   */
+  function detectBarLabelOverflow() {
+    var label = document.querySelector('.ft-la-bar-label');
+    var text = label ? label.querySelector('.ft-la-bar-label-text') : null;
+    if (!label || !text) return;
+    if (text.scrollWidth > label.clientWidth + 2) {
+      label.style.setProperty('--ft-bar-w', label.clientWidth + 'px');
+      label.classList.add('ft-la-bar-marquee');
+    } else {
+      label.classList.remove('ft-la-bar-marquee');
+    }
   }
 
   /**
@@ -1421,6 +1433,25 @@
     }
 
     var trainCompleted = nextIdx === -1 && stops.length > 0;
+
+    // Auto-unfollow: 5 min after train reaches final station
+    // Also check DK part — if toDK train still has DK stops remaining, it's not truly done
+    var trulyCompleted = trainCompleted;
+    if (trulyCompleted && dkState && dkState.direction === 'toDK' && dkState.phase !== 'allPassed') {
+      trulyCompleted = false; // still running in Denmark
+    }
+    if (trulyCompleted && !autoUnfollowTimer) {
+      console.log('[FT] Train completed — auto-unfollow in 5 minutes');
+      autoUnfollowTimer = setTimeout(function() {
+        console.log('[FT] Auto-unfollow triggered');
+        autoUnfollowTimer = null;
+        stopFollowing(false);
+      }, 5 * 60 * 1000);
+    } else if (!trulyCompleted && autoUnfollowTimer) {
+      // Train not completed anymore (edge case: data refresh changed state)
+      clearTimeout(autoUnfollowTimer);
+      autoUnfollowTimer = null;
+    }
 
     // Detect "at origin, not departed" = nextIdx is 0 and nothing is passed
     var seNotStarted = nextIdx === 0 && stops.length > 0 && !stops[0].passed;
