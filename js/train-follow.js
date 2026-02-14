@@ -1106,9 +1106,19 @@
       dkCardUsed = true;
       infoHtml += buildDkNextCard(dkState);
     } else if (trainCompleted) {
+      // Determine actual final station name:
+      // For toDK trains with DK data → last DK stop (e.g. Østerport)
+      // For toSE trains with DK data → last SE stop (already d.lastStation)
+      // No DK data → last SE stop
+      var arrivedName = stationName(d.lastStation);
+      var arrivedFlag = '';
+      if (dkState && dkState.stops && dkState.stops.length > 0 && dkState.direction === 'toDK') {
+        arrivedName = dkState.stops[dkState.stops.length - 1].name;
+        arrivedFlag = ' <span class="ft-dk-badge">🇩🇰</span>';
+      }
       infoHtml += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">TÅGET HAR ANKOMMIT</div>'
-        + '<div class="ft-next-station">' + stationName(d.lastStation) + '</div>'
+        + '<div class="ft-next-label">TÅGET HAR ANKOMMIT' + arrivedFlag + '</div>'
+        + '<div class="ft-next-station">' + arrivedName + '</div>'
         + '</div>';
     }
 
@@ -1307,7 +1317,7 @@
       var nextRow = scrollContainer.querySelector('.ft-stop-next');
       if (!nextRow) return;
 
-      // Walk back 2 visible rows (skip separator rows)
+      // Walk back 2 visible data rows (skip separator rows)
       var target = nextRow;
       var steps = 0;
       while (steps < 2) {
@@ -1322,15 +1332,17 @@
       }
 
       if (steps > 0) {
-        // Use getBoundingClientRect for reliable positioning
+        // Account for sticky thead height so target row appears just below it
+        var thead = scrollContainer.querySelector('thead');
+        var theadH = thead ? thead.getBoundingClientRect().height : 0;
         var containerRect = scrollContainer.getBoundingClientRect();
         var targetRect = target.getBoundingClientRect();
-        var delta = targetRect.top - containerRect.top;
+        var delta = targetRect.top - containerRect.top - theadH;
         scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + delta);
       } else {
         scrollContainer.scrollTop = 0;
       }
-    }, 60);
+    }, 150);
   }
 
   // ==========================================
