@@ -1307,8 +1307,8 @@
 
   /**
    * Auto-scroll the stops table so the marked station (.ft-stop-next)
-   * appears as roughly the 3rd visible row (2 rows above it shown).
-   * At origin / fewer than 2 rows above → scroll to top.
+   * appears as the 3rd visible data row (2 data rows above it shown).
+   * Directly calculates desired position using getBoundingClientRect.
    */
   function scrollToNextStop() {
     setTimeout(function() {
@@ -1317,31 +1317,17 @@
       var nextRow = scrollContainer.querySelector('.ft-stop-next');
       if (!nextRow) return;
 
-      // Walk back 2 visible data rows (skip separator rows)
-      var target = nextRow;
-      var steps = 0;
-      while (steps < 2) {
-        var prev = target.previousElementSibling;
-        if (!prev) break;
-        if (prev.classList.contains('ft-dk-separator') || prev.classList.contains('ft-se-separator')) {
-          target = prev;
-          continue;
-        }
-        target = prev;
-        steps++;
-      }
+      var thead = scrollContainer.querySelector('thead');
+      var theadH = thead ? thead.getBoundingClientRect().height : 0;
+      var rowH = nextRow.getBoundingClientRect().height;
+      var containerRect = scrollContainer.getBoundingClientRect();
+      var nextRect = nextRow.getBoundingClientRect();
 
-      if (steps > 0) {
-        // Account for sticky thead height so target row appears just below it
-        var thead = scrollContainer.querySelector('thead');
-        var theadH = thead ? thead.getBoundingClientRect().height : 0;
-        var containerRect = scrollContainer.getBoundingClientRect();
-        var targetRect = target.getBoundingClientRect();
-        var delta = targetRect.top - containerRect.top - theadH;
-        scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + delta);
-      } else {
-        scrollContainer.scrollTop = 0;
-      }
+      // Place nextRow at 3rd data-row position = theadH + 2 * rowH below container top
+      var desiredOffset = theadH + 2 * rowH;
+      var currentOffset = nextRect.top - containerRect.top;
+      var delta = currentOffset - desiredOffset;
+      scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + delta);
     }, 150);
   }
 
