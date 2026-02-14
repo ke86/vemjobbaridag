@@ -165,14 +165,14 @@
 
       // Map to our normalized format
       // API 2.0 uses rtDepPlatform/rtArrPlatform objects with .text for track
-      // Filter to Danish stations only (extId starting with '86')
-      // Swedish stations start with '74' and are handled by Trafikverket
+      // Filter: only keep Danish stops (extId starting with "86")
+      // Rejseplanen returns the full cross-border route including Swedish stops
       var result = [];
       for (var i = 0; i < stops.length; i++) {
         var s = stops[i];
-        var stopId = s.extId || s.id || '';
-        // Only include Danish stations (extId starts with 86)
-        if (stopId && !stopId.toString().startsWith('86')) continue;
+        var stopId = String(s.extId || s.id || '');
+        // Danish station IDs start with "86", Swedish with "74" — keep only Danish
+        if (stopId && !stopId.startsWith('86')) continue;
         // Track: rtDepPlatform.text > rtArrPlatform.text > legacy fields
         var depPlatform = (s.rtDepPlatform && s.rtDepPlatform.text) || s.rtDepTrack || s.depTrack || s.track || '';
         var arrPlatform = (s.rtArrPlatform && s.rtArrPlatform.text) || s.rtArrTrack || s.arrTrack || s.track || '';
@@ -190,7 +190,7 @@
           prognosisType:  s.depPrognosisType || s.arrPrognosisType || ''
         });
       }
-      console.log('[DK-fetch] Filtered to ' + result.length + ' Danish stops (of ' + stops.length + ' total)');
+      console.log('[DK-fetch] Filtered to ' + result.length + ' Danish stops (from ' + stops.length + ' total)');
       return result.length > 0 ? result : null;
     } catch (e) {
       return null;
