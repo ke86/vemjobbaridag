@@ -37,6 +37,7 @@
   <link rel="stylesheet" href="css/aw-mode.css">
   <link rel="stylesheet" href="css/train-follow.css">
   <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/la.css">
 </head>
 <body>
   <!-- Login Screen -->
@@ -87,6 +88,7 @@
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
       <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema</a></li>
       <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
+      <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
       <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
@@ -492,7 +494,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.19</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.20</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -508,6 +510,22 @@
     <div class="ft-page-topbar" id="ftPageTopbar"></div>
     <div class="ft-page-content" id="ftPageContent"></div>
   </main>
+
+  <!-- Dagens LA Page -->
+  <main class="la-page page" id="laPage">
+    <div class="la-cards" id="laCards">
+      <!-- Cards rendered by la.js -->
+    </div>
+  </main>
+
+  <!-- LA PDF Viewer (fullscreen overlay) -->
+  <div class="la-viewer" id="laViewer">
+    <div class="la-viewer-topbar">
+      <button class="la-viewer-back" onclick="window._laClose()">← Tillbaka</button>
+      <div class="la-viewer-title" id="laViewerTitle"></div>
+    </div>
+    <div class="la-viewer-content" id="laViewerContent"></div>
+  </div>
 
   <!-- Delete Confirmation Modal -->
   <div class="modal-overlay" id="deleteConfirmModal">
@@ -620,6 +638,7 @@
   <script src="js/ui-fridag.js"></script>
   <script src="js/denmark.js"></script>
   <script src="js/train-follow.js"></script>
+  <script src="js/la.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Service Worker Registration -->

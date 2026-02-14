@@ -1,0 +1,320 @@
+/**
+ * la.js — Dagens LA (Banedanmark PDF viewer)
+ * Fetches and renders LA PDFs for Sträcka 10 & 11 via Cloudflare Worker proxy.
+ * Supports offline caching via Cache API.
+ */
+(function() {
+  'use strict';
+
+  var LA_PROXY = 'https://banedk-la-proxy.kenny-eriksson1986.workers.dev';
+  var LA_CACHE_NAME = 'vemjobbar-la-pdfs';
+
+  var ROUTES = [
+    { nr: '10', name: 'Sträcka 10', desc: 'København H – Helsingør' },
+    { nr: '11', name: 'Sträcka 11', desc: 'København H / Hvidovre Fjern – Peberholm' }
+  ];
+
+  // ── Helpers ────────────────────────────────────────────
+
+  function todayStr() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + dd;
+  }
+
+  function tomorrowStr() {
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + dd;
+  }
+
+  function formatDateLabel(dateStr) {
+    var parts = dateStr.split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    var days = ['sön', 'mån', 'tis', 'ons', 'tor', 'fre', 'lör'];
+    var months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()];
+  }
+
+  function isTomorrowAvailable() {
+    return new Date().getHours() >= 18;
+  }
+
+  function pdfUrl(nr, date) {
+    return LA_PROXY + '/?nr=' + nr + '&date=' + date;
+  }
+
+  // ── Cache API helpers ──────────────────────────────────
+
+  function cacheGet(nr, date) {
+    if (!('caches' in window)) return Promise.resolve(null);
+    return caches.open(LA_CACHE_NAME).then(function(cache) {
+      return cache.match(pdfUrl(nr, date));
+    }).then(function(resp) {
+      return resp || null;
+    }).catch(function() {
+      return null;
+    });
+  }
+
+  function cachePut(nr, date, arrayBuffer) {
+    if (!('caches' in window)) return Promise.resolve();
+    var resp = new Response(arrayBuffer, {
+      headers: { 'Content-Type': 'application/pdf' }
+    });
+    return caches.open(LA_CACHE_NAME).then(function(cache) {
+      return cache.put(pdfUrl(nr, date), resp);
+    }).catch(function() {});
+  }
+
+  function cacheHas(nr, date) {
+    if (!('caches' in window)) return Promise.resolve(false);
+    return caches.open(LA_CACHE_NAME).then(function(cache) {
+      return cache.match(pdfUrl(nr, date));
+    }).then(function(resp) {
+      return !!resp;
+    }).catch(function() {
+      return false;
+    });
+  }
+
+  /** Remove old cached PDFs that don't match today or tomorrow */
+  function cacheCleanup() {
+    if (!('caches' in window)) return;
+    var today = todayStr();
+    var tomorrow = tomorrowStr();
+    var keepUrls = {};
+    for (var i = 0; i < ROUTES.length; i++) {
+      keepUrls[pdfUrl(ROUTES[i].nr, today)] = true;
+      keepUrls[pdfUrl(ROUTES[i].nr, tomorrow)] = true;
+    }
+    caches.open(LA_CACHE_NAME).then(function(cache) {
+      return cache.keys().then(function(requests) {
+        requests.forEach(function(req) {
+          if (!keepUrls[req.url]) {
+            cache.delete(req);
+          }
+        });
+      });
+    }).catch(function() {});
+  }
+
+  // ── Build card list ────────────────────────────────────
+
+  function buildCards() {
+    var container = document.getElementById('laCards');
+    if (!container) return;
+
+    var today = todayStr();
+    var tomorrow = tomorrowStr();
+    var showTomorrow = isTomorrowAvailable();
+
+    // Clean up old cached PDFs
+    cacheCleanup();
+
+    // Check cache status for all cards, then render
+    var checks = [];
+    for (var i = 0; i < ROUTES.length; i++) {
+      checks.push(cacheHas(ROUTES[i].nr, today));
+    }
+    for (var j = 0; j < ROUTES.length; j++) {
+      if (showTomorrow) {
+        checks.push(cacheHas(ROUTES[j].nr, tomorrow));
+      }
+    }
+
+    Promise.all(checks).then(function(results) {
+      var html = '';
+      var idx = 0;
+
+      // Today group
+      html += '<div class="la-date-group">';
+      html += '<div class="la-date-label">Idag — ' + formatDateLabel(today) + '</div>';
+      for (var a = 0; a < ROUTES.length; a++) {
+        html += buildCard(ROUTES[a], today, results[idx]);
+        idx++;
+      }
+      html += '</div>';
+
+      // Tomorrow group
+      html += '<div class="la-date-group">';
+      html += '<div class="la-date-label">Imorgon — ' + formatDateLabel(tomorrow) + '</div>';
+      for (var b = 0; b < ROUTES.length; b++) {
+        if (showTomorrow) {
+          html += buildCard(ROUTES[b], tomorrow, results[idx]);
+          idx++;
+        } else {
+          html += buildCardWaiting(ROUTES[b]);
+        }
+      }
+      html += '</div>';
+
+      container.innerHTML = html;
+    });
+  }
+
+  function buildCard(route, date, isCached) {
+    var badge = isCached
+      ? '<span class="la-badge la-badge-cached">✓ Sparad</span>'
+      : '<span class="la-badge la-badge-ok">PDF</span>';
+
+    return '<div class="la-card" data-nr="' + route.nr + '" data-date="' + date + '" onclick="window._laOpen(\'' + route.nr + '\',\'' + date + '\',\'' + route.name + '\')">'
+      + '<div class="la-card-icon">📄</div>'
+      + '<div class="la-card-info">'
+      + '<div class="la-card-title">' + route.name + ' ' + badge + '</div>'
+      + '<div class="la-card-sub">' + route.desc + '</div>'
+      + '</div>'
+      + '<div class="la-card-arrow">›</div>'
+      + '</div>';
+  }
+
+  function buildCardWaiting(route) {
+    return '<div class="la-card" style="opacity:0.5;cursor:default;">'
+      + '<div class="la-card-icon">📄</div>'
+      + '<div class="la-card-info">'
+      + '<div class="la-card-title">' + route.name + ' <span class="la-badge la-badge-wait">kl 18</span></div>'
+      + '<div class="la-card-sub">' + route.desc + '</div>'
+      + '</div>'
+      + '<div class="la-card-arrow" style="opacity:0.3;">›</div>'
+      + '</div>';
+  }
+
+  // ── Fetch PDF (cache-first, then network) ──────────────
+
+  function fetchPdf(nr, date) {
+    // 1. Try cache first
+    return cacheGet(nr, date).then(function(cachedResp) {
+      if (cachedResp) {
+        return cachedResp.arrayBuffer().then(function(buf) {
+          return { buffer: buf, source: 'cache' };
+        });
+      }
+
+      // 2. Network fetch
+      return fetch(pdfUrl(nr, date)).then(function(resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.arrayBuffer();
+      }).then(function(buf) {
+        // 3. Save to cache in background
+        cachePut(nr, date, buf.slice(0));
+        return { buffer: buf, source: 'network' };
+      });
+    });
+  }
+
+  // ── Open PDF viewer ────────────────────────────────────
+
+  window._laOpen = function(nr, date, name) {
+    var viewer = document.getElementById('laViewer');
+    var titleEl = document.getElementById('laViewerTitle');
+    var contentEl = document.getElementById('laViewerContent');
+    if (!viewer || !contentEl) return;
+
+    titleEl.textContent = name + ' — ' + formatDateLabel(date);
+
+    // Show loading
+    contentEl.innerHTML = '<div class="la-viewer-loading">'
+      + '<div class="la-card-loading"></div>'
+      + '<span>Hämtar PDF…</span>'
+      + '</div>';
+
+    viewer.classList.add('active');
+
+    fetchPdf(nr, date)
+      .then(function(result) {
+        renderPdf(result.buffer, contentEl);
+        // Update cards to reflect new cache status
+        if (result.source === 'network') {
+          updateCardBadge(nr, date);
+        }
+      })
+      .catch(function(err) {
+        contentEl.innerHTML = '<div class="la-viewer-error">'
+          + '<div class="la-viewer-error-icon">⚠️</div>'
+          + '<div class="la-viewer-error-text">Kunde inte hämta PDF.<br>'
+          + err.message + '</div>'
+          + '</div>';
+      });
+  };
+
+  /** Update a specific card's badge to "Sparad" after caching */
+  function updateCardBadge(nr, date) {
+    var cards = document.querySelectorAll('.la-card[data-nr="' + nr + '"][data-date="' + date + '"]');
+    for (var i = 0; i < cards.length; i++) {
+      var badge = cards[i].querySelector('.la-badge');
+      if (badge) {
+        badge.className = 'la-badge la-badge-cached';
+        badge.textContent = '✓ Sparad';
+      }
+    }
+  }
+
+  // ── Render PDF pages to canvases ───────────────────────
+
+  function renderPdf(buffer, container) {
+    var loadingTask = pdfjsLib.getDocument({
+      data: buffer,
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true
+    });
+
+    loadingTask.promise.then(function(pdf) {
+      container.innerHTML = '';
+      var scale = 2; // render at 2x for sharpness
+
+      for (var p = 1; p <= pdf.numPages; p++) {
+        (function(pageNum) {
+          pdf.getPage(pageNum).then(function(page) {
+            var viewport = page.getViewport({ scale: scale });
+            var canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.style.order = pageNum; // keep order even if async
+            container.appendChild(canvas);
+
+            var ctx = canvas.getContext('2d');
+            page.render({ canvasContext: ctx, viewport: viewport });
+          });
+        })(p);
+      }
+    }).catch(function(err) {
+      container.innerHTML = '<div class="la-viewer-error">'
+        + '<div class="la-viewer-error-icon">⚠️</div>'
+        + '<div class="la-viewer-error-text">Kunde inte läsa PDF.<br>'
+        + err.message + '</div>'
+        + '</div>';
+    });
+  }
+
+  // ── Close viewer ───────────────────────────────────────
+
+  window._laClose = function() {
+    var viewer = document.getElementById('laViewer');
+    if (viewer) {
+      viewer.classList.remove('active');
+      // Clear canvases after transition to free memory
+      setTimeout(function() {
+        var content = document.getElementById('laViewerContent');
+        if (content && !viewer.classList.contains('active')) {
+          content.innerHTML = '';
+        }
+      }, 300);
+    }
+  };
+
+  // ── Page show/hide hooks ───────────────────────────────
+
+  window.onLaPageShow = function() {
+    buildCards();
+  };
+
+  window.onLaPageHide = function() {
+    window._laClose();
+  };
+
+})();

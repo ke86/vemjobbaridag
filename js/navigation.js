@@ -125,6 +125,10 @@ function showPage(pageId) {
   } else if (pageId === 'trainFollow') {
     document.getElementById('trainFollowPage').classList.add('active');
     if (typeof onTrainFollowPageShow === 'function') onTrainFollowPageShow();
+  } else if (pageId === 'la') {
+    document.getElementById('laPage').classList.add('active');
+    headerTitle.textContent = 'Dagens LA';
+    if (typeof onLaPageShow === 'function') onLaPageShow();
   }
 
   // Stop departure refresh when leaving departure page
@@ -135,6 +139,11 @@ function showPage(pageId) {
   // Stop train follow polling when leaving page
   if (pageId !== 'trainFollow') {
     if (typeof onTrainFollowPageHide === 'function') onTrainFollowPageHide();
+  }
+
+  // Close LA viewer when leaving LA page
+  if (pageId !== 'la') {
+    if (typeof onLaPageHide === 'function') onLaPageHide();
   }
 
   closeSidebarMenu();
