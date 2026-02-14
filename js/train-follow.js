@@ -801,10 +801,10 @@
     container.innerHTML =
       barHtml
       + '<div class="ft-la-wrapper">'
+      + '<div class="ft-la-mini-tt" id="ftLaMiniTt"></div>'
       + '<div class="ft-la-pdf" id="ftLaPdf">'
       +   '<div class="la-viewer-loading"><div class="la-spinner"></div><span>Hämtar ' + strName + '...</span></div>'
       + '</div>'
-      + '<div class="ft-la-mini-tt" id="ftLaMiniTt"></div>'
       + '</div>';
 
     // Wire up sträcka-bar events

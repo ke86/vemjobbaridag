@@ -291,7 +291,7 @@ html.dark .ft-la-bar {
 
 .ft-la-mini-tt {
   flex-shrink: 0;
-  border-top: 2px solid var(--border-color);
+  border-bottom: 2px solid var(--border-color);
   background: var(--bg-card);
   padding: 0;
 }
