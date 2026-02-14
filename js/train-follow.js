@@ -214,7 +214,7 @@
     // Try Rejseplanen
     var liveStops = await fetchDkStopsFromRejseplanen(key);
     if (liveStops && liveStops.length > 0) {
-      var liveResult = { source: 'live', stops: liveStops };
+      var liveResult = { source: 'live', stops: liveStops, direction: _inferDkDirection(liveStops) };
       dkStopsCache[key] = { ts: now, data: liveResult };
       return liveResult;
     }
@@ -653,23 +653,28 @@
   }
 
   /**
-   * Infer direction from live Rejseplanen stops by checking if SE border
-   * station (Ørestad/Tårnby/CPH) comes first (toSE) or last (toDK).
+   * Infer direction from live Rejseplanen stops (DK-only, Swedish stops filtered out).
+   * Border stations (CPH Lufthavn, Tårnby, Ørestad) are near the SE border.
+   *   toSE: train goes DK→SE, border stations are LAST  (e.g. Østerport→...→CPH)
+   *   toDK: train goes SE→DK, border stations are FIRST (e.g. CPH→...→Østerport)
    */
   function _inferDkDirection(stops) {
     if (!stops || !stops.length) return 'toDK';
     var borderIds = ['8600858', '8600857', '8600856']; // CPH, Tårnby, Ørestad
-    var firstBorder = -1;
-    var lastBorder = -1;
+    // Check if first or last stop is a border station
+    var firstId = String(stops[0].extId || '');
+    var lastId = String(stops[stops.length - 1].extId || '');
+    var firstIsBorder = borderIds.indexOf(firstId) !== -1;
+    var lastIsBorder = borderIds.indexOf(lastId) !== -1;
+    if (lastIsBorder && !firstIsBorder) return 'toSE';
+    if (firstIsBorder && !lastIsBorder) return 'toDK';
+    // Fallback: check position of first border station
     for (var i = 0; i < stops.length; i++) {
-      if (borderIds.indexOf(stops[i].extId) !== -1) {
-        if (firstBorder === -1) firstBorder = i;
-        lastBorder = i;
+      if (borderIds.indexOf(String(stops[i].extId || '')) !== -1) {
+        return i >= stops.length / 2 ? 'toSE' : 'toDK';
       }
     }
-    // If border station is in the first half → toSE, otherwise toDK
-    if (firstBorder === -1) return 'toDK';
-    return firstBorder < stops.length / 2 ? 'toSE' : 'toDK';
+    return 'toDK';
   }
 
   /**
