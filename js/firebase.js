@@ -133,14 +133,16 @@ async function fetchScheduleFromFirebase(source) {
   try {
     console.log('[SCHEDULE-SYNC] Fetching from Firebase (' + source + ')…');
 
-    // Fetch employees + schedules in parallel
+    // Fetch employees + schedules + birthdays in parallel
     var results = await Promise.all([
       db.collection('employees').get(),
-      db.collection('schedules').get()
+      db.collection('schedules').get(),
+      db.collection('birthdays').get().catch(function() { return null; })
     ]);
 
     var empSnapshot = results[0];
     var schSnapshot = results[1];
+    var bdSnapshot = results[2];
 
     // Update employees
     empSnapshot.forEach(function(doc) {
@@ -151,6 +153,19 @@ async function fetchScheduleFromFirebase(source) {
     schSnapshot.forEach(function(doc) {
       employeesData[doc.id] = doc.data().shifts || [];
     });
+
+    // Update birthdays (doc id = name, field "date" = "YYYY-MM-DD")
+    if (bdSnapshot) {
+      var bd = {};
+      bdSnapshot.forEach(function(doc) {
+        var data = doc.data();
+        if (data.date) {
+          bd[doc.id] = data.date;
+        }
+      });
+      BIRTHDAYS = bd;
+      console.log('[SCHEDULE-SYNC] Loaded ' + Object.keys(bd).length + ' birthdays from Firestore');
+    }
 
     // Save to localStorage cache
     saveScheduleToCache();

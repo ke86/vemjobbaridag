@@ -180,31 +180,34 @@ async function loadSetting(key) {
  * Sign in to Firebase Auth with shared service account.
  * Creates the account automatically on first use.
  */
-async function signInToFirebase() {
+async function signInToFirebase(email, password) {
   const auth = firebase.auth();
 
   // Already signed in?
   if (auth.currentUser) return true;
 
+  if (!email || !password) {
+    console.error('Firebase Auth: missing credentials');
+    return false;
+  }
+
   // Step 1: Try to sign in with existing account
   try {
-    await auth.signInWithEmailAndPassword(FIREBASE_AUTH_EMAIL, FIREBASE_AUTH_PASSWORD);
+    await auth.signInWithEmailAndPassword(email, password);
     console.log('Firebase Auth: inloggad');
     return true;
   } catch (signInErr) {
     console.log('Firebase Auth sign-in fel:', signInErr.code, signInErr.message);
 
     // Step 2: Account doesn't exist — create it
-    // (auth/user-not-found in older SDK, auth/invalid-credential in newer)
     if (signInErr.code === 'auth/user-not-found' ||
         signInErr.code === 'auth/invalid-credential' ||
         signInErr.code === 'auth/wrong-password') {
       try {
-        await auth.createUserWithEmailAndPassword(FIREBASE_AUTH_EMAIL, FIREBASE_AUTH_PASSWORD);
+        await auth.createUserWithEmailAndPassword(email, password);
         console.log('Firebase Auth: konto skapat och inloggat');
         return true;
       } catch (createErr) {
-        // auth/email-already-in-use means account exists but password was wrong
         if (createErr.code === 'auth/email-already-in-use') {
           console.error('Firebase Auth: kontot finns men lösenordet stämmer inte');
         } else {
@@ -215,6 +218,29 @@ async function signInToFirebase() {
     }
     console.error('Firebase Auth: oväntat fel:', signInErr.code);
     return false;
+  }
+}
+
+/**
+ * Verify password via Cloudflare Worker.
+ * Returns { email, password } on success, null on failure.
+ */
+const AUTH_WORKER_URL = 'https://vemjobbar-auth.kenny-eriksson1986.workers.dev';
+
+async function verifyPasswordRemote(password) {
+  try {
+    const resp = await fetch(AUTH_WORKER_URL + '/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: password }),
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.ok) return null;
+    return { email: data.firebaseEmail, password: data.firebasePassword };
+  } catch (err) {
+    console.error('Auth worker error:', err);
+    return null;
   }
 }
 
@@ -281,19 +307,23 @@ async function handleLogin() {
     return;
   }
 
-  if (password !== APP_PASSWORD) {
-    showLoginError('Fel lösenord');
-    passwordInput.classList.add('error');
-    return;
-  }
-
   // Show loading
   loginBtn.style.display = 'none';
   loginLoading.classList.add('active');
 
   try {
-    // Sign in to Firebase Auth
-    const authOk = await signInToFirebase();
+    // Verify password via Cloudflare Worker and get Firebase credentials
+    const authCreds = await verifyPasswordRemote(password);
+    if (!authCreds) {
+      showLoginError('Fel lösenord');
+      passwordInput.classList.add('error');
+      loginBtn.style.display = 'block';
+      loginLoading.classList.remove('active');
+      return;
+    }
+
+    // Sign in to Firebase Auth with credentials from Worker
+    const authOk = await signInToFirebase(authCreds.email, authCreds.password);
     if (!authOk) {
       showLoginError('Kunde inte autentisera med Firebase');
       loginBtn.style.display = 'block';
