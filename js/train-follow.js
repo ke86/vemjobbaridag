@@ -938,9 +938,9 @@
     // If no next station (all passed), use last
     if (nextI < 0) nextI = all.length - 1;
 
-    // Window: 2 before, current, 2 after
-    var startI = Math.max(0, nextI - 2);
-    var endI = Math.min(all.length - 1, nextI + 2);
+    // Window: 1 before, current, 1 after
+    var startI = Math.max(0, nextI - 1);
+    var endI = Math.min(all.length - 1, nextI + 1);
     var slice = [];
     for (var k = startI; k <= endI; k++) {
       slice.push(all[k]);

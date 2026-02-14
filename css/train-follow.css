@@ -163,6 +163,7 @@
 /* Content area: flex column, takes remaining height */
 .ft-page-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   max-width: 500px;
@@ -175,6 +176,7 @@
 /* LA tab content area */
 .ft-la-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -264,6 +266,7 @@ html.dark .ft-la-bar {
 
 .ft-la-wrapper {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
