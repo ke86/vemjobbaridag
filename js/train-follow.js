@@ -1313,7 +1313,6 @@
       while (steps < 2) {
         var prev = target.previousElementSibling;
         if (!prev) break;
-        // Skip separator rows — they don't count as a step
         if (prev.classList.contains('ft-dk-separator') || prev.classList.contains('ft-se-separator')) {
           target = prev;
           continue;
@@ -1323,9 +1322,11 @@
       }
 
       if (steps > 0) {
-        var tableEl = scrollContainer.querySelector('table');
-        var offset = tableEl ? tableEl.offsetTop : 0;
-        scrollContainer.scrollTop = Math.max(0, target.offsetTop - offset);
+        // Use getBoundingClientRect for reliable positioning
+        var containerRect = scrollContainer.getBoundingClientRect();
+        var targetRect = target.getBoundingClientRect();
+        var delta = targetRect.top - containerRect.top;
+        scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop + delta);
       } else {
         scrollContainer.scrollTop = 0;
       }

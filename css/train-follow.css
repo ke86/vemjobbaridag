@@ -326,15 +326,18 @@
 /* Live clock in upper right corner of info card */
 .ft-live-clock {
   position: absolute;
-  top: 12px;
-  right: 14px;
+  top: 14px;
+  right: 16px;
   font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 1px;
   font-variant-numeric: tabular-nums;
-  opacity: 0.8;
+  background: var(--bg-secondary);
+  padding: 3px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
 }
 
 .ft-next-label {
