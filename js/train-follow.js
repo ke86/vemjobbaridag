@@ -712,23 +712,47 @@
    * Returns '10' or '11' (defaults to '11' for Öresundståg).
    */
   function detectStracka() {
-    if (dkStopsData && dkStopsData.stops && dkStopsData.stops.length > 0) {
-      // Sträcka 10 stations: Österport and stations north of KH on Kystbanen
-      var stracka10Names = [
-        'østerport', 'österport', 'nordhavn', 'svanemøllen', 'hellerup',
-        'charlottenlund', 'ordrup', 'klampenborg', 'lyngby',
-        'holte', 'birkerød', 'allerød', 'hillerød',
-        'fredensborg', 'humlebæk', 'nivå', 'kokkedal',
-        'rungsted kyst', 'hørsholm', 'snekkersten', 'helsingør',
-        'nørreport'
-      ];
-      for (var i = 0; i < dkStopsData.stops.length; i++) {
-        var name = (dkStopsData.stops[i].name || '').toLowerCase();
-        for (var j = 0; j < stracka10Names.length; j++) {
-          if (name.indexOf(stracka10Names[j]) >= 0) return '10';
-        }
+    var dkState = followedTrain ? getDkTrackingState(followedTrain.trainNr) : null;
+    if (!dkState || !dkState.stops || dkState.stops.length === 0) return '11';
+
+    // Sträcka 10 = KH → Østerport/Helsingør (Kystbanen, norr om KH)
+    // Sträcka 11 = KH → Peberholm (Öresundsbron, söder om KH)
+    // We check the train's CURRENT position, not the full route.
+    var stracka10Names = [
+      'østerport', 'österport', 'nordhavn', 'svanemøllen', 'hellerup',
+      'charlottenlund', 'ordrup', 'klampenborg', 'lyngby',
+      'holte', 'birkerød', 'allerød', 'hillerød',
+      'fredensborg', 'humlebæk', 'nivå', 'kokkedal',
+      'rungsted kyst', 'hørsholm', 'snekkersten', 'helsingør',
+      'nørreport'
+    ];
+
+    function isS10(stopName) {
+      var n = (stopName || '').toLowerCase();
+      for (var j = 0; j < stracka10Names.length; j++) {
+        if (n.indexOf(stracka10Names[j]) >= 0) return true;
       }
+      return false;
     }
+
+    var nextIdx = dkState.nextIdx;
+
+    if (nextIdx >= 0 && nextIdx < dkState.stops.length) {
+      // Next stop is on Kystbanen → S10
+      if (isS10(dkState.stops[nextIdx].name)) return '10';
+
+      // Previous (just passed) stop was Kystbanen → train is between Kystbanen and KH → still S10
+      if (nextIdx > 0 && dkState.stops[nextIdx - 1]._passed && isS10(dkState.stops[nextIdx - 1].name)) return '10';
+
+      return '11';
+    }
+
+    // All DK stops passed — check last stop to see where train was last
+    if (dkState.phase === 'allPassed') {
+      var lastStop = dkState.stops[dkState.stops.length - 1];
+      if (isS10(lastStop.name)) return '10';
+    }
+
     return '11'; // default: Öresundståg via Peberholm
   }
 
