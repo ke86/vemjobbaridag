@@ -165,15 +165,20 @@
 
       // Map to our normalized format
       // API 2.0 uses rtDepPlatform/rtArrPlatform objects with .text for track
+      // Filter to Danish stations only (extId starting with '86')
+      // Swedish stations start with '74' and are handled by Trafikverket
       var result = [];
       for (var i = 0; i < stops.length; i++) {
         var s = stops[i];
+        var stopId = s.extId || s.id || '';
+        // Only include Danish stations (extId starts with 86)
+        if (stopId && !stopId.toString().startsWith('86')) continue;
         // Track: rtDepPlatform.text > rtArrPlatform.text > legacy fields
         var depPlatform = (s.rtDepPlatform && s.rtDepPlatform.text) || s.rtDepTrack || s.depTrack || s.track || '';
         var arrPlatform = (s.rtArrPlatform && s.rtArrPlatform.text) || s.rtArrTrack || s.arrTrack || s.track || '';
         result.push({
           name:           s.name || '',
-          extId:          s.extId || s.id || '',
+          extId:          stopId,
           depTime:        fmtDkTime(s.depTime),
           arrTime:        fmtDkTime(s.arrTime),
           rtDepTime:      fmtDkTime(s.rtDepTime),
@@ -185,6 +190,7 @@
           prognosisType:  s.depPrognosisType || s.arrPrognosisType || ''
         });
       }
+      console.log('[DK-fetch] Filtered to ' + result.length + ' Danish stops (of ' + stops.length + ' total)');
       return result.length > 0 ? result : null;
     } catch (e) {
       return null;
@@ -983,16 +989,17 @@
       updateTopbar();
 
       if (dkState && dkState.stops.length > 0) {
-        var html = '';
+        var infoHtml = '';
+        var tableHtml = '';
 
         if (dkState.phase === 'allPassed') {
           // All DK stops passed, waiting for Swedish data
-          html += '<div class="ft-next-card">'
+          infoHtml += '<div class="ft-next-card">'
             + '<div class="ft-next-label">PÅ VÄG MOT SVERIGE <span class="ft-dk-badge">🇩🇰→🇸🇪</span></div>'
             + '<div class="ft-next-station">Väntar på tågdata...</div>'
             + '</div>';
         } else {
-          html += buildDkNextCard(dkState);
+          infoHtml += buildDkNextCard(dkState);
         }
 
         // Stops list — check if track data exists
@@ -1002,12 +1009,12 @@
         }
         var earlyColSpan = earlyHasTrack ? '4' : '3';
         var earlyLive = dkState.source === 'live' ? ' <span class="ft-dk-live">LIVE</span>' : '';
-        html += '<div class="ft-stops-card">'
+        tableHtml += '<div class="ft-stops-card">'
           + '<table class="ft-stops-table"><thead><tr>'
           + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
           + (earlyHasTrack ? '<th>Spår</th>' : '')
           + '</tr></thead><tbody>';
-        html += '<tr class="ft-dk-separator"><td colspan="' + earlyColSpan + '">🇩🇰 Danmark' + earlyLive + '</td></tr>';
+        tableHtml += '<tr class="ft-dk-separator"><td colspan="' + earlyColSpan + '">🇩🇰 Danmark' + earlyLive + '</td></tr>';
         for (var dj = 0; dj < dkState.stops.length; dj++) {
           var ds = dkState.stops[dj];
           var dkRowClass = ds._passed ? 'ft-stop-passed ft-dk-stop' : (ds._isNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
@@ -1030,20 +1037,22 @@
           }
           var earlyTrack = earlyHasTrack ? '<td class="ft-dk-track">' + (ds.track || '') + '</td>' : '';
 
-          html += '<tr class="' + dkRowClass + '">'
+          tableHtml += '<tr class="' + dkRowClass + '">'
             + '<td>' + dkCheck + dkMarker + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + ds.name + '</span></span></td>'
             + '<td>' + earlyArr + '</td>'
             + '<td>' + earlyDep + '</td>'
             + earlyTrack
             + '</tr>';
         }
-        html += '<tr class="ft-se-separator"><td colspan="' + earlyColSpan + '">🇸🇪 Sverige</td></tr>';
-        html += '<tr><td colspan="' + earlyColSpan + '" class="ft-waiting-api">Väntar på tågdata...</td></tr>';
-        html += '</tbody></table></div>';
+        tableHtml += '<tr class="ft-se-separator"><td colspan="' + earlyColSpan + '">🇸🇪 Sverige</td></tr>';
+        tableHtml += '<tr><td colspan="' + earlyColSpan + '" class="ft-waiting-api">Väntar på tågdata...</td></tr>';
+        tableHtml += '</tbody></table></div>';
 
-        contentEl.innerHTML = html;
+        contentEl.innerHTML = '<div class="ft-sticky-info">' + infoHtml + '</div>'
+          + '<div class="ft-stops-scroll">' + tableHtml + '</div>';
         startCountdown();
         detectScrollOverflows();
+        scrollToNextStop();
         return;
       }
 
@@ -1073,7 +1082,8 @@
 
     updateTopbar();
 
-    var html = '';
+    var infoHtml = '';
+    var tableHtml = '';
 
     // === NEXT STATION CARD ===
     // Check if DK tracking should take over (toSE train still in DK, or toDK train entering DK)
@@ -1082,13 +1092,13 @@
     if (trainCompleted && dkState && dkState.direction === 'toDK' && dkState.phase !== 'allPassed') {
       // Train completed Swedish part, now entering Denmark
       dkCardUsed = true;
-      html += buildDkNextCard(dkState);
+      infoHtml += buildDkNextCard(dkState);
     } else if (seNotStarted && dkState && dkState.direction === 'toSE' && dkState.phase !== 'allPassed') {
       // Train hasn't departed Sweden yet — still in DK
       dkCardUsed = true;
-      html += buildDkNextCard(dkState);
+      infoHtml += buildDkNextCard(dkState);
     } else if (trainCompleted) {
-      html += '<div class="ft-next-card">'
+      infoHtml += '<div class="ft-next-card">'
         + '<div class="ft-next-label">TÅGET HAR ANKOMMIT</div>'
         + '<div class="ft-next-station">' + stationName(d.lastStation) + '</div>'
         + '</div>';
@@ -1103,7 +1113,7 @@
       // SE departed hold — show "AVGÅTT FRÅN" with count-up
       if (next._phase === 'departed') {
         var seDepartedTime = next.departure ? next.departure.actual : depTime;
-        html += '<div class="ft-next-card ft-card-departed">'
+        infoHtml += '<div class="ft-next-card ft-card-departed">'
           + '<div class="ft-next-label">AVGÅTT FRÅN</div>'
           + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
           + '<div class="ft-countdown-row" data-target="' + seDepartedTime + '" data-direction="up">'
@@ -1143,7 +1153,7 @@
         delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
       }
 
-      html += '<div class="ft-next-card">'
+      infoHtml += '<div class="ft-next-card">'
         + '<div class="ft-next-label">' + cardLabel + ' ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
         + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
@@ -1253,7 +1263,7 @@
       return seHtml;
     }
 
-    html += '<div class="ft-stops-card">'
+    tableHtml += '<div class="ft-stops-card">'
       + '<table class="ft-stops-table"><thead><tr>'
       + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
       + (comboHasTrack ? '<th>Spår</th>' : '')
@@ -1261,28 +1271,47 @@
 
     // Order: DK first for trains FROM Denmark, SE first for trains TO Denmark
     if (dkState && dkState.direction === 'toSE') {
-      html += buildDkRows() + buildSeRows();
+      tableHtml += buildDkRows() + buildSeRows();
     } else {
-      html += buildSeRows() + buildDkRows();
+      tableHtml += buildSeRows() + buildDkRows();
     }
 
-    html += '</tbody></table></div>';
+    tableHtml += '</tbody></table></div>';
 
-    contentEl.innerHTML = html;
+    contentEl.innerHTML = '<div class="ft-sticky-info">' + infoHtml + '</div>'
+      + '<div class="ft-stops-scroll">' + tableHtml + '</div>';
 
     startCountdown();
     detectScrollOverflows();
+    scrollToNextStop();
   }
 
-  function scrollToNextStop(container) {
+  /**
+   * Auto-scroll the stops table so the marked station (.ft-stop-next)
+   * is visible with one row above it shown (except at origin → scroll to top).
+   */
+  function scrollToNextStop() {
     setTimeout(function() {
-      var nextRow = container.querySelector('.ft-stop-next');
-      if (nextRow) {
-        var rowTop = nextRow.offsetTop - container.offsetTop;
-        var containerH = container.clientHeight;
-        container.scrollTop = Math.max(0, rowTop - containerH / 3);
+      var scrollContainer = document.querySelector('.ft-stops-scroll');
+      if (!scrollContainer) return;
+      var nextRow = scrollContainer.querySelector('.ft-stop-next');
+      if (!nextRow) return;
+
+      // Find previous visible row (skip separator rows)
+      var prevRow = nextRow.previousElementSibling;
+      while (prevRow && (prevRow.classList.contains('ft-dk-separator') || prevRow.classList.contains('ft-se-separator'))) {
+        prevRow = prevRow.previousElementSibling;
       }
-    }, 50);
+
+      // If there's a row before → scroll so that row is at the top
+      // If no previous row (origin station) → scroll to top
+      if (prevRow) {
+        var targetTop = prevRow.offsetTop - scrollContainer.querySelector('table').offsetTop;
+        scrollContainer.scrollTop = Math.max(0, targetTop);
+      } else {
+        scrollContainer.scrollTop = 0;
+      }
+    }, 60);
   }
 
   // ==========================================
