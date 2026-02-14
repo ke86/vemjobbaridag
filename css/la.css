@@ -169,36 +169,26 @@
   background: var(--bg-primary, #0d0d1a);
 }
 
-.la-viewer-topbar {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  gap: 12px;
+/* Floating back button inside viewer */
+.la-float-back {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  align-self: flex-start;
   background: var(--bg-card);
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
-  min-height: 48px;
-}
-
-.la-viewer-back {
-  background: none;
-  border: none;
-  font-size: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 7px 14px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--accent-blue);
   cursor: pointer;
-  padding: 6px 4px;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   -webkit-tap-highlight-color: transparent;
 }
-
-.la-viewer-title {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.dark .la-float-back {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 /* PDF canvas scroll area */

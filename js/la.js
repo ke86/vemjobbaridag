@@ -208,16 +208,20 @@
 
   // ── Open PDF viewer ────────────────────────────────────
 
+  function backBtnHtml(label) {
+    return '<button class="la-float-back" onclick="window._laClose()">← ' + label + '</button>';
+  }
+
   window._laOpen = function(nr, date, name) {
     var viewer = document.getElementById('laViewer');
-    var titleEl = document.getElementById('laViewerTitle');
     var contentEl = document.getElementById('laViewerContent');
     if (!viewer || !contentEl) return;
 
-    titleEl.textContent = name + ' — ' + formatDateLabel(date);
+    var label = name + ' — ' + formatDateLabel(date);
 
     // Show loading
-    contentEl.innerHTML = '<div class="la-viewer-loading">'
+    contentEl.innerHTML = backBtnHtml(label)
+      + '<div class="la-viewer-loading">'
       + '<div class="la-card-loading"></div>'
       + '<span>Hämtar PDF…</span>'
       + '</div>';
@@ -226,30 +230,32 @@
 
     fetchPdf(nr, date)
       .then(function(result) {
-        renderPdf(result.buffer, contentEl);
+        renderPdf(result.buffer, contentEl, label);
         // Update cards to reflect new cache status
         if (result.source === 'network') {
           updateCardBadge(nr, date);
         }
       })
       .catch(function(err) {
+        var errorHtml;
         if (err.message === 'NOT_PUBLISHED') {
-          contentEl.innerHTML = '<div class="la-viewer-error">'
+          errorHtml = '<div class="la-viewer-error">'
             + '<div class="la-viewer-error-icon">📭</div>'
             + '<div class="la-viewer-error-text">Denna LA är inte<br>publicerad ännu.</div>'
             + '</div>';
         } else if (err.message === 'OFFLINE' || !navigator.onLine) {
-          contentEl.innerHTML = '<div class="la-viewer-error">'
+          errorHtml = '<div class="la-viewer-error">'
             + '<div class="la-viewer-error-icon">📴</div>'
             + '<div class="la-viewer-error-text">Du är offline.<br>Denna PDF är inte sparad.</div>'
             + '</div>';
         } else {
-          contentEl.innerHTML = '<div class="la-viewer-error">'
+          errorHtml = '<div class="la-viewer-error">'
             + '<div class="la-viewer-error-icon">⚠️</div>'
             + '<div class="la-viewer-error-text">Kunde inte hämta PDF.<br>'
             + err.message + '</div>'
             + '</div>';
         }
+        contentEl.innerHTML = backBtnHtml(label) + errorHtml;
       });
   };
 
@@ -267,7 +273,7 @@
 
   // ── Render PDF pages to canvases ───────────────────────
 
-  function renderPdf(buffer, container) {
+  function renderPdf(buffer, container, label) {
     var loadingTask = pdfjsLib.getDocument({
       data: buffer,
       cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
@@ -275,7 +281,7 @@
     });
 
     loadingTask.promise.then(function(pdf) {
-      container.innerHTML = '';
+      container.innerHTML = backBtnHtml(label || '');
       var scale = 2; // render at 2x for sharpness
 
       for (var p = 1; p <= pdf.numPages; p++) {
