@@ -41,10 +41,6 @@
     return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()];
   }
 
-  function isTomorrowAvailable() {
-    return new Date().getHours() >= 18;
-  }
-
   function pdfUrl(nr, date) {
     return LA_PROXY + '/?nr=' + nr + '&date=' + date;
   }
@@ -112,7 +108,6 @@
 
     var today = todayStr();
     var tomorrow = tomorrowStr();
-    var showTomorrow = isTomorrowAvailable();
 
     // Clean up old cached PDFs
     cacheCleanup();
@@ -123,9 +118,7 @@
       checks.push(cacheHas(ROUTES[i].nr, today));
     }
     for (var j = 0; j < ROUTES.length; j++) {
-      if (showTomorrow) {
-        checks.push(cacheHas(ROUTES[j].nr, tomorrow));
-      }
+      checks.push(cacheHas(ROUTES[j].nr, tomorrow));
     }
 
     Promise.all(checks).then(function(results) {
@@ -145,12 +138,8 @@
       html += '<div class="la-date-group">';
       html += '<div class="la-date-label">Imorgon — ' + formatDateLabel(tomorrow) + '</div>';
       for (var b = 0; b < ROUTES.length; b++) {
-        if (showTomorrow) {
-          html += buildCard(ROUTES[b], tomorrow, results[idx]);
-          idx++;
-        } else {
-          html += buildCardWaiting(ROUTES[b]);
-        }
+        html += buildCard(ROUTES[b], tomorrow, results[idx]);
+        idx++;
       }
       html += '</div>';
 
@@ -173,37 +162,47 @@
       + '</div>';
   }
 
-  function buildCardWaiting(route) {
-    return '<div class="la-card" style="opacity:0.5;cursor:default;">'
-      + '<div class="la-card-icon">📄</div>'
-      + '<div class="la-card-info">'
-      + '<div class="la-card-title">' + route.name + ' <span class="la-badge la-badge-wait">kl 18</span></div>'
-      + '<div class="la-card-sub">' + route.desc + '</div>'
-      + '</div>'
-      + '<div class="la-card-arrow" style="opacity:0.3;">›</div>'
-      + '</div>';
-  }
-
   // ── Fetch PDF (cache-first, then network) ──────────────
 
+  function networkFetch(nr, date) {
+    return fetch(pdfUrl(nr, date)).then(function(resp) {
+      if (!resp.ok) {
+        if (resp.status === 404 || resp.status === 500) {
+          throw new Error('NOT_PUBLISHED');
+        }
+        throw new Error('HTTP ' + resp.status);
+      }
+      return resp.arrayBuffer();
+    }).then(function(buf) {
+      cachePut(nr, date, buf.slice(0));
+      return { buffer: buf, source: 'network' };
+    });
+  }
+
   function fetchPdf(nr, date) {
+    if (!('caches' in window)) {
+      return networkFetch(nr, date);
+    }
+
     // 1. Try cache first
-    return cacheGet(nr, date).then(function(cachedResp) {
+    return caches.open(LA_CACHE_NAME).then(function(cache) {
+      return cache.match(pdfUrl(nr, date));
+    }).then(function(cachedResp) {
       if (cachedResp) {
-        return cachedResp.arrayBuffer().then(function(buf) {
+        return cachedResp.clone().arrayBuffer().then(function(buf) {
           return { buffer: buf, source: 'cache' };
         });
       }
-
-      // 2. Network fetch
-      return fetch(pdfUrl(nr, date)).then(function(resp) {
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        return resp.arrayBuffer();
-      }).then(function(buf) {
-        // 3. Save to cache in background
-        cachePut(nr, date, buf.slice(0));
-        return { buffer: buf, source: 'network' };
-      });
+      // 2. Not in cache — try network
+      return networkFetch(nr, date);
+    }).catch(function(err) {
+      // Cache failed — if offline this is the end
+      if (err.message === 'NOT_PUBLISHED') throw err;
+      if (!navigator.onLine) {
+        throw new Error('OFFLINE');
+      }
+      // Cache error but online — try network directly
+      return networkFetch(nr, date);
     });
   }
 
@@ -234,11 +233,23 @@
         }
       })
       .catch(function(err) {
-        contentEl.innerHTML = '<div class="la-viewer-error">'
-          + '<div class="la-viewer-error-icon">⚠️</div>'
-          + '<div class="la-viewer-error-text">Kunde inte hämta PDF.<br>'
-          + err.message + '</div>'
-          + '</div>';
+        if (err.message === 'NOT_PUBLISHED') {
+          contentEl.innerHTML = '<div class="la-viewer-error">'
+            + '<div class="la-viewer-error-icon">📭</div>'
+            + '<div class="la-viewer-error-text">Denna LA är inte<br>publicerad ännu.</div>'
+            + '</div>';
+        } else if (err.message === 'OFFLINE' || !navigator.onLine) {
+          contentEl.innerHTML = '<div class="la-viewer-error">'
+            + '<div class="la-viewer-error-icon">📴</div>'
+            + '<div class="la-viewer-error-text">Du är offline.<br>Denna PDF är inte sparad.</div>'
+            + '</div>';
+        } else {
+          contentEl.innerHTML = '<div class="la-viewer-error">'
+            + '<div class="la-viewer-error-icon">⚠️</div>'
+            + '<div class="la-viewer-error-text">Kunde inte hämta PDF.<br>'
+            + err.message + '</div>'
+            + '</div>';
+        }
       });
   };
 
