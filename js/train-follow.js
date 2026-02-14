@@ -45,6 +45,7 @@
   var DK_CACHE_TTL = 60000;         // 1 min
   var dkStopsData = null;           // latest getDkStopsAsync() result for current train
   var apiStationNames = {};         // LocationSignature → AdvertisedLocationName (from Trafikverket)
+  var clockTimer = null;            // setInterval id for the live clock
 
   // ==========================================
   // REJSEPLANEN DK STOPS  (two-step: departureBoard → journeyDetail)
@@ -452,6 +453,7 @@
 
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+    stopClockTimer();
 
     if (!keepPage) {
       showPage('schedule');
@@ -1058,6 +1060,7 @@
         startCountdown();
         detectScrollOverflows();
         scrollToNextStop();
+        startClockTimer();
         return;
       }
 
@@ -1289,11 +1292,13 @@
     startCountdown();
     detectScrollOverflows();
     scrollToNextStop();
+    startClockTimer();
   }
 
   /**
    * Auto-scroll the stops table so the marked station (.ft-stop-next)
-   * is visible with one row above it shown (except at origin → scroll to top).
+   * appears as roughly the 3rd visible row (2 rows above it shown).
+   * At origin / fewer than 2 rows above → scroll to top.
    */
   function scrollToNextStop() {
     setTimeout(function() {
@@ -1302,17 +1307,25 @@
       var nextRow = scrollContainer.querySelector('.ft-stop-next');
       if (!nextRow) return;
 
-      // Find previous visible row (skip separator rows)
-      var prevRow = nextRow.previousElementSibling;
-      while (prevRow && (prevRow.classList.contains('ft-dk-separator') || prevRow.classList.contains('ft-se-separator'))) {
-        prevRow = prevRow.previousElementSibling;
+      // Walk back 2 visible rows (skip separator rows)
+      var target = nextRow;
+      var steps = 0;
+      while (steps < 2) {
+        var prev = target.previousElementSibling;
+        if (!prev) break;
+        // Skip separator rows — they don't count as a step
+        if (prev.classList.contains('ft-dk-separator') || prev.classList.contains('ft-se-separator')) {
+          target = prev;
+          continue;
+        }
+        target = prev;
+        steps++;
       }
 
-      // If there's a row before → scroll so that row is at the top
-      // If no previous row (origin station) → scroll to top
-      if (prevRow) {
-        var targetTop = prevRow.offsetTop - scrollContainer.querySelector('table').offsetTop;
-        scrollContainer.scrollTop = Math.max(0, targetTop);
+      if (steps > 0) {
+        var tableEl = scrollContainer.querySelector('table');
+        var offset = tableEl ? tableEl.offsetTop : 0;
+        scrollContainer.scrollTop = Math.max(0, target.offsetTop - offset);
       } else {
         scrollContainer.scrollTop = 0;
       }
@@ -1499,6 +1512,44 @@
       product: product,
       trainNr: followedTrain ? followedTrain.trainNr : ''
     };
+  }
+
+  // ==========================================
+  // LIVE CLOCK  (HH:MM:SS in the info card)
+  // ==========================================
+
+  function updateClock() {
+    var el = document.querySelector('.ft-live-clock');
+    if (!el) return;
+    var now = new Date();
+    var hh = (now.getHours() < 10 ? '0' : '') + now.getHours();
+    var mm = (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+    var ss = (now.getSeconds() < 10 ? '0' : '') + now.getSeconds();
+    el.textContent = hh + ':' + mm + ':' + ss;
+  }
+
+  /**
+   * Inject the clock element into the first .ft-next-card (if not already present).
+   * Called after rendering content.
+   */
+  function injectClock() {
+    var card = document.querySelector('.ft-next-card');
+    if (!card) return;
+    if (card.querySelector('.ft-live-clock')) return;
+    var span = document.createElement('span');
+    span.className = 'ft-live-clock';
+    card.appendChild(span);
+  }
+
+  function startClockTimer() {
+    stopClockTimer();
+    injectClock();
+    updateClock();
+    clockTimer = setInterval(updateClock, 1000);
+  }
+
+  function stopClockTimer() {
+    if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
   }
 
   // ==========================================

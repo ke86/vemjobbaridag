@@ -315,11 +315,26 @@
 
 /* Next station card */
 .ft-next-card {
+  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 14px;
   padding: 16px 18px;
   margin-bottom: 10px;
+}
+
+/* Live clock in upper right corner of info card */
+.ft-live-clock {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 
 .ft-next-label {
