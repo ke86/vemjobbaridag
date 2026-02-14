@@ -494,7 +494,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.28</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.29</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -714,40 +714,32 @@
     // Native events
     window.addEventListener('offline', showOffline);
     window.addEventListener('online', function() {
-      // Small delay — some devices fire 'online' before actual connectivity
-      setTimeout(showOnline, 500);
+      setTimeout(function() { pingNetwork(); }, 500);
     });
 
-    // Active polling as backup — navigator.onLine can be unreliable
-    // Tries a tiny HEAD request; if it fails we're truly offline
-    var pollInterval = null;
-    function checkConnectivity() {
+    // Ping endpoint — SW lets this through to network only (never cached)
+    var pingUrl = (window.location.href.split('?')[0]) + '?_ping=1';
+
+    function pingNetwork() {
+      fetch(pingUrl, { method: 'HEAD', cache: 'no-store' })
+        .then(function(r) { if (r.ok) showOnline(); else showOffline(); })
+        .catch(function() { showOffline(); });
+    }
+
+    // Check on load — quick navigator check + real ping after 1.5s
+    if (!navigator.onLine) {
+      showOffline();
+    }
+    setTimeout(pingNetwork, 1500);
+
+    // Poll every 5 seconds
+    setInterval(function() {
       if (!navigator.onLine) {
         if (!wasOffline) showOffline();
         return;
       }
-      // If navigator says online but we were offline, verify with a real request
-      if (wasOffline) {
-        fetch(window.location.href, { method: 'HEAD', cache: 'no-store' })
-          .then(function() { showOnline(); })
-          .catch(function() { /* still offline despite navigator.onLine */ });
-      }
-    }
-
-    // Check on load
-    if (!navigator.onLine) {
-      showOffline();
-    }
-
-    // Start polling every 5 seconds
-    pollInterval = setInterval(checkConnectivity, 5000);
-
-    // Also check after a brief delay on load (catches cache-first SW scenarios)
-    setTimeout(function() {
-      if (!navigator.onLine && !wasOffline) {
-        showOffline();
-      }
-    }, 1000);
+      pingNetwork();
+    }, 5000);
   })();
   </script>
 </body>

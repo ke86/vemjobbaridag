@@ -471,9 +471,16 @@
     if (followedTrain) {
       followBtn.classList.add('following');
       applyBtnDelayClass();
-      followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
+      followBtn.style.minWidth = '90px';
+      // Flip between train number and delay text
+      if (btnFlipShowingDelay) {
+        followBtn.textContent = currentDelayInfo.delayText;
+      } else {
+        followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
+      }
     } else {
       followBtn.textContent = 'Följ tåg';
+      followBtn.style.minWidth = '';
     }
   }
 
@@ -575,6 +582,11 @@
 
   function flipButton() {
     if (!followedTrain || !followBtn) return;
+    // Don't flip when on the Följ tåg page — delay info already visible
+    if (pageActive) {
+      if (btnFlipShowingDelay) { btnFlipShowingDelay = false; updateButton(); }
+      return;
+    }
     btnFlipShowingDelay = !btnFlipShowingDelay;
     updateButton();
   }

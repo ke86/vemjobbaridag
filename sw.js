@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.25.28';
+const CACHE_VERSION = 'v4.25.29';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -139,6 +139,12 @@ function isCacheableCDN(url) {
 self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
+
+  // Connectivity ping — always network-only, never cache
+  if (event.request.url.includes('_ping=1')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   const isLocal = event.request.url.startsWith(self.location.origin);
   const isCDN = isCacheableCDN(event.request.url);
