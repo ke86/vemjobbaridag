@@ -20,6 +20,21 @@ let dagvyCurrentName = '';
 // Latest known dagvy scrapedAt timestamp
 let dagvyLatestScrapedAt = null;
 
+// Cookie keys for persisting toggle states
+const DAGVY_MODE_COOKIE = 'dagvy_mode';   // "enkel" | "allt"
+const DAGVY_CREW_COOKIE = 'dagvy_crew';   // "med" | "alla"
+
+function dagvyReadCookie(name) {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+function dagvyWriteCookie(name, value) {
+  // Persist for 1 year
+  const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
+  document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=Lax';
+}
+
 // ==========================================
 // DAGVY LOCALSTORAGE CACHE
 // ==========================================
@@ -270,10 +285,21 @@ async function showDagvyPopup(employeeId) {
     document.querySelector('.main-content').parentNode.insertBefore(dagvyPage, document.querySelector('.main-content').nextSibling);
   }
 
-  dagvySimpleMode = false;
-  dagvyCrewFilter = false;
+  // Restore toggle states from cookies (instead of resetting to defaults)
+  const savedMode = dagvyReadCookie(DAGVY_MODE_COOKIE);
+  dagvySimpleMode = savedMode === 'enkel';
+  const savedCrew = dagvyReadCookie(DAGVY_CREW_COOKIE);
+  dagvyCrewFilter = savedCrew === 'med';
   dagvyCurrentData = null;
   dagvyCurrentName = emp.name;
+
+  // Compute toggle CSS classes based on restored state
+  const modeSwCls = dagvySimpleMode ? 'enkel-active' : 'allt-active';
+  const enkelActive = dagvySimpleMode ? ' active' : '';
+  const alltActive = dagvySimpleMode ? '' : ' active';
+  const crewSwCls = dagvyCrewFilter ? 'med-active' : 'alla-active';
+  const medActive = dagvyCrewFilter ? ' active' : '';
+  const allaActive = dagvyCrewFilter ? '' : ' active';
 
   dagvyPage.classList.add('active');
   dagvyPage.innerHTML = `
@@ -285,18 +311,18 @@ async function showDagvyPopup(employeeId) {
       <div class="dagvy-bar-actions">
         <div class="dagvy-toggles-stack">
           <div class="dagvy-mode-toggle" id="dagvyModeToggle" onclick="toggleDagvyMode()">
-            <span class="dagvy-mode-label dagvy-mode-enkel">Enkel</span>
-            <div class="dagvy-mode-switch allt-active">
+            <span class="dagvy-mode-label dagvy-mode-enkel${enkelActive}">Enkel</span>
+            <div class="dagvy-mode-switch ${modeSwCls}">
               <div class="dagvy-mode-thumb"></div>
             </div>
-            <span class="dagvy-mode-label dagvy-mode-allt active">Allt</span>
+            <span class="dagvy-mode-label dagvy-mode-allt${alltActive}">Allt</span>
           </div>
           <div class="dagvy-mode-toggle" id="dagvyCrewToggle" onclick="toggleDagvyCrewFilter()">
-            <span class="dagvy-mode-label dagvy-crew-med">Med dig</span>
-            <div class="dagvy-mode-switch dagvy-crew-switch alla-active">
+            <span class="dagvy-mode-label dagvy-crew-med${medActive}">Med dig</span>
+            <div class="dagvy-mode-switch dagvy-crew-switch ${crewSwCls}">
               <div class="dagvy-mode-thumb"></div>
             </div>
-            <span class="dagvy-mode-label dagvy-crew-alla active">Alla</span>
+            <span class="dagvy-mode-label dagvy-crew-alla${allaActive}">Alla</span>
           </div>
         </div>
         <button class="dagvy-close-btn" onclick="closeDagvy()">✕</button>
@@ -372,6 +398,7 @@ async function showDagvyPopup(employeeId) {
 
   // Build the dagvy content
   contentEl.innerHTML = buildDagvyContent(todayDagvy, emp.name, dagvySimpleMode);
+  dagvyScrollToCurrent();
 }
 
 /**
@@ -521,6 +548,7 @@ function reapplyDagvyCorrections() {
  */
 function toggleDagvyMode() {
   dagvySimpleMode = !dagvySimpleMode;
+  dagvyWriteCookie(DAGVY_MODE_COOKIE, dagvySimpleMode ? 'enkel' : 'allt');
 
   // Update switch visual
   const toggle = document.getElementById('dagvyModeToggle');
@@ -546,6 +574,7 @@ function toggleDagvyMode() {
     const contentEl = document.getElementById('dagvyContent');
     if (contentEl) {
       contentEl.innerHTML = buildDagvyContent(dagvyCurrentData, dagvyCurrentName, dagvySimpleMode);
+      dagvyScrollToCurrent();
     }
   }
 }
@@ -555,6 +584,7 @@ function toggleDagvyMode() {
  */
 function toggleDagvyCrewFilter() {
   dagvyCrewFilter = !dagvyCrewFilter;
+  dagvyWriteCookie(DAGVY_CREW_COOKIE, dagvyCrewFilter ? 'med' : 'alla');
 
   // Update switch visual
   const toggle = document.getElementById('dagvyCrewToggle');
@@ -580,8 +610,27 @@ function toggleDagvyCrewFilter() {
     const contentEl = document.getElementById('dagvyContent');
     if (contentEl) {
       contentEl.innerHTML = buildDagvyContent(dagvyCurrentData, dagvyCurrentName, dagvySimpleMode);
+      dagvyScrollToCurrent();
     }
   }
+}
+
+/**
+ * Scroll dagvy content so the current segment is visible.
+ */
+function dagvyScrollToCurrent() {
+  setTimeout(function() {
+    const el = document.querySelector('.dagvy-seg-current');
+    if (!el) return;
+    const contentEl = document.getElementById('dagvyContent');
+    if (!contentEl) return;
+    const containerRect = contentEl.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    // Scroll so current segment is roughly 1/3 from top of visible area
+    const targetOffset = containerRect.height * 0.3;
+    const delta = elRect.top - containerRect.top - targetOffset;
+    contentEl.scrollTop = Math.max(0, contentEl.scrollTop + delta);
+  }, 100);
 }
 
 /**
@@ -636,6 +685,12 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
     }
   }
 
+  // Compute current time for "du är här" marking (only for today)
+  const isToday = (getDateKey(currentDate) === getDateKey(new Date()));
+  const now = new Date();
+  const nowMin = isToday ? now.getHours() * 60 + now.getMinutes() : -1;
+  let foundCurrent = false;
+
   if (dayData.segments && dayData.segments.length > 0) {
     html += '<div class="dagvy-timeline">';
 
@@ -653,6 +708,22 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       if (isAnyTrain) segClass = 'dagvy-seg-train';
       else if (isRast) segClass = 'dagvy-seg-rast';
       else if (isGang) segClass = 'dagvy-seg-gang';
+
+      // "Du är här" time-based classification
+      let timeClass = '';
+      if (nowMin >= 0 && seg.timeStart && seg.timeEnd) {
+        const sp = seg.timeStart.split(':');
+        const ep = seg.timeEnd.split(':');
+        const segStart = parseInt(sp[0]) * 60 + parseInt(sp[1]);
+        const segEnd = parseInt(ep[0]) * 60 + parseInt(ep[1]);
+        if (segEnd <= nowMin) {
+          timeClass = ' dagvy-seg-passed';
+        } else if (segStart <= nowMin && nowMin < segEnd && !foundCurrent) {
+          timeClass = ' dagvy-seg-current';
+          foundCurrent = true;
+        }
+      }
+      segClass += timeClass;
 
       const route = (seg.fromStation !== seg.toStation)
         ? seg.fromStation + ' → ' + seg.toStation
