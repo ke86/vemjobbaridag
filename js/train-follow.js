@@ -1106,19 +1106,30 @@
       dkCardUsed = true;
       infoHtml += buildDkNextCard(dkState);
     } else if (trainCompleted) {
-      // Determine actual final station name:
+      // Determine actual final station name + arrival time:
       // For toDK trains with DK data → last DK stop (e.g. Østerport)
       // For toSE trains with DK data → last SE stop (already d.lastStation)
       // No DK data → last SE stop
       var arrivedName = stationName(d.lastStation);
       var arrivedFlag = '';
-      if (dkState && dkState.stops && dkState.stops.length > 0 && dkState.direction === 'toDK') {
-        arrivedName = dkState.stops[dkState.stops.length - 1].name;
-        arrivedFlag = ' <span class="ft-dk-badge">🇩🇰</span>';
+      var arrivedTime = '';
+      // SE arrival time: last stop's actual arrival
+      var lastStop = stops[stops.length - 1];
+      if (lastStop && lastStop.arrival && lastStop.arrival.actual) {
+        arrivedTime = lastStop.arrival.actual;
       }
+      // DK override for toDK trains
+      if (dkState && dkState.stops && dkState.stops.length > 0 && dkState.direction === 'toDK') {
+        var lastDk = dkState.stops[dkState.stops.length - 1];
+        arrivedName = lastDk.name;
+        arrivedFlag = ' <span class="ft-dk-badge">🇩🇰</span>';
+        arrivedTime = lastDk.rtArr || lastDk.arrPlanned || lastDk.arr || arrivedTime;
+      }
+      var arrivedTimeHtml = arrivedTime ? '<div class="ft-arrived-time">Ankom ' + arrivedTime + '</div>' : '';
       infoHtml += '<div class="ft-next-card">'
         + '<div class="ft-next-label">TÅGET HAR ANKOMMIT' + arrivedFlag + '</div>'
         + '<div class="ft-next-station">' + arrivedName + '</div>'
+        + arrivedTimeHtml
         + '</div>';
     }
 

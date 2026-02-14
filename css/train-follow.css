@@ -360,6 +360,14 @@
   line-height: 1.2;
 }
 
+.ft-arrived-time {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: -4px;
+  margin-bottom: 6px;
+}
+
 .ft-delay-text {
   font-size: 12px;
   font-weight: 700;
