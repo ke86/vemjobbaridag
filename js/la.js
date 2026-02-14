@@ -323,6 +323,46 @@
     });
   }
 
+  /**
+   * Render a single page from a PDF buffer into a container.
+   * pageNum is 1-based. Container is cleared before rendering.
+   */
+  function renderPdfPage(buffer, container, pageNum) {
+    var loadingTask = pdfjsLib.getDocument({
+      data: buffer,
+      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+      cMapPacked: true
+    });
+
+    loadingTask.promise.then(function(pdf) {
+      if (pageNum < 1 || pageNum > pdf.numPages) {
+        container.innerHTML =
+          '<div class="la-viewer-error">'
+          + '<div class="la-viewer-error-icon">⚠️</div>'
+          + '<div class="la-viewer-error-text">Sida ' + pageNum + ' finns inte (PDF har ' + pdf.numPages + ' sidor).</div>'
+          + '</div>';
+        return;
+      }
+      container.innerHTML = '';
+      var scale = 2;
+      pdf.getPage(pageNum).then(function(page) {
+        var viewport = page.getViewport({ scale: scale });
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        container.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        page.render({ canvasContext: ctx, viewport: viewport });
+      });
+    }).catch(function(err) {
+      container.innerHTML =
+        '<div class="la-viewer-error">'
+        + '<div class="la-viewer-error-icon">⚠️</div>'
+        + '<div class="la-viewer-error-text">Kunde inte läsa PDF.<br>' + err.message + '</div>'
+        + '</div>';
+    });
+  }
+
   // ── Close PDF view (back to cards) ─────────────────────
 
   window._laClose = function() {
@@ -346,6 +386,9 @@
     fetchPdf: fetchPdf,
     renderPdf: function(buffer, container, label) {
       renderPdf(buffer, container, label);
+    },
+    renderPdfPage: function(buffer, container, pageNum) {
+      renderPdfPage(buffer, container, pageNum);
     }
   };
 

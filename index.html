@@ -108,12 +108,6 @@
     <button class="follow-train-btn" id="followTrainBtn">Följ tåg</button>
   </header>
 
-  <!-- Offline indicator bar -->
-  <div class="offline-bar" id="offlineBar">
-    <span class="offline-bar-icon">📴</span>
-    <span class="offline-bar-text" id="offlineBarText">Offline-läge</span>
-  </div>
-
   <!-- Main Content - Schedule Page -->
   <main class="main-content page active" id="schedulePage">
     <!-- Date Picker -->
@@ -500,7 +494,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.25</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.26</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -679,6 +673,12 @@
     }
   </script>
 
+  <!-- Offline indicator bar (fixed overlay) -->
+  <div class="offline-bar" id="offlineBar">
+    <span class="offline-bar-icon">📴</span>
+    <span class="offline-bar-text" id="offlineBarText">Offline-läge</span>
+  </div>
+
   <!-- Offline indicator -->
   <script>
   (function() {
@@ -686,9 +686,11 @@
     var text = document.getElementById('offlineBarText');
     var icon = document.querySelector('.offline-bar-icon');
     var hideTimer = null;
+    var wasOffline = false;
 
     function showOffline() {
       if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      wasOffline = true;
       bar.classList.remove('reconnected');
       icon.textContent = '📴';
       text.textContent = 'Offline-läge';
@@ -696,7 +698,8 @@
     }
 
     function showOnline() {
-      if (!bar.classList.contains('visible')) return;
+      if (!wasOffline) return;
+      wasOffline = false;
       bar.classList.add('reconnected');
       icon.textContent = '✅';
       text.textContent = 'Ansluten igen';
@@ -708,12 +711,43 @@
       }, 2000);
     }
 
+    // Native events
     window.addEventListener('offline', showOffline);
-    window.addEventListener('online', showOnline);
+    window.addEventListener('online', function() {
+      // Small delay — some devices fire 'online' before actual connectivity
+      setTimeout(showOnline, 500);
+    });
 
+    // Active polling as backup — navigator.onLine can be unreliable
+    // Tries a tiny HEAD request; if it fails we're truly offline
+    var pollInterval = null;
+    function checkConnectivity() {
+      if (!navigator.onLine) {
+        if (!wasOffline) showOffline();
+        return;
+      }
+      // If navigator says online but we were offline, verify with a real request
+      if (wasOffline) {
+        fetch(window.location.href, { method: 'HEAD', cache: 'no-store' })
+          .then(function() { showOnline(); })
+          .catch(function() { /* still offline despite navigator.onLine */ });
+      }
+    }
+
+    // Check on load
     if (!navigator.onLine) {
       showOffline();
     }
+
+    // Start polling every 5 seconds
+    pollInterval = setInterval(checkConnectivity, 5000);
+
+    // Also check after a brief delay on load (catches cache-first SW scenarios)
+    setTimeout(function() {
+      if (!navigator.onLine && !wasOffline) {
+        showOffline();
+      }
+    }, 1000);
   })();
   </script>
 </body>

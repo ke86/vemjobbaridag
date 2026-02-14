@@ -97,31 +97,32 @@ html.dark .header {
 
 /* Offline indicator bar */
 .offline-bar {
-  position: sticky;
-  top: 60px;
-  z-index: 90;
+  position: fixed;
+  top: 54px;
+  left: 0;
+  right: 0;
+  z-index: 95;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 6px 16px;
   background: #b45309;
   color: #fff;
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.3px;
-  max-height: 0;
+  height: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.4s ease;
-  padding: 0 16px;
+  transition: height 0.35s ease, opacity 0.25s ease;
+  pointer-events: none;
 }
 
 .offline-bar.visible {
-  max-height: 40px;
+  height: 30px;
   opacity: 1;
-  padding: 6px 16px;
+  pointer-events: auto;
 }
 
 .offline-bar.reconnected {

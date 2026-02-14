@@ -448,6 +448,8 @@
     dkStopsData = null;
     currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
     activeTopbarTab = 'timetable';
+    ftLaStracka = null;
+    ftLaPage = null;
     clearCookie();
     stopBtnFlipTimer();
     updateButton();
@@ -646,6 +648,8 @@
   }
 
   var activeTopbarTab = 'timetable'; // 'timetable' or 'la'
+  var ftLaStracka = null;   // '10' or '11', null = auto-detect
+  var ftLaPage = null;      // 1 or 2, null = auto from getTargetPage()
 
   function updateTopbar() {
     if (!topbarEl || !followedTrain) return;
@@ -760,25 +764,75 @@
 
   /**
    * Render the LA PDF into the ftLaContent container.
+   * Uses ftLaStracka / ftLaPage state (auto-detected on first call).
    */
   function renderFtLa() {
     var container = document.getElementById('ftLaContent');
-    if (!container) return;
+    if (!container || !followedTrain) return;
 
-    var nr = detectStracka();
+    // Auto-detect on first open
+    if (!ftLaStracka) ftLaStracka = detectStracka();
+    if (!ftLaPage) ftLaPage = getTargetPage(ftLaStracka, followedTrain.trainNr);
+
+    var nr = ftLaStracka;
+    var page = ftLaPage;
     var today = _ftTodayStr();
     var strName = nr === '10' ? 'Sträcka 10' : 'Sträcka 11';
+    var otherNr = nr === '10' ? '11' : '10';
+    var otherName = nr === '10' ? 'Sträcka 11' : 'Sträcka 10';
 
-    // Show loading state
+    // Build sträcka-bar
+    var barHtml =
+      '<div class="ft-la-bar">'
+      + '<div class="ft-la-bar-left">'
+      +   '<button class="ft-la-bar-back" id="ftLaBarBack">←</button>'
+      +   '<span class="ft-la-bar-label">' + strName + ' — ' + today + '</span>'
+      + '</div>'
+      + '<div class="ft-la-bar-right">'
+      +   '<div class="ft-tab-toggle ft-la-page-toggle">'
+      +     '<button class="ft-tab-btn' + (page === 1 ? ' ft-tab-active' : '') + '" data-page="1">sida 1</button>'
+      +     '<button class="ft-tab-btn' + (page === 2 ? ' ft-tab-active' : '') + '" data-page="2">sida 2</button>'
+      +   '</div>'
+      +   '<button class="ft-la-stracka-btn" id="ftLaStrackaBtn">' + strName + '</button>'
+      + '</div>'
+      + '</div>';
+
+    // Build layout
     container.innerHTML =
-      '<div class="ft-la-wrapper">'
+      barHtml
+      + '<div class="ft-la-wrapper">'
       + '<div class="ft-la-pdf" id="ftLaPdf">'
       +   '<div class="la-viewer-loading"><div class="la-spinner"></div><span>Hämtar ' + strName + '...</span></div>'
       + '</div>'
       + '<div class="ft-la-mini-tt" id="ftLaMiniTt"></div>'
       + '</div>';
 
-    // Fetch and render PDF using la.js exports
+    // Wire up sträcka-bar events
+    document.getElementById('ftLaBarBack').addEventListener('click', function() {
+      activeTopbarTab = 'timetable';
+      updateTopbar();
+      showTabContent('timetable');
+    });
+
+    // Page toggle buttons
+    var pageBtns = container.querySelectorAll('.ft-la-page-toggle .ft-tab-btn');
+    for (var i = 0; i < pageBtns.length; i++) {
+      pageBtns[i].addEventListener('click', function() {
+        var p = parseInt(this.getAttribute('data-page'), 10);
+        if (p === ftLaPage) return;
+        ftLaPage = p;
+        renderFtLa();
+      });
+    }
+
+    // Sträcka switch button
+    document.getElementById('ftLaStrackaBtn').addEventListener('click', function() {
+      ftLaStracka = ftLaStracka === '10' ? '11' : '10';
+      ftLaPage = getTargetPage(ftLaStracka, followedTrain.trainNr);
+      renderFtLa();
+    });
+
+    // Fetch and render PDF
     if (!window.laApi) {
       document.getElementById('ftLaPdf').innerHTML =
         '<div class="la-viewer-error"><div class="la-viewer-error-icon">⚠️</div>'
@@ -786,16 +840,12 @@
       return;
     }
 
-    var targetPage = getTargetPage(nr, followedTrain.trainNr);
-
     window.laApi.fetchPdf(nr, today).then(function(result) {
       var pdfContainer = document.getElementById('ftLaPdf');
       if (!pdfContainer) return;
-      pdfContainer.innerHTML = ''; // clear loading
-      window.laApi.renderPdf(result.buffer, pdfContainer, strName + ' — ' + today);
-
-      // Auto-scroll to the target page once its canvas is rendered
-      scrollToTargetPage(pdfContainer, targetPage);
+      pdfContainer.innerHTML = '';
+      // Render only the selected page
+      window.laApi.renderPdfPage(result.buffer, pdfContainer, page);
     }).catch(function(err) {
       var pdfContainer = document.getElementById('ftLaPdf');
       if (!pdfContainer) return;
@@ -813,38 +863,6 @@
 
     // Render mini timetable
     renderMiniTimetable();
-  }
-
-  /**
-   * Poll for the target page canvas and scroll to it once rendered.
-   * PDF.js renders pages asynchronously with canvas.style.order = pageNum.
-   * targetPage is 1-based.
-   */
-  function scrollToTargetPage(container, targetPage) {
-    if (targetPage <= 1) return; // page 1 is already at top
-    var attempts = 0;
-    var maxAttempts = 40; // 40 × 150ms = 6 seconds max wait
-    var poll = setInterval(function() {
-      attempts++;
-      var canvases = container.querySelectorAll('canvas');
-      // Find canvas with style.order matching targetPage
-      var target = null;
-      for (var i = 0; i < canvases.length; i++) {
-        if (parseInt(canvases[i].style.order, 10) === targetPage) {
-          target = canvases[i];
-          break;
-        }
-      }
-      if (target) {
-        clearInterval(poll);
-        // Small delay to ensure layout is settled
-        setTimeout(function() {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-      } else if (attempts >= maxAttempts) {
-        clearInterval(poll);
-      }
-    }, 150);
   }
 
   /**
@@ -920,9 +938,9 @@
     // If no next station (all passed), use last
     if (nextI < 0) nextI = all.length - 1;
 
-    // Window: 1 before, current, 1 after
-    var startI = Math.max(0, nextI - 1);
-    var endI = Math.min(all.length - 1, nextI + 1);
+    // Window: 2 before, current, 2 after
+    var startI = Math.max(0, nextI - 2);
+    var endI = Math.min(all.length - 1, nextI + 2);
     var slice = [];
     for (var k = startI; k <= endI; k++) {
       slice.push(all[k]);
