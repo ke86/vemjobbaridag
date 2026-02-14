@@ -95,6 +95,52 @@ html.dark .header {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Offline indicator bar */
+.offline-bar {
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #b45309;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.4s ease;
+  padding: 0 16px;
+}
+
+.offline-bar.visible {
+  max-height: 40px;
+  opacity: 1;
+  padding: 6px 16px;
+}
+
+.offline-bar.reconnected {
+  background: #15803d;
+}
+
+.offline-bar-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+html.dark .offline-bar {
+  background: #92400e;
+}
+
+html.dark .offline-bar.reconnected {
+  background: #166534;
+}
+
 .menu-btn {
   background: none;
   border: none;

@@ -447,9 +447,11 @@
     nextStationData = null;
     dkStopsData = null;
     currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
+    activeTopbarTab = 'timetable';
     clearCookie();
     stopBtnFlipTimer();
     updateButton();
+    restoreHeader();
 
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
@@ -467,16 +469,7 @@
     if (followedTrain) {
       followBtn.classList.add('following');
       applyBtnDelayClass();
-      if (btnFlipShowingDelay) {
-        // If waiting at origin, show countdown instead of "I tid"
-        if (originDepartureTarget) {
-          followBtn.textContent = getOriginCountdownText();
-        } else {
-          followBtn.textContent = currentDelayInfo.delayText;
-        }
-      } else {
-        followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
-      }
+      followBtn.textContent = 'Tåg ' + followedTrain.trainNr;
     } else {
       followBtn.textContent = 'Följ tåg';
     }
@@ -597,54 +590,94 @@
       + '</div>';
   }
 
+  /**
+   * Build the route string "FirstStation → LastStation" including DK extensions.
+   * Reused by both updateTopbar() and updateHeaderRoute().
+   */
+  function getRouteText() {
+    if (!followedTrain || !nextStationData) return '';
+    var trainNr = followedTrain.trainNr;
+    var first = stationName(nextStationData.firstStation);
+    var last = stationName(nextStationData.lastStation);
+
+    if (dkStopsData && dkStopsData.stops && dkStopsData.stops.length > 0) {
+      var dkDir = dkStopsData.direction || _inferDkDirection(dkStopsData.stops);
+      var dkFirst = dkStopsData.stops[0];
+      var dkLast = dkStopsData.stops[dkStopsData.stops.length - 1];
+      if (dkDir === 'toDK') {
+        last = dkLast.name;
+      } else {
+        first = dkFirst.name;
+      }
+    } else if (typeof denmark !== 'undefined') {
+      var dkInfo = denmark.getDanishStops(trainNr);
+      if (dkInfo && dkInfo.stops.length > 0) {
+        if (dkInfo.direction === 'toDK') {
+          var dkLastSt = dkInfo.stops[dkInfo.stops.length - 1];
+          if (dkLastSt.pax) last = dkLastSt.name;
+        } else {
+          var dkFirstSt = dkInfo.stops[0];
+          if (dkFirstSt.pax) first = dkFirstSt.name;
+        }
+      }
+    }
+
+    return first + ' → ' + last;
+  }
+
+  /**
+   * Update the app header to show route info when following a train.
+   */
+  function updateHeaderRoute() {
+    var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
+    if (!headerTitle) return;
+    var route = getRouteText();
+    headerTitle.textContent = route || ('Följ tåg ' + (followedTrain ? followedTrain.trainNr : ''));
+  }
+
+  /**
+   * Restore the app header to default for current page.
+   */
+  function restoreHeader() {
+    var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
+    if (headerTitle) {
+      headerTitle.textContent = 'Vem jobbar idag?';
+    }
+  }
+
+  var activeTopbarTab = 'timetable'; // 'timetable' or 'la'
+
   function updateTopbar() {
     if (!topbarEl || !followedTrain) return;
 
-    var trainNr = followedTrain.trainNr;
-    var route = '';
-    if (nextStationData) {
-      var first = stationName(nextStationData.firstStation);
-      var last = stationName(nextStationData.lastStation);
+    // Update header with route
+    updateHeaderRoute();
 
-      // Extend route with Danish stops — prefer live Rejseplanen data
-      if (dkStopsData && dkStopsData.stops && dkStopsData.stops.length > 0) {
-        var dkDir = dkStopsData.direction || _inferDkDirection(dkStopsData.stops);
-        var dkFirst = dkStopsData.stops[0];
-        var dkLast = dkStopsData.stops[dkStopsData.stops.length - 1];
-        if (dkDir === 'toDK') {
-          last = dkLast.name;
-        } else {
-          first = dkFirst.name;
-        }
-      } else if (typeof denmark !== 'undefined') {
-        var dkInfo = denmark.getDanishStops(trainNr);
-        if (dkInfo && dkInfo.stops.length > 0) {
-          if (dkInfo.direction === 'toDK') {
-            var dkLastSt = dkInfo.stops[dkInfo.stops.length - 1];
-            if (dkLastSt.pax) last = dkLastSt.name;
-          } else {
-            var dkFirstSt = dkInfo.stops[0];
-            if (dkFirstSt.pax) first = dkFirstSt.name;
-          }
-        }
-      }
-
-      route = first + ' → ' + last;
-    }
-
-    var statusClass = 'ft-status-ok';
-    if (currentDelayInfo.status === 'major') statusClass = 'ft-status-major';
-    else if (currentDelayInfo.status === 'minor') statusClass = 'ft-status-minor';
+    var isTimetable = activeTopbarTab === 'timetable';
 
     topbarEl.innerHTML =
       '<div class="ft-topbar-left">'
-      + '<span class="ft-train-badge ' + statusClass + '">' + trainNr + '</span>'
-      + '<span class="ft-route">' + route + '</span>'
+      + '<div class="ft-tab-toggle">'
+      +   '<button class="ft-tab-btn' + (isTimetable ? ' ft-tab-active' : '') + '" data-tab="timetable">Följ tåg</button>'
+      +   '<button class="ft-tab-btn' + (!isTimetable ? ' ft-tab-active' : '') + '" data-tab="la">LA</button>'
+      + '</div>'
       + '</div>'
       + '<div class="ft-topbar-right">'
       + '<button class="ft-stop-follow-btn" id="ftStopFollow">Sluta följa</button>'
       + '<button class="ft-close-btn" id="ftClosePanel" title="Tillbaka">✕</button>'
       + '</div>';
+
+    // Tab toggle listeners
+    var tabBtns = topbarEl.querySelectorAll('.ft-tab-btn');
+    for (var i = 0; i < tabBtns.length; i++) {
+      tabBtns[i].addEventListener('click', function() {
+        var tab = this.getAttribute('data-tab');
+        if (tab === activeTopbarTab) return;
+        activeTopbarTab = tab;
+        updateTopbar();
+        onTabSwitch(tab);
+      });
+    }
 
     document.getElementById('ftClosePanel').addEventListener('click', function() {
       showPage('schedule');
@@ -652,6 +685,282 @@
     document.getElementById('ftStopFollow').addEventListener('click', function() {
       stopFollowing(false);
     });
+  }
+
+  /**
+   * Detect which Banedanmark sträcka (10 or 11) applies to current train.
+   * Sträcka 10: KH – Österport (Kystbanen, norr om KH)
+   * Sträcka 11: KH – Peberholm (Öresundståg, över bron)
+   * Returns '10' or '11' (defaults to '11' for Öresundståg).
+   */
+  function detectStracka() {
+    if (dkStopsData && dkStopsData.stops && dkStopsData.stops.length > 0) {
+      // Sträcka 10 stations: Österport and stations north of KH on Kystbanen
+      var stracka10Names = [
+        'østerport', 'österport', 'nordhavn', 'svanemøllen', 'hellerup',
+        'charlottenlund', 'ordrup', 'klampenborg', 'lyngby',
+        'holte', 'birkerød', 'allerød', 'hillerød',
+        'fredensborg', 'humlebæk', 'nivå', 'kokkedal',
+        'rungsted kyst', 'hørsholm', 'snekkersten', 'helsingør',
+        'nørreport'
+      ];
+      for (var i = 0; i < dkStopsData.stops.length; i++) {
+        var name = (dkStopsData.stops[i].name || '').toLowerCase();
+        for (var j = 0; j < stracka10Names.length; j++) {
+          if (name.indexOf(stracka10Names[j]) >= 0) return '10';
+        }
+      }
+    }
+    return '11'; // default: Öresundståg via Peberholm
+  }
+
+  /**
+   * Determine which PDF page to scroll to.
+   * Jämnt tågnummer (mot Sverige): sträcka 10 → sida 2, sträcka 11 → sida 1
+   * Ojämnt tågnummer (mot Danmark): sträcka 10 → sida 1, sträcka 11 → sida 2
+   * Returns 1-based page number.
+   */
+  function getTargetPage(stracka, trainNr) {
+    var num = parseInt(trainNr, 10);
+    var isEven = num % 2 === 0; // jämnt = mot Sverige
+    if (stracka === '10') {
+      return isEven ? 2 : 1;
+    } else {
+      return isEven ? 1 : 2;
+    }
+  }
+
+  /**
+   * Show/hide the Följ tåg content vs LA content.
+   */
+  function showTabContent(tab) {
+    var ftContent = document.getElementById('ftPageContent');
+    var laContent = document.getElementById('ftLaContent');
+    if (!ftContent || !laContent) return;
+
+    if (tab === 'la') {
+      ftContent.style.display = 'none';
+      laContent.style.display = '';
+    } else {
+      ftContent.style.display = '';
+      laContent.style.display = 'none';
+    }
+  }
+
+  /**
+   * Called when user switches between Följ tåg / LA tabs.
+   */
+  function onTabSwitch(tab) {
+    showTabContent(tab);
+
+    if (tab === 'la') {
+      renderFtLa();
+    }
+  }
+
+  /**
+   * Render the LA PDF into the ftLaContent container.
+   */
+  function renderFtLa() {
+    var container = document.getElementById('ftLaContent');
+    if (!container) return;
+
+    var nr = detectStracka();
+    var today = _ftTodayStr();
+    var strName = nr === '10' ? 'Sträcka 10' : 'Sträcka 11';
+
+    // Show loading state
+    container.innerHTML =
+      '<div class="ft-la-wrapper">'
+      + '<div class="ft-la-pdf" id="ftLaPdf">'
+      +   '<div class="la-viewer-loading"><div class="la-spinner"></div><span>Hämtar ' + strName + '...</span></div>'
+      + '</div>'
+      + '<div class="ft-la-mini-tt" id="ftLaMiniTt"></div>'
+      + '</div>';
+
+    // Fetch and render PDF using la.js exports
+    if (!window.laApi) {
+      document.getElementById('ftLaPdf').innerHTML =
+        '<div class="la-viewer-error"><div class="la-viewer-error-icon">⚠️</div>'
+        + '<div class="la-viewer-error-text">LA-modulen är inte laddad.</div></div>';
+      return;
+    }
+
+    var targetPage = getTargetPage(nr, followedTrain.trainNr);
+
+    window.laApi.fetchPdf(nr, today).then(function(result) {
+      var pdfContainer = document.getElementById('ftLaPdf');
+      if (!pdfContainer) return;
+      pdfContainer.innerHTML = ''; // clear loading
+      window.laApi.renderPdf(result.buffer, pdfContainer, strName + ' — ' + today);
+
+      // Auto-scroll to the target page once its canvas is rendered
+      scrollToTargetPage(pdfContainer, targetPage);
+    }).catch(function(err) {
+      var pdfContainer = document.getElementById('ftLaPdf');
+      if (!pdfContainer) return;
+
+      var msg = '⚠️ Kunde inte hämta PDF.';
+      if (err.message === 'NOT_PUBLISHED') {
+        msg = '📭 Denna LA är inte publicerad ännu.';
+      } else if (err.message === 'OFFLINE') {
+        msg = '📴 Du är offline. Denna PDF är inte sparad.';
+      }
+      pdfContainer.innerHTML =
+        '<div class="la-viewer-error"><div class="la-viewer-error-icon">' + msg.charAt(0) + '</div>'
+        + '<div class="la-viewer-error-text">' + msg + '</div></div>';
+    });
+
+    // Render mini timetable
+    renderMiniTimetable();
+  }
+
+  /**
+   * Poll for the target page canvas and scroll to it once rendered.
+   * PDF.js renders pages asynchronously with canvas.style.order = pageNum.
+   * targetPage is 1-based.
+   */
+  function scrollToTargetPage(container, targetPage) {
+    if (targetPage <= 1) return; // page 1 is already at top
+    var attempts = 0;
+    var maxAttempts = 40; // 40 × 150ms = 6 seconds max wait
+    var poll = setInterval(function() {
+      attempts++;
+      var canvases = container.querySelectorAll('canvas');
+      // Find canvas with style.order matching targetPage
+      var target = null;
+      for (var i = 0; i < canvases.length; i++) {
+        if (parseInt(canvases[i].style.order, 10) === targetPage) {
+          target = canvases[i];
+          break;
+        }
+      }
+      if (target) {
+        clearInterval(poll);
+        // Small delay to ensure layout is settled
+        setTimeout(function() {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else if (attempts >= maxAttempts) {
+        clearInterval(poll);
+      }
+    }, 150);
+  }
+
+  /**
+   * Build a combined list of all stops (SE + DK) in travel order,
+   * each with: { name, arr, dep, track, passed, isNext, isDk }
+   */
+  function buildCombinedStops() {
+    var combined = [];
+    var stops = nextStationData ? nextStationData.stops : [];
+    var nextIdx = nextStationData ? nextStationData.nextIdx : -1;
+    var dkState = followedTrain ? getDkTrackingState(followedTrain.trainNr) : null;
+
+    // SE stops
+    var seStops = [];
+    for (var i = 0; i < stops.length; i++) {
+      var s = stops[i];
+      seStops.push({
+        name: stationName(s.station),
+        arr: s.arrival ? (s.arrival.actual || s.arrival.estimated || s.arrival.planned || '') : '',
+        dep: s.departure ? (s.departure.actual || s.departure.estimated || s.departure.planned || '') : '',
+        track: s.track || '',
+        passed: !!s.passed,
+        isNext: i === nextIdx,
+        isDk: false
+      });
+    }
+
+    // DK stops
+    var dkStops = [];
+    if (dkState && dkState.stops && dkState.stops.length > 0) {
+      for (var j = 0; j < dkState.stops.length; j++) {
+        var ds = dkState.stops[j];
+        dkStops.push({
+          name: ds.name,
+          arr: ds.rtArr || ds.arrPlanned || ds.arr || '',
+          dep: ds.rtDep || ds.depPlanned || ds.dep || '',
+          track: ds.track || '',
+          passed: !!ds._passed,
+          isNext: !!ds._isNext,
+          isDk: true
+        });
+      }
+    }
+
+    // Combine in travel order
+    if (dkState && dkState.direction === 'toSE') {
+      combined = dkStops.concat(seStops);
+    } else {
+      combined = seStops.concat(dkStops);
+    }
+
+    return combined;
+  }
+
+  /**
+   * Render mini timetable in LA view: 1 station before, current, 1 station after.
+   */
+  function renderMiniTimetable() {
+    var el = document.getElementById('ftLaMiniTt');
+    if (!el) return;
+
+    var all = buildCombinedStops();
+    if (all.length === 0) {
+      el.innerHTML = '';
+      return;
+    }
+
+    // Find the "next" station index
+    var nextI = -1;
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].isNext) { nextI = i; break; }
+    }
+    // If no next station (all passed), use last
+    if (nextI < 0) nextI = all.length - 1;
+
+    // Window: 1 before, current, 1 after
+    var startI = Math.max(0, nextI - 1);
+    var endI = Math.min(all.length - 1, nextI + 1);
+    var slice = [];
+    for (var k = startI; k <= endI; k++) {
+      slice.push(all[k]);
+    }
+
+    var hasTrack = false;
+    for (var t = 0; t < slice.length; t++) {
+      if (slice[t].track) { hasTrack = true; break; }
+    }
+
+    var html = '<table class="ft-mini-table"><tbody>';
+    for (var r = 0; r < slice.length; r++) {
+      var st = slice[r];
+      var cls = st.isNext ? 'ft-mini-next' : (st.passed ? 'ft-mini-passed' : '');
+      var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
+      var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
+      var flag = st.isDk ? '<span class="ft-mini-flag">🇩🇰</span> ' : '';
+
+      html += '<tr class="' + cls + '">'
+        + '<td class="ft-mini-station">' + check + marker + flag + st.name + '</td>'
+        + '<td class="ft-mini-time">' + st.arr + '</td>'
+        + '<td class="ft-mini-time">' + st.dep + '</td>'
+        + (hasTrack ? '<td class="ft-mini-track">' + st.track + '</td>' : '')
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  /**
+   * Today's date as YYYY-MM-DD.
+   */
+  function _ftTodayStr() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth() + 1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + dd;
   }
 
   /**
@@ -1412,6 +1721,10 @@
       computeDelayInfo();
       updateButton();
       renderPage();
+      // Update mini timetable if LA tab is active
+      if (activeTopbarTab === 'la') {
+        renderMiniTimetable();
+      }
     } catch (err) {
       if (contentEl && announcements.length === 0) {
         contentEl.innerHTML =
@@ -1672,15 +1985,16 @@
     topbarEl = document.getElementById('ftPageTopbar');
     contentEl = document.getElementById('ftPageContent');
 
-    // Set header title
-    var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
-    if (headerTitle) {
-      headerTitle.textContent = followedTrain ? 'Följ tåg ' + followedTrain.trainNr : 'Följ tåg';
-    }
+    // Set header title to route (or fallback)
+    updateHeaderRoute();
 
     if (followedTrain) {
       updateTopbar();
-      if (nextStationData) {
+      // Restore correct tab view
+      showTabContent(activeTopbarTab);
+      if (activeTopbarTab === 'la') {
+        renderFtLa();
+      } else if (nextStationData) {
         renderPage();
       } else {
         showLoading();
@@ -1688,6 +2002,7 @@
     } else {
       // No train followed — show prompt
       if (topbarEl) topbarEl.innerHTML = '';
+      showTabContent('timetable');
       if (contentEl) {
         contentEl.innerHTML =
           '<div class="ft-empty">'
@@ -1703,7 +2018,12 @@
 
   window.onTrainFollowPageHide = function() {
     pageActive = false;
-    // Keep polling in background — button flip still needs updates
+    // Restore header title when leaving the train follow page
+    restoreHeader();
+    // Clear LA content to free memory
+    var laContent = document.getElementById('ftLaContent');
+    if (laContent) laContent.innerHTML = '';
+    // Keep polling in background — button still needs updates
   };
 
   // ==========================================
@@ -1735,7 +2055,11 @@
     open: function() { openModal(); },
     close: function() { closeModal(); },
     stop: function() { stopFollowing(false); },
-    getFollowed: function() { return followedTrain; }
+    getFollowed: function() { return followedTrain; },
+    getRouteText: function() { return getRouteText(); },
+    getNextStationData: function() { return nextStationData; },
+    getDkStopsData: function() { return dkStopsData; },
+    getActiveTab: function() { return activeTopbarTab; }
   };
 
   if (document.readyState === 'loading') {

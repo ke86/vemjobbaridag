@@ -172,6 +172,107 @@
   box-sizing: border-box;
 }
 
+/* LA tab content area */
+.ft-la-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.ft-la-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ft-la-pdf {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ft-la-pdf canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.ft-la-mini-tt {
+  flex-shrink: 0;
+  border-top: 2px solid var(--border-color);
+  background: var(--bg-card);
+  padding: 0;
+}
+
+/* Mini timetable in LA view */
+.ft-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.ft-mini-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+.ft-mini-table tr:last-child td {
+  border-bottom: none;
+}
+.ft-mini-station {
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.ft-mini-time {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  min-width: 42px;
+}
+.ft-mini-track {
+  color: var(--text-secondary);
+  text-align: center;
+  min-width: 30px;
+  font-weight: 600;
+}
+.ft-mini-flag {
+  font-size: 11px;
+  margin-right: 2px;
+}
+
+/* Current station row — green highlight */
+.ft-mini-next {
+  background: linear-gradient(90deg, rgba(34,197,94,0.18) 0%, rgba(34,197,94,0.04) 100%);
+  border-left: 3px solid var(--accent-green);
+}
+.ft-mini-next .ft-mini-station {
+  color: var(--accent-green);
+  font-weight: 700;
+}
+.ft-mini-next .ft-marker {
+  color: var(--accent-green);
+}
+
+/* Passed station row — faded */
+.ft-mini-passed {
+  opacity: 0.5;
+}
+.ft-mini-passed .ft-check {
+  color: var(--accent-green);
+}
+
 /* Info section: countdown card + DK card — fixed, never scrolls */
 .ft-sticky-info {
   flex-shrink: 0;
@@ -228,12 +329,49 @@
   font-size: 14px;
 }
 
-/* Topbar parts (used inside subheader-inner) */
+/* Topbar parts */
 .ft-topbar-left {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+/* Flip toggle (Följ tåg / LA) */
+.ft-tab-toggle {
+  display: flex;
+  background: var(--bg-secondary, rgba(0,0,0,0.08));
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.ft-tab-btn {
+  background: none;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.ft-tab-btn.ft-tab-active {
+  background: var(--bg-card, #fff);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+.ft-tab-btn:not(.ft-tab-active):active {
+  background: rgba(0,0,0,0.04);
+}
+html.dark .ft-tab-toggle {
+  background: rgba(255,255,255,0.08);
+}
+html.dark .ft-tab-btn.ft-tab-active {
+  background: rgba(255,255,255,0.15);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 .ft-topbar-right {
   display: flex;

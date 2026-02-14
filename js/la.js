@@ -341,4 +341,12 @@
     showCards(); // reset to cards view
   };
 
+  // Export for reuse by train-follow LA tab
+  window.laApi = {
+    fetchPdf: fetchPdf,
+    renderPdf: function(buffer, container, label) {
+      renderPdf(buffer, container, label);
+    }
+  };
+
 })();
