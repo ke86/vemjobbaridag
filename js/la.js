@@ -33,6 +33,12 @@
     return y + '-' + m + '-' + dd;
   }
 
+  /** Returns true if current time is 14:30 or later */
+  function isTomorrowReady() {
+    var now = new Date();
+    return (now.getHours() > 14) || (now.getHours() === 14 && now.getMinutes() >= 30);
+  }
+
   function formatDateLabel(dateStr) {
     var parts = dateStr.split('-');
     var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
@@ -124,6 +130,7 @@
 
     var today = todayStr();
     var tomorrow = tomorrowStr();
+    var showTomorrow = isTomorrowReady();
 
     // Clean up old cached PDFs
     cacheCleanup();
@@ -133,8 +140,10 @@
     for (var i = 0; i < ROUTES.length; i++) {
       checks.push(cacheHas(ROUTES[i].nr, today));
     }
-    for (var j = 0; j < ROUTES.length; j++) {
-      checks.push(cacheHas(ROUTES[j].nr, tomorrow));
+    if (showTomorrow) {
+      for (var j = 0; j < ROUTES.length; j++) {
+        checks.push(cacheHas(ROUTES[j].nr, tomorrow));
+      }
     }
 
     Promise.all(checks).then(function(results) {
@@ -151,11 +160,20 @@
       html += '</div>';
 
       // Tomorrow group
-      html += '<div class="la-date-group">';
+      html += '<div class="la-date-group la-tomorrow-group">';
       html += '<div class="la-date-label">Imorgon — ' + formatDateLabel(tomorrow) + '</div>';
-      for (var b = 0; b < ROUTES.length; b++) {
-        html += buildCard(ROUTES[b], tomorrow, results[idx]);
-        idx++;
+      if (showTomorrow) {
+        for (var b = 0; b < ROUTES.length; b++) {
+          html += buildCard(ROUTES[b], tomorrow, results[idx]);
+          idx++;
+        }
+      } else {
+        html += '<div class="la-card la-card-inactive">'
+          + '<div class="la-card-icon">🕑</div>'
+          + '<div class="la-card-info">'
+          + '<div class="la-card-sub">Imorgons LA publiceras vanligtvis efter kl 14:30</div>'
+          + '</div>'
+          + '</div>';
       }
       html += '</div>';
 
@@ -195,9 +213,36 @@
     });
   }
 
-  function fetchPdf(nr, date) {
-    if (!('caches' in window)) {
+  /**
+   * Network fetch with auto-retry for tomorrow's PDFs.
+   * Retries up to maxRetries times with delayMs between attempts on NOT_PUBLISHED.
+   */
+  function networkFetchWithRetry(nr, date, maxRetries, delayMs) {
+    return networkFetch(nr, date).catch(function(err) {
+      if (err.message === 'NOT_PUBLISHED' && maxRetries > 0) {
+        return new Promise(function(resolve) {
+          setTimeout(resolve, delayMs);
+        }).then(function() {
+          return networkFetchWithRetry(nr, date, maxRetries - 1, delayMs);
+        });
+      }
+      throw err;
+    });
+  }
+
+  function fetchPdf(nr, date, options) {
+    var isTomorrow = date === tomorrowStr();
+    var useRetry = isTomorrow && (!options || !options.noRetry);
+
+    function doNetworkFetch() {
+      if (useRetry) {
+        return networkFetchWithRetry(nr, date, 2, 5000);
+      }
       return networkFetch(nr, date);
+    }
+
+    if (!('caches' in window)) {
+      return doNetworkFetch();
     }
 
     // 1. Try cache first
@@ -209,8 +254,8 @@
           return { buffer: buf, source: 'cache' };
         });
       }
-      // 2. Not in cache — try network
-      return networkFetch(nr, date);
+      // 2. Not in cache — try network (with retry for tomorrow)
+      return doNetworkFetch();
     }).catch(function(err) {
       // Cache failed — if offline this is the end
       if (err.message === 'NOT_PUBLISHED') throw err;
@@ -218,7 +263,7 @@
         throw new Error('OFFLINE');
       }
       // Cache error but online — try network directly
-      return networkFetch(nr, date);
+      return doNetworkFetch();
     });
   }
 
@@ -233,12 +278,13 @@
     if (!pdfView) return;
 
     var label = name + ' — ' + formatDateLabel(date);
+    var isTomorrow = date === tomorrowStr();
 
     // Switch to PDF view
     pdfView.innerHTML = backBtnHtml(label)
       + '<div class="la-viewer-loading">'
       + '<div class="la-card-loading"></div>'
-      + '<span>Hämtar PDF…</span>'
+      + '<span>Hämtar PDF…' + (isTomorrow ? ' (försöker upp till 3 gånger)' : '') + '</span>'
       + '</div>';
     showPdfView();
 
@@ -253,9 +299,12 @@
       .catch(function(err) {
         var errorHtml;
         if (err.message === 'NOT_PUBLISHED') {
+          var retryBtnHtml = '<button class="la-retry-btn" onclick="window._laOpen(\''
+            + nr + '\',\'' + date + '\',\'' + name + '\')">🔄 Försök igen</button>';
           errorHtml = '<div class="la-viewer-error">'
             + '<div class="la-viewer-error-icon">📭</div>'
-            + '<div class="la-viewer-error-text">LA för ' + date + ' finns inte än.<br>Prova igen senare.</div>'
+            + '<div class="la-viewer-error-text">LA för ' + formatDateLabel(date) + ' finns inte än.</div>'
+            + retryBtnHtml
             + '</div>';
         } else if (err.message === 'OFFLINE' || !navigator.onLine) {
           errorHtml = '<div class="la-viewer-error">'

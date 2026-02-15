@@ -224,3 +224,30 @@
   color: var(--text-secondary);
   line-height: 1.5;
 }
+
+/* Retry button (shown on NOT_PUBLISHED error) */
+.la-retry-btn {
+  margin-top: 14px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-blue);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.la-retry-btn:active {
+  opacity: 0.7;
+}
+
+/* Inactive card (tomorrow before 14:30) */
+.la-card-inactive {
+  cursor: default;
+  opacity: 0.6;
+}
+.la-card-inactive:active {
+  transform: none;
+}
