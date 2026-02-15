@@ -324,6 +324,10 @@ function stopHolidayAnimations() {
 function triggerFloatingAnimation() {
   if (!holidayAnimationsEnabled) return;
 
+  // Only show animations on the schedule page
+  var schedPage = document.getElementById('schedulePage');
+  if (!schedPage || !schedPage.classList.contains('active')) return;
+
   const animType = getAnimationType(currentDate);
   if (!animType) return;
 
