@@ -649,6 +649,7 @@
     if (!headerTitle) return;
     var route = getRouteText();
     headerTitle.textContent = route || ('Följ tåg ' + (followedTrain ? followedTrain.trainNr : ''));
+    headerTitle.classList.add('following-route');
   }
 
   /**
@@ -658,6 +659,7 @@
     var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
     if (headerTitle) {
       headerTitle.textContent = 'Vem jobbar idag?';
+      headerTitle.classList.remove('following-route');
     }
   }
 

@@ -170,6 +170,16 @@ html.dark .menu-btn:hover {
   letter-spacing: -0.3px;
   flex: 1;
   text-align: center;
+  min-width: 0;
+}
+
+.header-title.following-route {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 4px;
 }
 
 /* Follow Train Button — header right */
