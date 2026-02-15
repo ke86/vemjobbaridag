@@ -882,7 +882,7 @@
 
       var msg = '⚠️ Kunde inte hämta PDF.';
       if (err.message === 'NOT_PUBLISHED') {
-        msg = '📭 Denna LA är inte publicerad ännu.';
+        msg = '📭 LA finns inte än — prova senare.';
       } else if (err.message === 'OFFLINE') {
         msg = '📴 Du är offline. Denna PDF är inte sparad.';
       }

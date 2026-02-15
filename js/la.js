@@ -183,7 +183,7 @@
   function networkFetch(nr, date) {
     return fetch(pdfUrl(nr, date)).then(function(resp) {
       if (!resp.ok) {
-        if (resp.status === 404 || resp.status === 500) {
+        if (resp.status === 404 || resp.status === 406 || resp.status === 500) {
           throw new Error('NOT_PUBLISHED');
         }
         throw new Error('HTTP ' + resp.status);
@@ -255,7 +255,7 @@
         if (err.message === 'NOT_PUBLISHED') {
           errorHtml = '<div class="la-viewer-error">'
             + '<div class="la-viewer-error-icon">📭</div>'
-            + '<div class="la-viewer-error-text">Denna LA är inte<br>publicerad ännu.</div>'
+            + '<div class="la-viewer-error-text">LA för ' + date + ' finns inte än.<br>Prova igen senare.</div>'
             + '</div>';
         } else if (err.message === 'OFFLINE' || !navigator.onLine) {
           errorHtml = '<div class="la-viewer-error">'
