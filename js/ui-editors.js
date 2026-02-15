@@ -817,10 +817,10 @@ function editImportantDate(e, id) {
     }
 
     try {
+      closeOverlay();
       updateSyncStatus('syncing');
       await db.collection('importantDates').doc(id).update(updateData);
       showToast('Datum uppdaterat', 'success');
-      closeOverlay();
     } catch (err) {
       console.log('Could not update important date:', err);
       showToast('Kunde inte spara ändringar', 'error');
