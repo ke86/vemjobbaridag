@@ -63,10 +63,16 @@
   transform: translateX(4px);
 }
 
-/* Employee has finished their shift for the day */
+/* Shift status — colored left border indicators */
+.employee-card.employee-active {
+  border-left: 3px solid #22c55e;
+}
+.employee-card.employee-upcoming {
+  border-left: 3px solid #3b82f6;
+}
 .employee-card.employee-finished {
-  opacity: 0.55;
   border-left: 3px solid #64748b;
+  opacity: 0.55;
   transition: opacity 0.4s ease, transform 0.2s, border-color 0.2s;
 }
 .employee-card.employee-finished:hover {

@@ -628,20 +628,22 @@ function toggleBadgeDisplay(event, element) {
 // ==========================================
 
 /**
- * Check if an employee has finished their shift for the day.
+ * Determine an employee's shift status for the day.
+ * Returns: 'active' | 'upcoming' | 'finished' | null
+ *
  * Uses two strategies:
  *   1. Dagvy data (via getNextTrainForEmployee → finished flag)
- *   2. Fallback: parse shift end time from shift.time (e.g. "05:16-10:14")
- * Only returns true when viewing today's date.
+ *   2. Fallback: parse shift start/end time from shift.time (e.g. "05:16-10:14")
+ * Only returns a status when viewing today's date.
  */
-function isEmployeeFinished(shift) {
+function getEmployeeShiftStatus(shift) {
   // Only apply for today
   const isToday = getDateKey(currentDate) === getDateKey(new Date());
-  if (!isToday) return false;
+  if (!isToday) return null;
 
-  // Non-working shifts are not "finished"
-  if (!shift.time || shift.time === '-' || shift.isBirthdayOnly || shift.isNameDayOnly) return false;
-  if (nonWorkingTypes.includes(shift.badge)) return false;
+  // Non-working shifts have no status
+  if (!shift.time || shift.time === '-' || shift.isBirthdayOnly || shift.isNameDayOnly) return null;
+  if (nonWorkingTypes.includes(shift.badge)) return null;
 
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -649,23 +651,34 @@ function isEmployeeFinished(shift) {
   // Strategy 1: Check dagvy data (most accurate — knows about all train segments)
   if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
     const nextTrain = getNextTrainForEmployee(shift.employeeId);
-    if (nextTrain && nextTrain.finished) return true;
-    // If dagvy has train data but not finished, trust that
-    if (nextTrain) return false;
+    if (nextTrain && nextTrain.finished) return 'finished';
+    if (nextTrain) return 'active'; // dagvy has trains, not finished → active
   }
 
-  // Strategy 2: Fallback — parse shift end time from "HH:MM-HH:MM" format
+  // Strategy 2: Fallback — parse shift times from "HH:MM-HH:MM" format
   const timeParts = (shift.time || '').split('-');
   if (timeParts.length >= 2) {
+    const startStr = timeParts[0].trim();
     const endStr = timeParts[timeParts.length - 1].trim();
+    const startMatch = startStr.match(/^(\d{1,2}):(\d{2})/);
     const endMatch = endStr.match(/^(\d{1,2}):(\d{2})/);
-    if (endMatch) {
+
+    if (startMatch && endMatch) {
+      const startMinutes = parseInt(startMatch[1]) * 60 + parseInt(startMatch[2]);
       const endMinutes = parseInt(endMatch[1]) * 60 + parseInt(endMatch[2]);
-      if (nowMinutes > endMinutes) return true;
+
+      if (nowMinutes > endMinutes) return 'finished';
+      if (nowMinutes < startMinutes) return 'upcoming';
+      return 'active';
     }
   }
 
-  return false;
+  return null;
+}
+
+// Backwards-compatible helper
+function isEmployeeFinished(shift) {
+  return getEmployeeShiftStatus(shift) === 'finished';
 }
 
 function renderEmployees() {
@@ -822,10 +835,12 @@ function renderEmployees() {
     // "Uppdaterad" badge if schedule was updated from dagvy
     const updatedBadge = shift.updatedFromDagvy ? '<span class="dagvy-updated-badge">UPD</span>' : '';
 
-    // Check if employee has finished their shift
-    const finished = isWorking && isEmployeeFinished(shift);
-    if (finished) cardClasses.push('employee-finished');
-    const finishedLabel = finished ? '<span class="finished-label">✓ Slutat</span>' : '';
+    // Shift status: active / upcoming / finished (only for today)
+    const shiftStatus = isWorking ? getEmployeeShiftStatus(shift) : null;
+    if (shiftStatus === 'finished') cardClasses.push('employee-finished');
+    else if (shiftStatus === 'active') cardClasses.push('employee-active');
+    else if (shiftStatus === 'upcoming') cardClasses.push('employee-upcoming');
+    const finishedLabel = shiftStatus === 'finished' ? '<span class="finished-label">✓ Slutat</span>' : '';
 
     const allClasses = cardClasses.join(' ');
 
