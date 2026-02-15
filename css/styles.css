@@ -178,8 +178,18 @@ html.dark .menu-btn:hover {
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   padding: 0 4px;
+  position: relative;
+}
+
+.header-title.following-route .marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.header-title.following-route.marquee-scroll .marquee-inner {
+  animation: marqueeScroll var(--marquee-duration, 8s) linear infinite;
+  padding-right: 3em;
 }
 
 /* Follow Train Button — header right */

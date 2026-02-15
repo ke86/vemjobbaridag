@@ -647,9 +647,14 @@
   function updateHeaderRoute() {
     var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
     if (!headerTitle) return;
-    var route = getRouteText();
-    headerTitle.textContent = route || ('Följ tåg ' + (followedTrain ? followedTrain.trainNr : ''));
+    var route = getRouteText() || ('Följ tåg ' + (followedTrain ? followedTrain.trainNr : ''));
+    headerTitle.innerHTML = '<span class="marquee-inner">' + route.replace(/</g, '&lt;') + '</span>';
     headerTitle.classList.add('following-route');
+    requestAnimationFrame(function() {
+      if (typeof initMarqueeScrolls === 'function') {
+        initMarqueeScrolls(headerTitle.parentElement);
+      }
+    });
   }
 
   /**
@@ -659,7 +664,9 @@
     var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
     if (headerTitle) {
       headerTitle.textContent = 'Vem jobbar idag?';
-      headerTitle.classList.remove('following-route');
+      headerTitle.classList.remove('following-route', 'marquee-scroll');
+      headerTitle.style.removeProperty('--marquee-distance');
+      headerTitle.style.removeProperty('--marquee-duration');
     }
   }
 
