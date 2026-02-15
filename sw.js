@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.25.32';
+const CACHE_VERSION = 'v4.25.33';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -30,6 +30,9 @@ const FILES_TO_CACHE = [
   './js/auth.js',
   './js/schedule.js',
   './js/ui.js',
+  './js/ui-shadow.js',
+  './js/ui-realtime.js',
+  './js/ui-upload.js',
   './js/navigation.js',
   './js/dagvy.js',
   './js/departure.js',
