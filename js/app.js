@@ -223,6 +223,9 @@ function setupEventListeners() {
   // Dagvy file upload listeners
   initDagvyUpload();
 
+  // Sync rate-limit (restore cooldown/count on load)
+  if (typeof initSyncRateLimit === 'function') initSyncRateLimit();
+
   // Utseende section (collapsible)
   const appearanceHeader = document.getElementById('appearanceHeader');
   const appearanceSection = document.getElementById('appearanceSection');

@@ -408,12 +408,157 @@ function startAutoCheckTimer() {
 }
 
 /**
- * Manual "Synka alla" triggered from hamburger menu button.
+ * Sync rate-limit: max 5 per day + 2 min cooldown between syncs.
+ */
+var SYNC_MAX_PER_DAY = 5;
+var SYNC_COOLDOWN_MS = 2 * 60 * 1000; // 2 minutes
+var syncCooldownTimer = null;
+
+function getSyncCount() {
+  var match = document.cookie.match(/(?:^|; )sync_count=([^;]*)/);
+  if (!match) return { date: '', count: 0 };
+  var parts = match[1].split(':');
+  return { date: parts[0] || '', count: parseInt(parts[1], 10) || 0 };
+}
+
+function setSyncCount(date, count) {
+  var d = new Date();
+  d.setTime(d.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 day expiry
+  document.cookie = 'sync_count=' + date + ':' + count + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+}
+
+function getSyncCooldownEnd() {
+  var match = document.cookie.match(/(?:^|; )sync_cooldown=([^;]*)/);
+  return match ? parseInt(match[1], 10) : 0;
+}
+
+function setSyncCooldownEnd(timestamp) {
+  var d = new Date();
+  d.setTime(d.getTime() + 10 * 60 * 1000); // 10 min expiry
+  document.cookie = 'sync_cooldown=' + timestamp + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+}
+
+function getTodayStr() {
+  var now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+}
+
+function getSyncRemaining() {
+  var sc = getSyncCount();
+  var today = getTodayStr();
+  if (sc.date !== today) return SYNC_MAX_PER_DAY;
+  return Math.max(0, SYNC_MAX_PER_DAY - sc.count);
+}
+
+function incrementSyncCount() {
+  var today = getTodayStr();
+  var sc = getSyncCount();
+  if (sc.date !== today) {
+    setSyncCount(today, 1);
+  } else {
+    setSyncCount(today, sc.count + 1);
+  }
+}
+
+function updateSyncButtonLabel() {
+  var textEl = document.querySelector('#syncAllBtn .sidebar-sync-text');
+  if (!textEl) return;
+  var remaining = getSyncRemaining();
+  textEl.textContent = 'Synka alla (' + remaining + '/' + SYNC_MAX_PER_DAY + ')';
+}
+
+function startSyncCooldown() {
+  var btn = document.getElementById('syncAllBtn');
+  var textEl = btn ? btn.querySelector('.sidebar-sync-text') : null;
+  var endTime = Date.now() + SYNC_COOLDOWN_MS;
+  setSyncCooldownEnd(endTime);
+
+  if (syncCooldownTimer) clearInterval(syncCooldownTimer);
+
+  function tick() {
+    var left = Math.max(0, endTime - Date.now());
+    if (left <= 0) {
+      clearInterval(syncCooldownTimer);
+      syncCooldownTimer = null;
+      if (btn) btn.disabled = false;
+      updateSyncButtonLabel();
+      return;
+    }
+    var secs = Math.ceil(left / 1000);
+    var m = Math.floor(secs / 60);
+    var s = secs % 60;
+    if (textEl) textEl.textContent = 'Vänta ' + m + ':' + String(s).padStart(2, '0');
+    if (btn) btn.disabled = true;
+  }
+
+  tick();
+  syncCooldownTimer = setInterval(tick, 1000);
+}
+
+function initSyncRateLimit() {
+  // Check if we're still in cooldown from before
+  var cooldownEnd = getSyncCooldownEnd();
+  if (cooldownEnd > Date.now()) {
+    var btn = document.getElementById('syncAllBtn');
+    var icon = document.getElementById('syncAllIcon');
+    if (icon) icon.textContent = '📡';
+    if (btn) btn.classList.remove('syncing');
+    // Resume cooldown
+    var remaining = cooldownEnd - Date.now();
+    var endTime = cooldownEnd;
+    var textEl = btn ? btn.querySelector('.sidebar-sync-text') : null;
+    if (syncCooldownTimer) clearInterval(syncCooldownTimer);
+    function tick() {
+      var left = Math.max(0, endTime - Date.now());
+      if (left <= 0) {
+        clearInterval(syncCooldownTimer);
+        syncCooldownTimer = null;
+        if (btn) btn.disabled = false;
+        updateSyncButtonLabel();
+        return;
+      }
+      var secs = Math.ceil(left / 1000);
+      var m = Math.floor(secs / 60);
+      var s = secs % 60;
+      if (textEl) textEl.textContent = 'Vänta ' + m + ':' + String(s).padStart(2, '0');
+      if (btn) btn.disabled = true;
+    }
+    tick();
+    syncCooldownTimer = setInterval(tick, 1000);
+  } else {
+    // Check if max reached for today
+    var rem = getSyncRemaining();
+    var btn2 = document.getElementById('syncAllBtn');
+    if (rem <= 0 && btn2) btn2.disabled = true;
+    updateSyncButtonLabel();
+  }
+}
+
+/**
+ * Manual "Synka alla" triggered from settings Data section.
  * Writes sync signal → all connected apps (incl. this one) will fetch.
+ * Rate-limited: max 5/day + 2 min cooldown between syncs.
  */
 async function manualSyncAll() {
   var btn = document.getElementById('syncAllBtn');
   var icon = document.getElementById('syncAllIcon');
+
+  // Rate-limit checks
+  var remaining = getSyncRemaining();
+  if (remaining <= 0) {
+    if (icon) icon.textContent = '🚫';
+    var textEl = btn ? btn.querySelector('.sidebar-sync-text') : null;
+    if (textEl) textEl.textContent = 'Max synkningar idag (0/' + SYNC_MAX_PER_DAY + ')';
+    if (btn) btn.disabled = true;
+    setTimeout(function() { if (icon) icon.textContent = '📡'; }, 2000);
+    return;
+  }
+
+  var cooldownEnd = getSyncCooldownEnd();
+  if (cooldownEnd > Date.now()) {
+    return; // Still in cooldown, button should be disabled
+  }
+
   try {
     if (icon) icon.textContent = '⏳';
     if (btn) btn.classList.add('syncing');
@@ -423,17 +568,23 @@ async function manualSyncAll() {
     // Also fetch immediately (don't wait for onSnapshot round-trip)
     await fetchAllData('manual');
 
+    // Count this sync
+    incrementSyncCount();
+
     if (icon) icon.textContent = '✅';
     updateSyncTimestamp();
     setTimeout(function() {
       if (icon) icon.textContent = '📡';
       if (btn) btn.classList.remove('syncing');
-    }, 2000);
+      // Start cooldown
+      startSyncCooldown();
+    }, 1500);
   } catch (err) {
     if (icon) icon.textContent = '❌';
     setTimeout(function() {
       if (icon) icon.textContent = '📡';
       if (btn) btn.classList.remove('syncing');
+      updateSyncButtonLabel();
     }, 3000);
   }
 }

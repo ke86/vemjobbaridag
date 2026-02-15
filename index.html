@@ -84,12 +84,11 @@
       <button class="sidebar-close" id="closeSidebar">×</button>
     </div>
     <ul class="sidebar-menu">
-      <li><a href="#" data-page="schedule" id="menuTodayLink"><span class="icon">📅</span> Dagens schema</a></li>
+      <li><a href="#" data-page="schedule" id="menuTodayLink"><span class="icon">🏠</span> Vem jobbar idag?</a></li>
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
-      <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema</a></li>
-      <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
       <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
-      <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
+      <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
+      <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema (Test)</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
   </nav>
@@ -338,7 +337,56 @@
   <!-- Settings Page -->
   <main class="settings-page page" id="settingsPage">
     <div class="settings-container">
-      <!-- Viktiga datum (collapsible) - HÖGST UPP -->
+      <!-- Ladda upp schema — navigerar till upload-sidan -->
+      <div class="settings-section">
+        <button class="settings-nav-btn" id="goToUploadBtn" onclick="showPage('upload')">
+          <span class="settings-nav-icon">📤</span>
+          <span class="settings-nav-label">Ladda upp schema</span>
+          <span class="settings-nav-arrow">›</span>
+        </button>
+      </div>
+
+      <!-- Utseende (collapsible, collapsed by default) — flyttad upp -->
+      <div class="settings-section collapsible" id="appearanceSection">
+        <div class="collapsible-header" id="appearanceHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">🎨 Utseende</h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="appearanceContent">
+          <div class="settings-item">
+            <div class="settings-label">
+              <span class="settings-icon">🌓</span>
+              <span>Ljust/Mörkt</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="darkModeToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-item">
+            <div class="settings-label">
+              <span class="settings-icon">🎉</span>
+              <span>Helgdagsanimationer</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="holidayAnimationsToggle" checked onchange="toggleHolidayAnimations()">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-item">
+            <div class="settings-label">
+              <span class="settings-icon">🔘</span>
+              <span>Filter-stil</span>
+            </div>
+            <div class="style-picker" id="filterStylePicker">
+              <button class="style-option selected" data-style="flip">Flippar</button>
+              <button class="style-option" data-style="pill">Knappar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Viktiga datum (collapsible) -->
       <div class="settings-section collapsible" id="importantDatesSection">
         <div class="collapsible-header" id="importantDatesHeader">
           <h3 class="settings-title" style="margin-bottom: 0;">📌 Viktiga datum</h3>
@@ -394,46 +442,6 @@
               <div class="important-dates-list" id="importantDatesList">
                 <!-- Saved dates will be rendered here -->
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Utseende (collapsible, collapsed by default) -->
-      <div class="settings-section collapsible" id="appearanceSection">
-        <div class="collapsible-header" id="appearanceHeader">
-          <h3 class="settings-title" style="margin-bottom: 0;">🎨 Utseende</h3>
-          <span class="collapsible-arrow">›</span>
-        </div>
-        <div class="collapsible-content" id="appearanceContent">
-          <div class="settings-item">
-            <div class="settings-label">
-              <span class="settings-icon">🌓</span>
-              <span>Ljust/Mörkt</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="darkModeToggle">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="settings-item">
-            <div class="settings-label">
-              <span class="settings-icon">🎉</span>
-              <span>Helgdagsanimationer</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="holidayAnimationsToggle" checked onchange="toggleHolidayAnimations()">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="settings-item">
-            <div class="settings-label">
-              <span class="settings-icon">🔘</span>
-              <span>Filter-stil</span>
-            </div>
-            <div class="style-picker" id="filterStylePicker">
-              <button class="style-option selected" data-style="flip">Flippar</button>
-              <button class="style-option" data-style="pill">Knappar</button>
             </div>
           </div>
         </div>
@@ -508,7 +516,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.37</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.40</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
