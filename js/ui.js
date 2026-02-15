@@ -627,6 +627,47 @@ function toggleBadgeDisplay(event, element) {
 // DAILY VIEW RENDERING
 // ==========================================
 
+/**
+ * Check if an employee has finished their shift for the day.
+ * Uses two strategies:
+ *   1. Dagvy data (via getNextTrainForEmployee → finished flag)
+ *   2. Fallback: parse shift end time from shift.time (e.g. "05:16-10:14")
+ * Only returns true when viewing today's date.
+ */
+function isEmployeeFinished(shift) {
+  // Only apply for today
+  const isToday = getDateKey(currentDate) === getDateKey(new Date());
+  if (!isToday) return false;
+
+  // Non-working shifts are not "finished"
+  if (!shift.time || shift.time === '-' || shift.isBirthdayOnly || shift.isNameDayOnly) return false;
+  if (nonWorkingTypes.includes(shift.badge)) return false;
+
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Strategy 1: Check dagvy data (most accurate — knows about all train segments)
+  if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
+    const nextTrain = getNextTrainForEmployee(shift.employeeId);
+    if (nextTrain && nextTrain.finished) return true;
+    // If dagvy has train data but not finished, trust that
+    if (nextTrain) return false;
+  }
+
+  // Strategy 2: Fallback — parse shift end time from "HH:MM-HH:MM" format
+  const timeParts = (shift.time || '').split('-');
+  if (timeParts.length >= 2) {
+    const endStr = timeParts[timeParts.length - 1].trim();
+    const endMatch = endStr.match(/^(\d{1,2}):(\d{2})/);
+    if (endMatch) {
+      const endMinutes = parseInt(endMatch[1]) * 60 + parseInt(endMatch[2]);
+      if (nowMinutes > endMinutes) return true;
+    }
+  }
+
+  return false;
+}
+
 function renderEmployees() {
   const dateKey = getDateKey(currentDate);
   const allShifts = employeesData[dateKey] || [];
@@ -740,7 +781,6 @@ function renderEmployees() {
     const cardClasses = [];
     if (isBirthday) cardClasses.push('birthday');
     if (isNameDay) cardClasses.push('nameday');
-    const extraClasses = cardClasses.join(' ');
 
     // Birthday cake icon (clickable)
     const cakeHtml = isBirthday
@@ -782,8 +822,14 @@ function renderEmployees() {
     // "Uppdaterad" badge if schedule was updated from dagvy
     const updatedBadge = shift.updatedFromDagvy ? '<span class="dagvy-updated-badge">UPD</span>' : '';
 
+    // Check if employee has finished their shift
+    const finished = isWorking && isEmployeeFinished(shift);
+    if (finished) cardClasses.push('employee-finished');
+
+    const allClasses = cardClasses.join(' ');
+
     return `
-      <div class="employee-card ${extraClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
+      <div class="employee-card ${allClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
           <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}</div>
           <div class="employee-time">${timeDisplay}${rastHtml}</div>
