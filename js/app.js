@@ -53,12 +53,26 @@ function setupEventListeners() {
 
   // Lediga filter
   if (showLedigaCheckbox) {
-    showLedigaCheckbox.addEventListener('change', renderEmployees);
+    showLedigaCheckbox.addEventListener('change', function() {
+      saveFilterCookies();
+      renderEmployees();
+    });
+  }
+
+  // Rast filter
+  if (showRastCheckbox) {
+    showRastCheckbox.addEventListener('change', function() {
+      saveFilterCookies();
+      renderEmployees();
+    });
   }
 
   // Nästa tåg toggle
   if (showNextTrainCheckbox) {
-    showNextTrainCheckbox.addEventListener('change', renderEmployees);
+    showNextTrainCheckbox.addEventListener('change', function() {
+      saveFilterCookies();
+      renderEmployees();
+    });
   }
 
   // Keyboard navigation

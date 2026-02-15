@@ -22,7 +22,7 @@ let currentScheduleView = 'calendar';
 
 // DOM Elements (initialized in initUI)
 let menuBtn, sidebar, sidebarOverlay, closeSidebarBtn;
-let prevDayBtn, nextDayBtn, currentDateEl, employeeListEl, showLedigaCheckbox, showNextTrainCheckbox;
+let prevDayBtn, nextDayBtn, currentDateEl, employeeListEl, showLedigaCheckbox, showRastCheckbox, showNextTrainCheckbox;
 let schedulePage, uploadPage, monthlyPage, headerTitle, menuLinks;
 let personListView, personScheduleView, personList;
 let monthDisplay, prevMonthBtn, nextMonthBtn, monthlyScheduleList;
@@ -36,6 +36,76 @@ let deleteConfirmModal, deleteModalText, deleteModalCancel, deleteModalConfirm;
 
 let selectedFile = null;
 let pendingDeleteEmployeeId = null;
+
+// ==========================================
+// FILTER COOKIE HELPERS
+// ==========================================
+
+function setFilterCookie(name, value) {
+  var d = new Date();
+  d.setTime(d.getTime() + 365 * 24 * 60 * 60 * 1000);
+  document.cookie = name + '=' + value + '; expires=' + d.toUTCString() + '; path=/; SameSite=Lax';
+}
+
+function getFilterCookie(name) {
+  var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+  return match ? match[1] : null;
+}
+
+function saveFilterCookies() {
+  if (showLedigaCheckbox) setFilterCookie('filter_lediga', showLedigaCheckbox.checked ? '1' : '0');
+  if (showRastCheckbox) setFilterCookie('filter_rast', showRastCheckbox.checked ? '1' : '0');
+  if (showNextTrainCheckbox) setFilterCookie('filter_tag', showNextTrainCheckbox.checked ? '1' : '0');
+}
+
+function restoreFilterCookies() {
+  var lediga = getFilterCookie('filter_lediga');
+  var rast = getFilterCookie('filter_rast');
+  var tag = getFilterCookie('filter_tag');
+
+  if (showLedigaCheckbox && lediga !== null) showLedigaCheckbox.checked = lediga === '1';
+  if (showRastCheckbox && rast !== null) showRastCheckbox.checked = rast === '1';
+  if (showNextTrainCheckbox && tag !== null) showNextTrainCheckbox.checked = tag === '1';
+}
+
+// ==========================================
+// FILTER STYLE (flip / pill)
+// ==========================================
+
+function getFilterStyle() {
+  return getFilterCookie('filter_style') || 'flip';
+}
+
+function setFilterStyle(style) {
+  setFilterCookie('filter_style', style);
+  applyFilterStyle(style);
+}
+
+function applyFilterStyle(style) {
+  var bar = document.querySelector('.stats-bar');
+  if (!bar) return;
+  if (style === 'pill') {
+    bar.classList.add('pill-mode');
+  } else {
+    bar.classList.remove('pill-mode');
+  }
+}
+
+function initFilterStylePicker() {
+  var picker = document.getElementById('filterStylePicker');
+  if (!picker) return;
+  var saved = getFilterStyle();
+  // Set correct initial selection
+  var btns = picker.querySelectorAll('.style-option');
+  btns.forEach(function(btn) {
+    btn.classList.toggle('selected', btn.getAttribute('data-style') === saved);
+    btn.addEventListener('click', function() {
+      btns.forEach(function(b) { b.classList.remove('selected'); });
+      btn.classList.add('selected');
+      setFilterStyle(btn.getAttribute('data-style'));
+    });
+  });
+}
 
 /**
  * Initialize UI elements
@@ -53,7 +123,15 @@ function initUI() {
   currentDateEl = document.getElementById('currentDate');
   employeeListEl = document.getElementById('employeeList');
   showLedigaCheckbox = document.getElementById('showLediga');
+  showRastCheckbox = document.getElementById('showRast');
   showNextTrainCheckbox = document.getElementById('showNextTrain');
+
+  // Restore toggle states from cookies
+  restoreFilterCookies();
+
+  // Filter style (flip/pill) – init picker + apply saved style
+  initFilterStylePicker();
+  applyFilterStyle(getFilterStyle());
 
   // Pages
   schedulePage = document.getElementById('schedulePage');
@@ -685,9 +763,10 @@ function renderEmployees() {
       isWorking = false;
     }
 
-    // Get break info for working employees
+    // Get break info for working employees (gated by Rast toggle)
     let rastHtml = '';
-    if (isWorking && shift.employeeId) {
+    const showRast = showRastCheckbox ? showRastCheckbox.checked : true;
+    if (showRast && isWorking && shift.employeeId) {
       const breakInfo = getBreakForEmployee(shift.employeeId);
       if (breakInfo && breakInfo.time) {
         const cityText = breakInfo.city || '';

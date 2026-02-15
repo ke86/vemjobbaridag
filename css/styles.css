@@ -428,6 +428,45 @@ html.dark .follow-train-btn.ft-btn-major {
   font-size: 15px;
 }
 
+/* Pill mode overrides */
+.stats-bar.pill-mode {
+  gap: 8px;
+  justify-content: center;
+}
+
+.stats-bar.pill-mode .filter-toggle {
+  gap: 0;
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border-color);
+  background: transparent;
+  transition: all 0.25s ease;
+}
+
+.stats-bar.pill-mode .filter-toggle .toggle-switch {
+  display: none;
+}
+
+.stats-bar.pill-mode .filter-toggle .toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: color 0.25s ease;
+}
+
+.stats-bar.pill-mode .filter-toggle input:checked ~ .toggle-label {
+  color: #fff;
+}
+
+.stats-bar.pill-mode .filter-toggle:has(input:checked) {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.stats-bar.pill-mode .filter-toggle:active {
+  transform: scale(0.95);
+}
+
 /* ==========================================
    SIDEBAR MENU
    ========================================== */

@@ -797,6 +797,40 @@ html.dark .train-live-badge.train-finished .train-live-delay {
   transform: translateX(20px);
 }
 
+/* Style picker (flip / pill) */
+.style-picker {
+  display: flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.style-option {
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.style-option:not(:last-child) {
+  border-right: 1px solid var(--border-color);
+}
+
+.style-option.selected {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+.style-option:active {
+  opacity: 0.8;
+}
+
 .settings-footer {
   background: transparent;
   border: none;
