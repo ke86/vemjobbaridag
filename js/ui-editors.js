@@ -703,6 +703,132 @@ function confirmDeleteDate(e, id, title) {
 }
 
 /**
+ * Open an edit overlay for an important date.
+ */
+function editImportantDate(e, id) {
+  e.stopPropagation();
+  const item = importantDates.find(d => d.id === id);
+  if (!item) return;
+
+  // Build overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'date-edit-overlay';
+
+  const safeTitle = (item.title || '').replace(/"/g, '&quot;');
+  const safeDesc = (item.description || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const hasImage = item.image && item.image.length > 0;
+
+  overlay.innerHTML =
+    '<div class="date-edit-box">' +
+      '<h3 class="date-edit-heading">Redigera händelse</h3>' +
+      '<div class="date-edit-field"><label class="form-label">Rubrik</label>' +
+        '<input type="text" class="form-input" id="editDateTitle" value="' + safeTitle + '"></div>' +
+      '<div class="date-edit-row">' +
+        '<div class="date-edit-field" style="flex:1"><label class="form-label">Datum</label>' +
+          '<input type="date" class="form-input" id="editDateDate" value="' + (item.date || '') + '"></div>' +
+        '<div class="date-edit-field" style="flex:1"><label class="form-label">Tid</label>' +
+          '<input type="time" class="form-input" id="editDateTime" value="' + (item.time || '') + '"></div>' +
+      '</div>' +
+      '<div class="date-edit-field"><label class="form-label">Beskrivning</label>' +
+        '<textarea class="form-textarea" id="editDateDesc" rows="3">' + (item.description || '').replace(/</g, '&lt;') + '</textarea></div>' +
+      '<div class="date-edit-field"><label class="form-label">Bild</label>' +
+        '<div class="date-edit-image-area" id="editImageArea">' +
+          (hasImage
+            ? '<div class="date-edit-image-preview" id="editImagePreview"><img src="' + item.image + '" id="editPreviewImg"><button type="button" class="image-remove-btn" id="editImageRemoveBtn">✕</button></div>'
+            : '<div class="date-edit-image-preview" id="editImagePreview" style="display:none"><img id="editPreviewImg"><button type="button" class="image-remove-btn" id="editImageRemoveBtn">✕</button></div>') +
+          '<div class="date-edit-image-placeholder" id="editImagePlaceholder"' + (hasImage ? ' style="display:none"' : '') + '>' +
+            '<span>📷</span> Välj ny bild</div>' +
+          '<input type="file" accept="image/*" id="editDateImage" style="display:none">' +
+        '</div>' +
+      '</div>' +
+      '<div class="date-edit-actions">' +
+        '<button class="date-confirm-cancel" id="editDateCancel">Avbryt</button>' +
+        '<button class="date-edit-save" id="editDateSave">Spara</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  // Track pending new image for edit
+  let editPendingImage = hasImage ? item.image : null;
+  let imageRemoved = false;
+
+  // Wire up image picker
+  const editImageArea = overlay.querySelector('#editImageArea');
+  const editPlaceholder = overlay.querySelector('#editImagePlaceholder');
+  const editPreview = overlay.querySelector('#editImagePreview');
+  const editPreviewImg = overlay.querySelector('#editPreviewImg');
+  const editFileInput = overlay.querySelector('#editDateImage');
+  const editRemoveBtn = overlay.querySelector('#editImageRemoveBtn');
+
+  editPlaceholder.addEventListener('click', () => editFileInput.click());
+  editFileInput.addEventListener('change', function() {
+    const file = this.files && this.files[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    compressImage(file, (dataUrl) => {
+      editPendingImage = dataUrl;
+      imageRemoved = false;
+      editPreviewImg.src = dataUrl;
+      editPreview.style.display = 'block';
+      editPlaceholder.style.display = 'none';
+    });
+  });
+  editRemoveBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    editPendingImage = null;
+    imageRemoved = true;
+    editPreview.style.display = 'none';
+    editPlaceholder.style.display = '';
+    editFileInput.value = '';
+  });
+
+  // Animate in
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  function closeOverlay() {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 200);
+  }
+
+  overlay.querySelector('#editDateCancel').addEventListener('click', closeOverlay);
+  overlay.addEventListener('click', (ev) => {
+    if (ev.target === overlay) closeOverlay();
+  });
+
+  overlay.querySelector('#editDateSave').addEventListener('click', async () => {
+    const newTitle = overlay.querySelector('#editDateTitle').value.trim();
+    const newDate = overlay.querySelector('#editDateDate').value;
+    const newTime = overlay.querySelector('#editDateTime').value;
+    const newDesc = overlay.querySelector('#editDateDesc').value.trim();
+
+    if (!newTitle) { showToast('Ange en rubrik', 'error'); return; }
+    if (!newDate) { showToast('Ange ett datum', 'error'); return; }
+
+    const updateData = {
+      title: newTitle,
+      date: newDate,
+      time: newTime,
+      description: newDesc
+    };
+
+    if (imageRemoved) {
+      updateData.image = firebase.firestore.FieldValue.delete();
+    } else if (editPendingImage && editPendingImage !== item.image) {
+      updateData.image = editPendingImage;
+    }
+
+    try {
+      updateSyncStatus('syncing');
+      await db.collection('importantDates').doc(id).update(updateData);
+      showToast('Datum uppdaterat', 'success');
+      closeOverlay();
+    } catch (err) {
+      console.log('Could not update important date:', err);
+      showToast('Kunde inte spara ändringar', 'error');
+    }
+  });
+}
+
+/**
  * Render the list of important dates in settings (collapsible items)
  */
 function renderImportantDatesList() {
@@ -742,6 +868,7 @@ function renderImportantDatesList() {
             <div class="date-title"><span class="marquee-inner">${d.title}</span></div>
             <div class="date-subtitle">${dateStr}</div>
           </div>
+          <button class="date-inline-edit" onclick="editImportantDate(event, '${d.id}')" title="Redigera">✏️</button>
           <button class="date-inline-delete" onclick="confirmDeleteDate(event, '${d.id}', '${safeTitle}')" title="Radera">✕</button>
           <span class="date-chevron">›</span>
         </div>

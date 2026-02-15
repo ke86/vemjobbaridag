@@ -406,6 +406,153 @@ html.dark .date-confirm-delete:hover {
 }
 
 /* ==========================================
+   EDIT INLINE BUTTON (✏️) in header row
+   ========================================== */
+.date-inline-edit {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, opacity 0.15s;
+  opacity: 0.45;
+  margin-right: -4px;
+}
+.date-inline-edit:hover {
+  background: rgba(59, 130, 246, 0.12);
+  opacity: 1;
+}
+.date-inline-edit:active {
+  background: rgba(59, 130, 246, 0.22);
+  opacity: 1;
+}
+
+/* ==========================================
+   EDIT OVERLAY / MODAL
+   ========================================== */
+.date-edit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding: 16px;
+}
+.date-edit-overlay.visible {
+  opacity: 1;
+}
+.date-edit-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 22px 20px 18px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.22);
+  transform: scale(0.92) translateY(10px);
+  transition: transform 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.date-edit-overlay.visible .date-edit-box {
+  transform: scale(1) translateY(0);
+}
+.date-edit-heading {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 2px;
+}
+.date-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.date-edit-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Image area inside edit modal */
+.date-edit-image-area {
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.date-edit-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.date-edit-image-placeholder:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+.date-edit-image-placeholder span {
+  font-size: 18px;
+}
+.date-edit-image-preview {
+  position: relative;
+}
+.date-edit-image-preview img {
+  width: 100%;
+  max-height: 180px;
+  object-fit: contain;
+  display: block;
+  border-radius: 10px;
+}
+
+/* Action buttons */
+.date-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.date-edit-save {
+  flex: 1;
+  padding: 11px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--accent-blue);
+  color: #fff;
+  transition: background 0.15s, transform 0.1s;
+}
+.date-edit-save:hover {
+  background: #2563eb;
+}
+.date-edit-save:active {
+  transform: scale(0.97);
+}
+html.dark .date-edit-save {
+  background: #3b82f6;
+}
+html.dark .date-edit-save:hover {
+  background: #2563eb;
+}
+
+/* ==========================================
    VIKTIGT DATUM KORT (Main page card)
    ========================================== */
 
