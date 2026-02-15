@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.25.42';
+const CACHE_VERSION = 'v4.25.47';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -99,10 +99,6 @@ self.addEventListener('install', (event) => {
             )
           );
         });
-      })
-      .then(() => {
-        // Force this service worker to become active
-        return self.skipWaiting();
       })
   );
 });

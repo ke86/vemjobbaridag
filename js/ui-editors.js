@@ -454,7 +454,7 @@ async function initImportantDates() {
     });
   }
 
-  // Set up collapsible sub-section for saved dates
+  // Set up collapsible section for saved dates (own top-level section)
   const savedHeader = document.getElementById('savedDatesHeader');
   const savedSection = document.getElementById('savedDatesSection');
   if (savedHeader && savedSection) {

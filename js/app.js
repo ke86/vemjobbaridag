@@ -217,10 +217,48 @@ function setupEventListeners() {
   if (dataHeader && dataSection) {
     dataHeader.addEventListener('click', function() {
       dataSection.classList.toggle('expanded');
-      if (dataSection.classList.contains('expanded')) {
+    });
+  }
+
+  // Fridagsnyckel subsection (collapsible inside Data)
+  const fridagsSubHeader = document.getElementById('fridagsSubHeader');
+  const fridagsSubsection = document.getElementById('fridagsSubsection');
+  if (fridagsSubHeader && fridagsSubsection) {
+    fridagsSubHeader.addEventListener('click', function() {
+      fridagsSubsection.classList.toggle('expanded');
+      if (fridagsSubsection.classList.contains('expanded')) {
         if (typeof renderFridagEmployeeList === 'function') renderFridagEmployeeList();
+      }
+    });
+  }
+
+  // Radera data subsection (collapsible inside Data)
+  const deleteSubHeader = document.getElementById('deleteSubHeader');
+  const deleteSubsection = document.getElementById('deleteSubsection');
+  if (deleteSubHeader && deleteSubsection) {
+    deleteSubHeader.addEventListener('click', function() {
+      deleteSubsection.classList.toggle('expanded');
+      if (deleteSubsection.classList.contains('expanded')) {
         if (typeof renderDeleteEmployeeList === 'function') renderDeleteEmployeeList();
       }
+    });
+  }
+
+  // Dagvy-import subsection (collapsible inside Data)
+  const dagvySubHeader = document.getElementById('dagvySubHeader');
+  const dagvySubsection = document.getElementById('dagvySubsection');
+  if (dagvySubHeader && dagvySubsection) {
+    dagvySubHeader.addEventListener('click', function() {
+      dagvySubsection.classList.toggle('expanded');
+    });
+  }
+
+  // Synka alla subsection (collapsible inside Data)
+  const syncSubHeader = document.getElementById('syncSubHeader');
+  const syncSubsection = document.getElementById('syncSubsection');
+  if (syncSubHeader && syncSubsection) {
+    syncSubHeader.addEventListener('click', function() {
+      syncSubsection.classList.toggle('expanded');
     });
   }
 

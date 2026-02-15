@@ -727,7 +727,7 @@ html.dark .train-live-badge.train-finished .train-live-delay {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 16px 4px;
+  padding: 16px;
   background: none;
   border: none;
   cursor: pointer;
@@ -773,6 +773,35 @@ html.dark .train-live-badge.train-finished .train-live-delay {
   font-weight: 600;
   color: var(--text-primary);
   margin: 0 0 12px 0;
+}
+
+/* Collapsible subsections inside Data */
+.subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.subsection-header .collapsible-arrow {
+  font-size: 18px;
+  color: var(--text-secondary);
+  transition: transform 0.25s ease;
+}
+
+.collapsible-sub .subsection-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.collapsible-sub.expanded .subsection-header .collapsible-arrow {
+  transform: rotate(90deg);
+}
+
+.collapsible-sub.expanded .subsection-content {
+  max-height: 2000px;
 }
 
 .settings-item {

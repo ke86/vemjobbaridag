@@ -389,7 +389,7 @@
       <!-- Viktiga datum (collapsible) -->
       <div class="settings-section collapsible" id="importantDatesSection">
         <div class="collapsible-header" id="importantDatesHeader">
-          <h3 class="settings-title" style="margin-bottom: 0;">📌 Viktiga datum</h3>
+          <h3 class="settings-title" style="margin-bottom: 0;">➕ Lägg till händelser</h3>
           <span class="collapsible-arrow">›</span>
         </div>
         <div class="collapsible-content" id="importantDatesContent">
@@ -431,18 +431,18 @@
             </button>
           </div>
 
-          <!-- Saved dates (collapsible sub-section) -->
-          <div class="important-dates-sub collapsible" id="savedDatesSection">
-            <div class="collapsible-sub-header" id="savedDatesHeader">
-              <span class="saved-dates-title">📋 Inlagda datum</span>
-              <span class="saved-dates-count" id="savedDatesCount">0</span>
-              <span class="collapsible-arrow">›</span>
-            </div>
-            <div class="collapsible-sub-content" id="savedDatesContent">
-              <div class="important-dates-list" id="importantDatesList">
-                <!-- Saved dates will be rendered here -->
-              </div>
-            </div>
+        </div>
+      </div>
+
+      <!-- Inlagda datum (collapsible, own section) -->
+      <div class="settings-section collapsible" id="savedDatesSection">
+        <div class="collapsible-header" id="savedDatesHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">📋 Inlagda datum <span class="saved-dates-count" id="savedDatesCount">0</span></h3>
+          <span class="collapsible-arrow">›</span>
+        </div>
+        <div class="collapsible-content" id="savedDatesContent">
+          <div class="important-dates-list" id="importantDatesList">
+            <!-- Saved dates will be rendered here -->
           </div>
         </div>
       </div>
@@ -455,57 +455,77 @@
         </div>
         <div class="collapsible-content" id="dataContent">
 
-          <!-- Dagvy-import -->
-          <div class="settings-subsection">
-            <h4 class="settings-subtitle">📋 Dagvy-import</h4>
-            <div class="dagvy-upload-zone" id="dagvyUploadZone">
-              <div class="dagvy-upload-icon">📁</div>
-              <p class="dagvy-upload-text">Välj dagvy JSON-fil</p>
-              <p class="dagvy-upload-hint">eller dra och släpp här</p>
-              <input type="file" id="dagvyFileInput" accept=".json,application/json" style="display:none">
+          <!-- Dagvy-import (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="dagvySubsection">
+            <div class="subsection-header" id="dagvySubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">📋 Dagvy-import</h4>
+              <span class="collapsible-arrow">›</span>
             </div>
-            <div class="dagvy-upload-preview" id="dagvyUploadPreview">
-              <div class="dagvy-file-info">
-                <span class="dagvy-file-icon">📄</span>
-                <div class="dagvy-file-details">
-                  <span class="dagvy-file-name" id="dagvyFileName"></span>
-                  <span class="dagvy-file-meta" id="dagvyFileMeta"></span>
-                </div>
-                <button class="dagvy-file-remove" id="dagvyFileRemove">✕</button>
+            <div class="subsection-content">
+              <div class="dagvy-upload-zone" id="dagvyUploadZone">
+                <div class="dagvy-upload-icon">📁</div>
+                <p class="dagvy-upload-text">Välj dagvy JSON-fil</p>
+                <p class="dagvy-upload-hint">eller dra och släpp här</p>
+                <input type="file" id="dagvyFileInput" accept=".json,application/json" style="display:none">
               </div>
-              <button class="dagvy-upload-btn" id="dagvyUploadBtn">Ladda upp till Firebase</button>
-              <div class="dagvy-upload-progress" id="dagvyUploadProgress">
-                <div class="dagvy-progress-bar">
-                  <div class="dagvy-progress-fill" id="dagvyProgressFill"></div>
+              <div class="dagvy-upload-preview" id="dagvyUploadPreview">
+                <div class="dagvy-file-info">
+                  <span class="dagvy-file-icon">📄</span>
+                  <div class="dagvy-file-details">
+                    <span class="dagvy-file-name" id="dagvyFileName"></span>
+                    <span class="dagvy-file-meta" id="dagvyFileMeta"></span>
+                  </div>
+                  <button class="dagvy-file-remove" id="dagvyFileRemove">✕</button>
                 </div>
-                <span class="dagvy-progress-text" id="dagvyProgressText"></span>
+                <button class="dagvy-upload-btn" id="dagvyUploadBtn">Ladda upp till Firebase</button>
+                <div class="dagvy-upload-progress" id="dagvyUploadProgress">
+                  <div class="dagvy-progress-bar">
+                    <div class="dagvy-progress-fill" id="dagvyProgressFill"></div>
+                  </div>
+                  <span class="dagvy-progress-text" id="dagvyProgressText"></span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Synka alla -->
-          <div class="settings-subsection">
-            <h4 class="settings-subtitle">📡 Synka alla</h4>
-            <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
-              <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
-              <span class="sidebar-sync-text">Synka alla</span>
-            </button>
-            <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
-          </div>
-
-          <!-- Fridagsnyckel -->
-          <div class="settings-subsection">
-            <h4 class="settings-subtitle">🗓️ Fridagsnyckel</h4>
-            <div class="fridag-employee-list" id="fridagEmployeeList">
-              <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
+          <!-- Synka alla (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="syncSubsection">
+            <div class="subsection-header" id="syncSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">📡 Synka alla</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content">
+              <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
+                <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
+                <span class="sidebar-sync-text">Synka alla</span>
+              </button>
+              <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
             </div>
           </div>
 
-          <!-- Radera data -->
-          <div class="settings-subsection">
-            <h4 class="settings-subtitle">🗑️ Radera data</h4>
-            <div class="delete-list" id="deleteEmployeeList">
-              <!-- Employees will be rendered here -->
+          <!-- Fridagsnyckel (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="fridagsSubsection">
+            <div class="subsection-header" id="fridagsSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">🗓️ Fridagsnyckel</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="fridagsSubContent">
+              <div class="fridag-employee-list" id="fridagEmployeeList">
+                <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Radera data (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="deleteSubsection">
+            <div class="subsection-header" id="deleteSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">🗑️ Radera data</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="deleteSubContent">
+              <div class="delete-list" id="deleteEmployeeList">
+                <!-- Employees will be rendered here -->
+              </div>
             </div>
           </div>
 
@@ -516,7 +536,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.42</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.47</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -669,7 +689,14 @@
           .then((registration) => {
             console.log('SW registered:', registration.scope);
 
-            // Check for updates — show confirmation modal
+            // If a SW is already waiting (from a previous session), activate immediately
+            if (registration.waiting && navigator.serviceWorker.controller) {
+              console.log('Waiting SW found on load — activating immediately');
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+              return;
+            }
+
+            // For NEW updates found during this session — show confirmation modal
             registration.addEventListener('updatefound', () => {
               const newWorker = registration.installing;
               newWorker.addEventListener('statechange', () => {

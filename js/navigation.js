@@ -153,8 +153,12 @@ function showPage(pageId) {
  * Reset all collapsible sections in settings to collapsed state
  */
 function resetSettingsCollapse() {
-  const collapsibleSections = document.querySelectorAll('.settings-section.collapsible');
-  collapsibleSections.forEach(section => {
+  // Collapse top-level collapsible sections
+  document.querySelectorAll('.settings-section.collapsible').forEach(function(section) {
     section.classList.remove('expanded');
+  });
+  // Collapse all sub-sections inside Data
+  document.querySelectorAll('.collapsible-sub').forEach(function(sub) {
+    sub.classList.remove('expanded');
   });
 }
