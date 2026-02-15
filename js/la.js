@@ -199,7 +199,8 @@
   // ── Fetch PDF (cache-first, then network) ──────────────
 
   function networkFetch(nr, date) {
-    return fetch(pdfUrl(nr, date), { cache: 'no-store' }).then(function(resp) {
+    var url = pdfUrl(nr, date) + '&_t=' + Date.now();
+    return fetch(url, { cache: 'no-store' }).then(function(resp) {
       if (!resp.ok) {
         if (resp.status === 404 || resp.status === 406 || resp.status === 500) {
           throw new Error('NOT_PUBLISHED');

@@ -60,7 +60,7 @@ async function handleRequest(request) {
     if (!pdfResponse.ok) {
       return new Response(
         JSON.stringify({ error: 'PDF not found', status: pdfResponse.status }),
-        { status: pdfResponse.status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+        { status: pdfResponse.status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store' } }
       );
     }
 
