@@ -455,24 +455,6 @@
         </div>
         <div class="collapsible-content" id="dataContent">
 
-          <!-- Synka alla -->
-          <div class="settings-subsection">
-            <h4 class="settings-subtitle">📡 Synka alla</h4>
-            <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
-              <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
-              <span class="sidebar-sync-text">Synka alla</span>
-            </button>
-            <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
-          </div>
-
-          <!-- Fridagsnyckel -->
-          <div class="settings-subsection">
-            <h4 class="settings-subtitle">🗓️ Fridagsnyckel</h4>
-            <div class="fridag-employee-list" id="fridagEmployeeList">
-              <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
-            </div>
-          </div>
-
           <!-- Dagvy-import -->
           <div class="settings-subsection">
             <h4 class="settings-subtitle">📋 Dagvy-import</h4>
@@ -501,6 +483,24 @@
             </div>
           </div>
 
+          <!-- Synka alla -->
+          <div class="settings-subsection">
+            <h4 class="settings-subtitle">📡 Synka alla</h4>
+            <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
+              <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
+              <span class="sidebar-sync-text">Synka alla</span>
+            </button>
+            <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
+          </div>
+
+          <!-- Fridagsnyckel -->
+          <div class="settings-subsection">
+            <h4 class="settings-subtitle">🗓️ Fridagsnyckel</h4>
+            <div class="fridag-employee-list" id="fridagEmployeeList">
+              <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
+            </div>
+          </div>
+
           <!-- Radera data -->
           <div class="settings-subsection">
             <h4 class="settings-subtitle">🗑️ Radera data</h4>
@@ -516,7 +516,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.40</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.41</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

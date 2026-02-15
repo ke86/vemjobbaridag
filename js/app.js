@@ -217,6 +217,10 @@ function setupEventListeners() {
   if (dataHeader && dataSection) {
     dataHeader.addEventListener('click', function() {
       dataSection.classList.toggle('expanded');
+      if (dataSection.classList.contains('expanded')) {
+        if (typeof renderFridagEmployeeList === 'function') renderFridagEmployeeList();
+        if (typeof renderDeleteEmployeeList === 'function') renderDeleteEmployeeList();
+      }
     });
   }
 
