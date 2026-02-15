@@ -65,11 +65,30 @@
 
 /* Employee has finished their shift for the day */
 .employee-card.employee-finished {
-  opacity: 0.45;
+  opacity: 0.55;
+  border-left: 3px solid #64748b;
   transition: opacity 0.4s ease, transform 0.2s, border-color 0.2s;
 }
 .employee-card.employee-finished:hover {
-  opacity: 0.7;
+  opacity: 0.8;
+}
+
+/* "✓ Slutat" label after employee name */
+.finished-label {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.15);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+html.dark .finished-label {
+  color: #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .avatar {

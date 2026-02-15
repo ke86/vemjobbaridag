@@ -825,13 +825,14 @@ function renderEmployees() {
     // Check if employee has finished their shift
     const finished = isWorking && isEmployeeFinished(shift);
     if (finished) cardClasses.push('employee-finished');
+    const finishedLabel = finished ? '<span class="finished-label">✓ Slutat</span>' : '';
 
     const allClasses = cardClasses.join(' ');
 
     return `
       <div class="employee-card ${allClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
-          <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}</div>
+          <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}${finishedLabel}</div>
           <div class="employee-time">${timeDisplay}${rastHtml}</div>
         </div>
         <div class="employee-badge">
