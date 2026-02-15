@@ -721,6 +721,25 @@ html.dark .train-live-badge.train-finished .train-live-delay {
   letter-spacing: 0.5px;
 }
 
+.settings-subsection {
+  padding: 16px 0;
+}
+
+.settings-subsection:first-child {
+  padding-top: 8px;
+}
+
+.settings-subsection:not(:last-child) {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.settings-subtitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
 .settings-item {
   display: flex;
   align-items: center;
@@ -1237,6 +1256,15 @@ html.dark .train-live-badge.train-finished .train-live-delay {
 
 .modal-btn.danger:hover {
   background: #dc2626;
+}
+
+.modal-btn.confirm {
+  background: var(--accent-blue);
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background: #2563eb;
 }
 
 .modal-btn:active {

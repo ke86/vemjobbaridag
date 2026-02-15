@@ -211,22 +211,12 @@ function setupEventListeners() {
     });
   }
 
-  // Delete data section (collapsible)
-  if (deleteDataHeader) {
-    deleteDataHeader.addEventListener('click', toggleDeleteDataSection);
-  }
-
-  // Fridagsnyckel section (collapsible)
-  if (fridagsHeader) {
-    fridagsHeader.addEventListener('click', toggleFridagsSection);
-  }
-
-  // Dagvy import section (collapsible)
-  const dagvyImportHeader = document.getElementById('dagvyImportHeader');
-  const dagvyImportSection = document.getElementById('dagvyImportSection');
-  if (dagvyImportHeader && dagvyImportSection) {
-    dagvyImportHeader.addEventListener('click', function() {
-      dagvyImportSection.classList.toggle('expanded');
+  // Data section (collapsible)
+  const dataHeader = document.getElementById('dataHeader');
+  const dataSection = document.getElementById('dataSection');
+  if (dataHeader && dataSection) {
+    dataHeader.addEventListener('click', function() {
+      dataSection.classList.toggle('expanded');
     });
   }
 
@@ -431,6 +421,59 @@ async function setupDarkMode() {
 }
 
 /**
+ * Show update confirmation modal
+ * @param {ServiceWorkerRegistration} registration
+ */
+function showUpdateModal(registration) {
+  // Don't show if one is already open
+  if (document.getElementById('updateModal')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'updateModal';
+  overlay.className = 'modal-overlay active';
+  overlay.innerHTML =
+    '<div class="modal-card">' +
+      '<div class="modal-icon">🔄</div>' +
+      '<div class="modal-title">Ny version!</div>' +
+      '<div class="modal-text">En uppdatering finns tillgänglig. Vill du uppdatera nu?</div>' +
+      '<div class="modal-warning">Appen laddas om efter uppdateringen.</div>' +
+      '<div class="modal-buttons">' +
+        '<button class="modal-btn cancel" id="updateLaterBtn">Senare</button>' +
+        '<button class="modal-btn confirm" id="updateNowBtn">Uppdatera</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('updateLaterBtn').addEventListener('click', function() {
+    overlay.remove();
+    // Reset button state
+    const btn = document.getElementById('checkUpdateBtn');
+    const statusEl = document.getElementById('versionStatus');
+    if (btn) {
+      btn.classList.remove('checking');
+      btn.innerHTML = '<span class="update-icon">⬇️</span> Uppdatering väntar';
+    }
+    if (statusEl) {
+      statusEl.textContent = 'Ny version väntar — tryck för att installera';
+      statusEl.className = 'version-status update-available';
+    }
+  });
+
+  document.getElementById('updateNowBtn').addEventListener('click', function() {
+    var waitingSW = registration.waiting;
+    if (waitingSW) {
+      waitingSW.postMessage({ type: 'SKIP_WAITING' });
+    }
+    // Show installing state
+    overlay.querySelector('.modal-title').textContent = 'Uppdaterar…';
+    overlay.querySelector('.modal-text').textContent = 'Appen laddas om…';
+    overlay.querySelector('.modal-warning').textContent = '';
+    overlay.querySelector('.modal-buttons').style.display = 'none';
+  });
+}
+
+/**
  * Check for app updates via Service Worker
  */
 async function checkForUpdates() {
@@ -457,19 +500,10 @@ async function checkForUpdates() {
         await new Promise(resolve => setTimeout(resolve, 1500));
 
         if (registration.waiting) {
-          // New version available and waiting
+          // New version available and waiting — show modal
           btn.classList.remove('checking');
-          btn.classList.add('has-update');
-          btn.innerHTML = '<span class="update-icon">⬇️</span> Installera uppdatering';
-          statusEl.textContent = 'Ny version tillgänglig!';
-          statusEl.className = 'version-status update-available';
-
-          // Change button to install update
-          btn.onclick = () => {
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-            statusEl.textContent = 'Installerar...';
-            btn.classList.add('checking');
-          };
+          btn.innerHTML = '<span class="update-icon">🔄</span> Sök efter uppdatering';
+          showUpdateModal(registration);
         } else if (registration.installing) {
           // Update is being installed
           statusEl.textContent = 'Installerar uppdatering...';

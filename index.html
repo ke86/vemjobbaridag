@@ -92,13 +92,6 @@
       <li><a href="#" data-page="upload"><span class="icon">📤</span> Ladda upp schema</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
-    <div class="sidebar-sync">
-      <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
-        <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
-        <span class="sidebar-sync-text">Synka alla</span>
-      </button>
-      <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
-    </div>
   </nav>
 
   <!-- Header -->
@@ -446,62 +439,68 @@
         </div>
       </div>
 
-      <!-- Fridagsnyckel (collapsible) -->
-      <div class="settings-section collapsible" id="fridagsSection">
-        <div class="collapsible-header" id="fridagsHeader">
-          <h3 class="settings-title" style="margin-bottom: 0;">🗓️ Fridagsnyckel</h3>
+      <!-- Data (collapsible) -->
+      <div class="settings-section collapsible" id="dataSection">
+        <div class="collapsible-header" id="dataHeader">
+          <h3 class="settings-title" style="margin-bottom: 0;">📂 Data</h3>
           <span class="collapsible-arrow">›</span>
         </div>
-        <div class="collapsible-content" id="fridagsContent">
-          <div class="fridag-employee-list" id="fridagEmployeeList">
-            <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
-          </div>
-        </div>
-      </div>
+        <div class="collapsible-content" id="dataContent">
 
-      <!-- Dagvy-import (collapsible) -->
-      <div class="settings-section collapsible" id="dagvyImportSection">
-        <div class="collapsible-header" id="dagvyImportHeader">
-          <h3 class="settings-title" style="margin-bottom: 0;">📋 Dagvy-import</h3>
-          <span class="collapsible-arrow">›</span>
-        </div>
-        <div class="collapsible-content" id="dagvyImportContent">
-          <div class="dagvy-upload-zone" id="dagvyUploadZone">
-            <div class="dagvy-upload-icon">📁</div>
-            <p class="dagvy-upload-text">Välj dagvy JSON-fil</p>
-            <p class="dagvy-upload-hint">eller dra och släpp här</p>
-            <input type="file" id="dagvyFileInput" accept=".json,application/json" style="display:none">
+          <!-- Synka alla -->
+          <div class="settings-subsection">
+            <h4 class="settings-subtitle">📡 Synka alla</h4>
+            <button class="sidebar-sync-btn" id="syncAllBtn" onclick="manualSyncAll()">
+              <span class="sidebar-sync-icon" id="syncAllIcon">📡</span>
+              <span class="sidebar-sync-text">Synka alla</span>
+            </button>
+            <span class="sidebar-sync-timestamp" id="syncTimestamp"></span>
           </div>
-          <div class="dagvy-upload-preview" id="dagvyUploadPreview">
-            <div class="dagvy-file-info">
-              <span class="dagvy-file-icon">📄</span>
-              <div class="dagvy-file-details">
-                <span class="dagvy-file-name" id="dagvyFileName"></span>
-                <span class="dagvy-file-meta" id="dagvyFileMeta"></span>
-              </div>
-              <button class="dagvy-file-remove" id="dagvyFileRemove">✕</button>
-            </div>
-            <button class="dagvy-upload-btn" id="dagvyUploadBtn">Ladda upp till Firebase</button>
-            <div class="dagvy-upload-progress" id="dagvyUploadProgress">
-              <div class="dagvy-progress-bar">
-                <div class="dagvy-progress-fill" id="dagvyProgressFill"></div>
-              </div>
-              <span class="dagvy-progress-text" id="dagvyProgressText"></span>
+
+          <!-- Fridagsnyckel -->
+          <div class="settings-subsection">
+            <h4 class="settings-subtitle">🗓️ Fridagsnyckel</h4>
+            <div class="fridag-employee-list" id="fridagEmployeeList">
+              <!-- Employees with fridagsnyckel dropdowns will be rendered here -->
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Radera data (collapsible) -->
-      <div class="settings-section collapsible" id="deleteDataSection">
-        <div class="collapsible-header" id="deleteDataHeader">
-          <h3 class="settings-title" style="margin-bottom: 0;">Radera data</h3>
-          <span class="collapsible-arrow">›</span>
-        </div>
-        <div class="collapsible-content" id="deleteDataContent">
-          <div class="delete-list" id="deleteEmployeeList">
-            <!-- Employees will be rendered here -->
+          <!-- Dagvy-import -->
+          <div class="settings-subsection">
+            <h4 class="settings-subtitle">📋 Dagvy-import</h4>
+            <div class="dagvy-upload-zone" id="dagvyUploadZone">
+              <div class="dagvy-upload-icon">📁</div>
+              <p class="dagvy-upload-text">Välj dagvy JSON-fil</p>
+              <p class="dagvy-upload-hint">eller dra och släpp här</p>
+              <input type="file" id="dagvyFileInput" accept=".json,application/json" style="display:none">
+            </div>
+            <div class="dagvy-upload-preview" id="dagvyUploadPreview">
+              <div class="dagvy-file-info">
+                <span class="dagvy-file-icon">📄</span>
+                <div class="dagvy-file-details">
+                  <span class="dagvy-file-name" id="dagvyFileName"></span>
+                  <span class="dagvy-file-meta" id="dagvyFileMeta"></span>
+                </div>
+                <button class="dagvy-file-remove" id="dagvyFileRemove">✕</button>
+              </div>
+              <button class="dagvy-upload-btn" id="dagvyUploadBtn">Ladda upp till Firebase</button>
+              <div class="dagvy-upload-progress" id="dagvyUploadProgress">
+                <div class="dagvy-progress-bar">
+                  <div class="dagvy-progress-fill" id="dagvyProgressFill"></div>
+                </div>
+                <span class="dagvy-progress-text" id="dagvyProgressText"></span>
+              </div>
+            </div>
           </div>
+
+          <!-- Radera data -->
+          <div class="settings-subsection">
+            <h4 class="settings-subtitle">🗑️ Radera data</h4>
+            <div class="delete-list" id="deleteEmployeeList">
+              <!-- Employees will be rendered here -->
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -509,7 +508,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.35</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.25.37</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -662,14 +661,15 @@
           .then((registration) => {
             console.log('SW registered:', registration.scope);
 
-            // Check for updates
+            // Check for updates — show confirmation modal
             registration.addEventListener('updatefound', () => {
               const newWorker = registration.installing;
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New version available - activate it immediately
-                  console.log('New version available, updating...');
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  console.log('New version available, showing modal...');
+                  if (typeof showUpdateModal === 'function') {
+                    showUpdateModal(registration);
+                  }
                 }
               });
             });
