@@ -864,6 +864,7 @@ function countFridagBadges(employeeId) {
 
   let fpCount = 0;
   let fpvCount = 0;
+  let semCount = 0;
 
   // Loop through all dates in employeesData
   Object.entries(employeesData).forEach(([dateKey, dayShifts]) => {
@@ -874,7 +875,7 @@ function countFridagBadges(employeeId) {
     if (date >= startDate && date <= endDate) {
       dayShifts.forEach(shift => {
         if (shift.employeeId === employeeId) {
-          // Check multiple fields for FP/FPV detection (handles legacy data)
+          // Check multiple fields for FP/FPV/Sem detection (handles legacy data)
           const badge = (shift.badge || '').toLowerCase();
           const badgeText = (shift.badgeText || '').toUpperCase();
           const service = (shift.service || '').toUpperCase();
@@ -888,12 +889,16 @@ function countFridagBadges(employeeId) {
           else if (badge === 'fp' || badgeText === 'FP' || service === 'FP' || service === 'FRIDAG') {
             fpCount++;
           }
+          // Semester check
+          else if (badge === 'semester' || badgeText === 'SEM' || badgeText === 'SEMESTER' || service === 'SEMESTER' || service === 'SEM') {
+            semCount++;
+          }
         }
       });
     }
   });
 
-  return { fp: fpCount, fpv: fpvCount };
+  return { fp: fpCount, fpv: fpvCount, sem: semCount };
 }
 
 // Swedish official holidays for 2026 (shown in helgdagar modal)
@@ -1035,7 +1040,7 @@ function renderPersonList() {
       }
     });
 
-    // Count FP/FPV for this employee
+    // Count FP/FPV/Sem for this employee
     const fridagCount = countFridagBadges(emp.employeeId);
     const fpClass = fridagCount.fp > 104 ? 'over-limit' : '';
     const fpvClass = fridagCount.fpv > 14 ? 'over-limit' : '';
@@ -1050,6 +1055,7 @@ function renderPersonList() {
         <div class="fridag-counters">
           <span class="fridag-count ${fpClass}">FP: ${fridagCount.fp}/104</span>
           <span class="fridag-count ${fpvClass}">FPV: ${fridagCount.fpv}/14</span>
+          <span class="fridag-count sem-count">Sem: ${fridagCount.sem}</span>
         </div>
         <span class="arrow">›</span>
       </div>

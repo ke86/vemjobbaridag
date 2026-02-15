@@ -738,6 +738,11 @@ html.dark .schedule-day-detail {
   background: rgba(255, 71, 87, 0.15);
 }
 
+.fridag-count.sem-count {
+  color: #e67e22;
+  background: rgba(230, 126, 34, 0.12);
+}
+
 /* Person Schedule Header */
 .person-schedule-card {
   background: var(--bg-card);

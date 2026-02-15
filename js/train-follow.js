@@ -1272,7 +1272,7 @@
     if (stopPhase === 'departed') {
       // === AVGÅTT — count up from departure time ===
       html += '<div class="ft-next-card ft-card-departed">'
-        + '<div class="ft-next-label">AVGÅTT FRÅN <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + '</div>'
+        + '<div class="ft-next-label">AVGÅTT FRÅN</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + stop.dep + '" data-direction="up">'
         + '<span class="ft-countdown-label">AVGICK FÖR</span>'
@@ -1281,7 +1281,7 @@
         + '<div class="ft-detail-row">'
         + trackHtml
         + '<div class="ft-times">'
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -1289,7 +1289,7 @@
       // === VID STATION — countdown to departure ===
       originDepartureTarget = stop.dep;
       html += '<div class="ft-next-card ft-card-atstation">'
-        + '<div class="ft-next-label">VID STATION <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + ' ' + delayHtml + '</div>'
+        + '<div class="ft-next-label">VID STATION ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
         + '<span class="ft-countdown-label">AVGÅNG OM</span>'
@@ -1298,8 +1298,8 @@
         + '<div class="ft-detail-row">'
         + trackHtml
         + '<div class="ft-times">'
-        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST ' + liveBadge + '</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -1310,7 +1310,7 @@
         var arrTarget = stop.arr || stop.dep || '';
         var arrLabel = stop.arr ? 'ANKOMST OM' : 'AVGÅNG OM';
         html += '<div class="ft-next-card">'
-          + '<div class="ft-next-label">NÄSTA STATION <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + ' ' + delayHtml + '</div>'
+          + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
           + '<div class="ft-next-station">' + stop.name + '</div>'
           + '<div class="ft-countdown-row" data-target="' + arrTarget + '">'
           + '<span class="ft-countdown-label">' + arrLabel + '</span>'
@@ -1319,8 +1319,8 @@
           + '<div class="ft-detail-row">'
           + trackHtml
           + '<div class="ft-times">'
-          + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-          + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+          + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST ' + liveBadge + '</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+          + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
           + '</div>'
           + '</div>'
           + '</div>';
@@ -1328,7 +1328,7 @@
         // === TRUE ORIGIN (toSE) — countdown to departure ===
         originDepartureTarget = stop.dep;
         html += '<div class="ft-next-card">'
-          + '<div class="ft-next-label">AVGÅNG FRÅN ' + liveBadge + '</div>'
+          + '<div class="ft-next-label">AVGÅNG FRÅN</div>'
           + '<div class="ft-next-station">' + stop.name + '</div>'
           + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
           + '<span class="ft-countdown-label">AVGÅNG OM</span>'
@@ -1337,7 +1337,7 @@
           + '<div class="ft-detail-row">'
           + trackHtml
           + '<div class="ft-times">'
-          + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>'
+          + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>'
           + '</div>'
           + '</div>'
           + '</div>';
@@ -1347,7 +1347,7 @@
       var countdownTarget = stop.arr || stop.dep || '';
       var countdownLabel = stop.arr ? 'ANKOMST OM' : 'AVGÅNG OM';
       html += '<div class="ft-next-card">'
-        + '<div class="ft-next-label">NÄSTA STATION <span class="ft-dk-badge">🇩🇰</span> ' + liveBadge + ' ' + delayHtml + '</div>'
+        + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
         + '<span class="ft-countdown-label">' + countdownLabel + '</span>'
@@ -1356,8 +1356,8 @@
         + '<div class="ft-detail-row">'
         + trackHtml
         + '<div class="ft-times">'
-        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST ' + liveBadge + '</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -1385,7 +1385,7 @@
         if (dkState.phase === 'allPassed') {
           // All DK stops passed, waiting for Swedish data
           infoHtml += '<div class="ft-next-card">'
-            + '<div class="ft-next-label">PÅ VÄG MOT SVERIGE <span class="ft-dk-badge">🇩🇰→🇸🇪</span></div>'
+            + '<div class="ft-next-label">PÅ VÄG MOT SVERIGE</div>'
             + '<div class="ft-next-station">Väntar på tågdata...</div>'
             + '</div>';
         } else {
@@ -1404,7 +1404,7 @@
           + '<th>Station</th><th>Ank.</th><th>Avg.</th>'
           + (earlyHasTrack ? '<th>Spår</th>' : '')
           + '</tr></thead><tbody>';
-        tableHtml += '<tr class="ft-dk-separator"><td colspan="' + earlyColSpan + '">🇩🇰 Danmark' + earlyLive + '</td></tr>';
+        // DK separator removed (v4.25.57)
         for (var dj = 0; dj < dkState.stops.length; dj++) {
           var ds = dkState.stops[dj];
           var dkRowClass = ds._passed ? 'ft-stop-passed ft-dk-stop' : (ds._isNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
@@ -1434,7 +1434,7 @@
             + earlyTrack
             + '</tr>';
         }
-        tableHtml += '<tr class="ft-se-separator"><td colspan="' + earlyColSpan + '">🇸🇪 Sverige</td></tr>';
+        // SE separator removed (v4.25.57)
         tableHtml += '<tr><td colspan="' + earlyColSpan + '" class="ft-waiting-api">Väntar på tågdata...</td></tr>';
         tableHtml += '</tbody></table></div>';
 
@@ -1524,7 +1524,7 @@
       if (dkState && dkState.stops && dkState.stops.length > 0 && dkState.direction === 'toDK') {
         var lastDk = dkState.stops[dkState.stops.length - 1];
         arrivedName = lastDk.name;
-        arrivedFlag = ' <span class="ft-dk-badge">🇩🇰</span>';
+        arrivedFlag = '';
         arrivedTime = lastDk.rtArr || lastDk.arrPlanned || lastDk.arr || arrivedTime;
       }
       var arrivedTimeHtml = arrivedTime ? '<div class="ft-arrived-time">Ankom ' + arrivedTime + '</div>' : '';
@@ -1627,7 +1627,7 @@
       }
       var colSpan = hasTrack ? '4' : '3';
       var liveSrc = dkState.source === 'live' ? ' <span class="ft-dk-live">LIVE</span>' : '';
-      dkHtml += '<tr class="ft-dk-separator"><td colspan="' + colSpan + '">🇩🇰 Danmark' + liveSrc + '</td></tr>';
+      // DK separator removed (v4.25.57)
       for (var di = 0; di < dkState.stops.length; di++) {
         var dkStop = dkState.stops[di];
         var rowCls = dkStop._passed ? 'ft-stop-passed ft-dk-stop' : (dkStop._isNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
@@ -1675,9 +1675,7 @@
     function buildSeRows() {
       var seHtml = '';
       var hasDk = dkState && dkState.stops.length > 0;
-      if (hasDk) {
-        seHtml += '<tr class="ft-se-separator"><td colspan="' + comboColSpan + '">🇸🇪 Sverige</td></tr>';
-      }
+      // SE separator removed (v4.25.57)
       for (var m = 0; m < upcomingStops.length; m++) {
         var st = upcomingStops[m];
         var rowClass = st.passed ? 'ft-stop-passed' : '';
