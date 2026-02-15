@@ -663,7 +663,6 @@
   function restoreHeader() {
     var headerTitle = document.getElementById('headerTitle') || document.querySelector('.header-title');
     if (headerTitle) {
-      headerTitle.textContent = 'Vem jobbar idag?';
       headerTitle.classList.remove('following-route', 'marquee-scroll');
       headerTitle.style.removeProperty('--marquee-distance');
       headerTitle.style.removeProperty('--marquee-duration');

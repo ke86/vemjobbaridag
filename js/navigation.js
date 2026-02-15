@@ -98,6 +98,18 @@ function showPage(pageId) {
     stopAWParty();
   }
 
+  // Cleanup previous pages BEFORE setting new title
+  if (pageId !== 'departure') {
+    onDeparturePageHide();
+  }
+  if (pageId !== 'trainFollow') {
+    if (typeof onTrainFollowPageHide === 'function') onTrainFollowPageHide();
+  }
+  if (pageId !== 'la') {
+    if (typeof onLaPageHide === 'function') onLaPageHide();
+  }
+
+  // Activate page + set header title
   if (pageId === 'schedule') {
     schedulePage.classList.add('active');
     headerTitle.textContent = 'Vem jobbar idag?';
@@ -129,21 +141,6 @@ function showPage(pageId) {
     document.getElementById('laPage').classList.add('active');
     headerTitle.textContent = 'Dagens LA';
     if (typeof onLaPageShow === 'function') onLaPageShow();
-  }
-
-  // Stop departure refresh when leaving departure page
-  if (pageId !== 'departure') {
-    onDeparturePageHide();
-  }
-
-  // Stop train follow polling when leaving page
-  if (pageId !== 'trainFollow') {
-    if (typeof onTrainFollowPageHide === 'function') onTrainFollowPageHide();
-  }
-
-  // Close LA viewer when leaving LA page
-  if (pageId !== 'la') {
-    if (typeof onLaPageHide === 'function') onLaPageHide();
   }
 
   closeSidebarMenu();
