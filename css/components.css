@@ -365,7 +365,7 @@ html.dark .train-live-badge[data-status="minor"] .train-live-delay {
   color: var(--accent-red);
 }
 
-/* Finished for the day — blue/grey style */
+/* Finished for the day — grey base style */
 .train-live-badge.train-finished {
   background: rgba(100, 116, 139, 0.15);
   border-color: #94a3b8;
@@ -384,6 +384,32 @@ html.dark .train-live-badge.train-finished {
 html.dark .train-live-badge.train-finished .train-live-nr,
 html.dark .train-live-badge.train-finished .train-live-delay {
   color: #94a3b8;
+}
+
+/* Finished with realtime dest delay — grey bg but colored delay text */
+.train-live-badge.train-finished[data-dest-status="ontime"] .train-live-delay {
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 700;
+}
+.train-live-badge.train-finished[data-dest-status="minor"] .train-live-delay {
+  color: #ca8a04;
+  font-size: 13px;
+  font-weight: 700;
+}
+.train-live-badge.train-finished[data-dest-status="major"] .train-live-delay {
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 700;
+}
+html.dark .train-live-badge.train-finished[data-dest-status="ontime"] .train-live-delay {
+  color: #4ade80;
+}
+html.dark .train-live-badge.train-finished[data-dest-status="minor"] .train-live-delay {
+  color: #facc15;
+}
+html.dark .train-live-badge.train-finished[data-dest-status="major"] .train-live-delay {
+  color: #f87171;
 }
 
 /* No data — grey dash */

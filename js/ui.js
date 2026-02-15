@@ -574,10 +574,12 @@ function renderBadgeWithToggle(shift) {
 
     if (nextTrain) {
       if (nextTrain.finished) {
-        // Finished for the day — show last train nr, flip shows "Ank HH:MM"
+        // Finished for the day — show last train nr
+        // Flip shows realtime delay at destination, fallback to "Ank HH:MM"
         const ankTime = nextTrain.timeEnd || '—';
+        const destStation = nextTrain.toStation || '';
         return `
-          <div class="train-live-badge train-finished" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}" data-finished="1" data-ank="${ankTime}">
+          <div class="train-live-badge train-finished" data-employee-id="${shift.employeeId}" data-train-nr="${nextTrain.trainNr}" data-finished="1" data-ank="${ankTime}" data-dest-station="${destStation}">
             <span class="train-live-nr">${nextTrain.trainNr}</span>
             <span class="train-live-delay">Ank ${ankTime}</span>
           </div>

@@ -1240,7 +1240,7 @@
     if (!stop) return html;
 
     var stopPhase = stop._phase || 'approaching';
-    var liveBadge = stop._isLive ? '<span class="ft-dk-live">LIVE</span>' : '';
+    var isLiveData = stop._isLive ? ' data-is-live="1"' : '';
     var trackHtml = '';
     if (stop.track) {
       trackHtml = '<div class="ft-track-circle"><span class="ft-track-nr">' + stop.track + '</span><span class="ft-track-label">SPÅR</span></div>';
@@ -1271,7 +1271,7 @@
 
     if (stopPhase === 'departed') {
       // === AVGÅTT — count up from departure time ===
-      html += '<div class="ft-next-card ft-card-departed">'
+      html += '<div class="ft-next-card ft-card-departed"' + isLiveData + '>'
         + '<div class="ft-next-label">AVGÅTT FRÅN</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + stop.dep + '" data-direction="up">'
@@ -1281,14 +1281,14 @@
         + '<div class="ft-detail-row">'
         + trackHtml
         + '<div class="ft-times">'
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
     } else if (stopPhase === 'atStation') {
       // === VID STATION — countdown to departure ===
       originDepartureTarget = stop.dep;
-      html += '<div class="ft-next-card ft-card-atstation">'
+      html += '<div class="ft-next-card ft-card-atstation"' + isLiveData + '>'
         + '<div class="ft-next-label">VID STATION ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
@@ -1298,8 +1298,8 @@
         + '<div class="ft-detail-row">'
         + trackHtml
         + '<div class="ft-times">'
-        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST ' + liveBadge + '</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -1309,7 +1309,7 @@
         // === ARRIVING at first DK stop (not origin) — countdown to arrival ===
         var arrTarget = stop.arr || stop.dep || '';
         var arrLabel = stop.arr ? 'ANKOMST OM' : 'AVGÅNG OM';
-        html += '<div class="ft-next-card">'
+        html += '<div class="ft-next-card"' + isLiveData + '>'
           + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
           + '<div class="ft-next-station">' + stop.name + '</div>'
           + '<div class="ft-countdown-row" data-target="' + arrTarget + '">'
@@ -1319,15 +1319,15 @@
           + '<div class="ft-detail-row">'
           + trackHtml
           + '<div class="ft-times">'
-          + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST ' + liveBadge + '</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-          + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+          + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+          + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
           + '</div>'
           + '</div>'
           + '</div>';
       } else {
         // === TRUE ORIGIN (toSE) — countdown to departure ===
         originDepartureTarget = stop.dep;
-        html += '<div class="ft-next-card">'
+        html += '<div class="ft-next-card"' + isLiveData + '>'
           + '<div class="ft-next-label">AVGÅNG FRÅN</div>'
           + '<div class="ft-next-station">' + stop.name + '</div>'
           + '<div class="ft-countdown-row" data-target="' + stop.dep + '">'
@@ -1337,7 +1337,7 @@
           + '<div class="ft-detail-row">'
           + trackHtml
           + '<div class="ft-times">'
-          + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>'
+          + '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>'
           + '</div>'
           + '</div>'
           + '</div>';
@@ -1346,7 +1346,7 @@
       // === APPROACHING — countdown to arrival ===
       var countdownTarget = stop.arr || stop.dep || '';
       var countdownLabel = stop.arr ? 'ANKOMST OM' : 'AVGÅNG OM';
-      html += '<div class="ft-next-card">'
+      html += '<div class="ft-next-card"' + isLiveData + '>'
         + '<div class="ft-next-label">NÄSTA STATION ' + delayHtml + '</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + countdownTarget + '">'
@@ -1356,8 +1356,8 @@
         + '<div class="ft-detail-row">'
         + trackHtml
         + '<div class="ft-times">'
-        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST ' + liveBadge + '</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
-        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG ' + liveBadge + '</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
+        + (stop.arr ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + arrDisplay + '</span></div>' : '')
+        + (stop.dep ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + depDisplay + '</span></div>' : '')
         + '</div>'
         + '</div>'
         + '</div>';
@@ -1943,16 +1943,31 @@
   }
 
   /**
-   * Inject the clock element into the first .ft-next-card (if not already present).
+   * Inject the clock element (and LIVE badge below it) into the first .ft-next-card.
    * Called after rendering content.
    */
   function injectClock() {
     var card = document.querySelector('.ft-next-card');
     if (!card) return;
-    if (card.querySelector('.ft-live-clock')) return;
-    var span = document.createElement('span');
-    span.className = 'ft-live-clock';
-    card.appendChild(span);
+    if (card.querySelector('.ft-clock-wrapper')) return;
+
+    // Create wrapper for clock + optional LIVE badge
+    var wrapper = document.createElement('div');
+    wrapper.className = 'ft-clock-wrapper';
+
+    var clockSpan = document.createElement('span');
+    clockSpan.className = 'ft-live-clock';
+    wrapper.appendChild(clockSpan);
+
+    // Add LIVE badge if card has live DK data
+    if (card.getAttribute('data-is-live') === '1') {
+      var liveBadge = document.createElement('span');
+      liveBadge.className = 'ft-dk-live';
+      liveBadge.textContent = 'LIVE';
+      wrapper.appendChild(liveBadge);
+    }
+
+    card.appendChild(wrapper);
   }
 
   function startClockTimer() {

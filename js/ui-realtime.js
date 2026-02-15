@@ -15,7 +15,40 @@
 
 // Store: trainNr → { delayMin: number, canceled: boolean, status: 'ontime'|'minor'|'major', delayText: string }
 let trainRealtimeStore = {};
+// Store: trainNr → { delayMin, status, delayText } specifically for destination station arrival
+let trainDestStore = {};
 let trainRealtimeTimer = null;
+
+// Map station display names (from dagvy toStation) → Trafikverket LocationSignature
+const STATION_NAME_TO_SIG = {
+  'malmö c': 'Mc', 'malmö': 'Mc', 'mal': 'Mc',
+  'hyllie': 'Hie',
+  'triangeln': 'Tri',
+  'lund c': 'Lu', 'lund': 'Lu',
+  'hässleholm c': 'Hm', 'hässleholm': 'Hm',
+  'helsingborg c': 'Hb', 'helsingborg': 'Hb',
+  'kristianstad c': 'Cr', 'kristianstad': 'Cr',
+  'karlskrona c': 'Ck', 'karlskrona': 'Ck',
+  'kalmar c': 'Kac', 'kalmar': 'Kac',
+  'halmstad c': 'Hd', 'halmstad': 'Hd',
+  'göteborg c': 'G', 'göteborg': 'G',
+  'växjö': 'Vö', 'alvesta': 'Av',
+  'landskrona': 'Lkr', 'eslöv': 'El',
+  'ramlösa': 'Rml', 'kävlinge': 'Käv',
+  'höör': 'Hör', 'osby': 'Osb',
+  'ängelholm': 'Äh', 'ängelholm c': 'Äh',
+  'hassleholm c': 'Hm', 'hassleholm': 'Hm'
+};
+
+/**
+ * Resolve a station display name to a Trafikverket LocationSignature.
+ * E.g. "Malmö C" → "Mc", "Hässleholm" → "Hm"
+ */
+function stationNameToSig(name) {
+  if (!name) return null;
+  const lower = name.toLowerCase().trim();
+  return STATION_NAME_TO_SIG[lower] || null;
+}
 
 /**
  * Collect unique train numbers from all visible .train-live-badge elements
@@ -28,6 +61,24 @@ function collectVisibleTrainNumbers() {
     if (nr) numbers.add(nr);
   });
   return Array.from(numbers);
+}
+
+/**
+ * Collect destination stations for finished trains.
+ * Returns Map: trainNr → LocationSignature (e.g. "1071" → "Mc")
+ */
+function collectFinishedTrainDests() {
+  const destMap = {};
+  const badges = document.querySelectorAll('.train-live-badge[data-finished="1"]');
+  badges.forEach(b => {
+    const nr = b.getAttribute('data-train-nr');
+    const dest = b.getAttribute('data-dest-station');
+    if (nr && dest) {
+      const sig = stationNameToSig(dest);
+      if (sig) destMap[nr] = sig;
+    }
+  });
+  return destMap;
 }
 
 /**
@@ -64,6 +115,7 @@ async function fetchTrainRealtimeData(trainNumbers) {
     + '<INCLUDE>TimeAtLocation</INCLUDE>'
     + '<INCLUDE>Canceled</INCLUDE>'
     + '<INCLUDE>ActivityType</INCLUDE>'
+    + '<INCLUDE>LocationSignature</INCLUDE>'
     + '</QUERY>'
     + '</REQUEST>';
 
@@ -167,6 +219,65 @@ async function fetchTrainRealtimeData(trainNumbers) {
       }
     }
 
+    // === Destination-specific delay for finished trains ===
+    const finishedDests = collectFinishedTrainDests();
+    for (const nr of Object.keys(finishedDests)) {
+      const destSig = finishedDests[nr];
+      const anns = groupedByTrain[nr];
+      if (!anns) continue;
+
+      // Find arrival announcement at the destination station
+      let destAnn = null;
+      for (const a of anns) {
+        if (a.LocationSignature === destSig && a.ActivityType === 'Ankomst') {
+          destAnn = a;
+          break;
+        }
+      }
+      // Fallback: try departure at dest station (some stations only have departure)
+      if (!destAnn) {
+        for (const a of anns) {
+          if (a.LocationSignature === destSig) {
+            destAnn = a;
+            break;
+          }
+        }
+      }
+
+      if (!destAnn) continue;
+
+      if (destAnn.Canceled === true) {
+        trainDestStore[nr] = { delayMin: 999, status: 'major', delayText: 'Inställt' };
+        continue;
+      }
+
+      const advTime = new Date(destAnn.AdvertisedTimeAtLocation);
+      const estTime = destAnn.EstimatedTimeAtLocation ? new Date(destAnn.EstimatedTimeAtLocation) : null;
+      const actTime = destAnn.TimeAtLocation ? new Date(destAnn.TimeAtLocation) : null;
+
+      let delayMin = 0;
+      if (actTime) {
+        delayMin = Math.round((actTime - advTime) / 60000);
+      } else if (estTime) {
+        delayMin = Math.round((estTime - advTime) / 60000);
+      }
+
+      let status = 'ontime';
+      let delayText = 'I tid';
+      if (delayMin >= 6) {
+        status = 'major';
+        delayText = '+' + delayMin + ' min';
+      } else if (delayMin >= 1) {
+        status = 'minor';
+        delayText = '+' + delayMin + ' min';
+      } else if (delayMin < 0) {
+        status = 'ontime';
+        delayText = delayMin + ' min';
+      }
+
+      trainDestStore[nr] = { delayMin, status, delayText };
+    }
+
     // Update all badges in the DOM
     updateTrainBadgesDOM();
 
@@ -176,13 +287,33 @@ async function fetchTrainRealtimeData(trainNumbers) {
 }
 
 /**
- * Update all .train-live-badge elements with current realtime data
+ * Update all .train-live-badge elements with current realtime data.
+ * Finished badges use trainDestStore (destination-specific delay) if available,
+ * falling back to "Ank HH:MM" from data-ank attribute.
  */
 function updateTrainBadgesDOM() {
   let hasData = false;
   const badges = document.querySelectorAll('.train-live-badge[data-train-nr]');
   badges.forEach(badge => {
     const nr = badge.getAttribute('data-train-nr');
+    const isFinished = badge.getAttribute('data-finished') === '1';
+
+    if (isFinished) {
+      // Finished badge: prefer destination-specific delay from trainDestStore
+      const destInfo = trainDestStore[nr];
+      if (destInfo) {
+        hasData = true;
+        badge.setAttribute('data-dest-status', destInfo.status);
+        const delayEl = badge.querySelector('.train-live-delay');
+        if (delayEl) {
+          delayEl.textContent = destInfo.delayText;
+        }
+      }
+      // If no destInfo, keep the fallback "Ank HH:MM" set during render
+      return;
+    }
+
+    // Active badge: use general trainRealtimeStore
     const info = trainRealtimeStore[nr];
     if (!info) return;
 

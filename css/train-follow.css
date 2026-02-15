@@ -542,11 +542,17 @@ html.dark .ft-tab-btn.ft-tab-active {
   margin-bottom: 10px;
 }
 
-/* Live clock in upper right corner of info card */
-.ft-live-clock {
+/* Clock + LIVE wrapper in upper right corner of info card */
+.ft-clock-wrapper {
   position: absolute;
   top: 14px;
   right: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+.ft-live-clock {
   font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Menlo', monospace;
   font-size: 17px;
   font-weight: 700;
@@ -864,18 +870,16 @@ html.dark .ft-tab-btn.ft-tab-active {
   opacity: 0.7;
 }
 
-/* Rejseplanen LIVE badge */
+/* Rejseplanen LIVE badge (below clock in ft-clock-wrapper) */
 .ft-dk-live {
   display: inline-block;
   font-size: 9px;
   font-weight: 700;
   color: #22c55e;
   background: rgba(34, 197, 94, 0.15);
-  padding: 1px 5px;
-  border-radius: 3px;
-  letter-spacing: 0.05em;
-  vertical-align: middle;
-  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.08em;
   animation: ft-live-pulse 2s ease-in-out infinite;
 }
 @keyframes ft-live-pulse {
