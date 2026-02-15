@@ -109,6 +109,14 @@ function getTrainProduct(announcement) {
   }
   // Normalize Öresundståg → Ötåg everywhere (SE + DK)
   if (name === 'Öresundståg') name = 'Ötåg';
+
+  // Fallback: identify Ötåg via train number if product info is missing
+  if (name === 'Övrigt' && announcement.AdvertisedTrainIdent) {
+    var trainNr = String(announcement.AdvertisedTrainIdent);
+    if (typeof denmark !== 'undefined' && denmark.hasDanishData(trainNr)) {
+      name = 'Ötåg';
+    }
+  }
   return name;
 }
 
