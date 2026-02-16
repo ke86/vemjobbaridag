@@ -1876,8 +1876,8 @@
         + '</td></tr>';
     }
     for (var ri = 0; ri < allRows.length; ri++) {
-      if (!_passedExpanded && allRows[ri].classList.contains('ft-collapsed-row')) {
-        allRows[ri].style.display = 'none';
+      if (allRows[ri].classList.contains('ft-collapsed-row')) {
+        allRows[ri].style.display = _passedExpanded ? 'table-row' : 'none';
       }
       finalRows += allRows[ri].outerHTML;
     }
@@ -1900,7 +1900,7 @@
     var rows = document.querySelectorAll('.ft-collapsed-row');
     var toggleRow = document.querySelector('.ft-toggle-row');
     for (var i = 0; i < rows.length; i++) {
-      rows[i].style.display = _passedExpanded ? '' : 'none';
+      rows[i].style.display = _passedExpanded ? 'table-row' : 'none';
     }
     if (toggleRow) {
       var icon = toggleRow.querySelector('.ft-toggle-icon');
