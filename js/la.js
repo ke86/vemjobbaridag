@@ -171,7 +171,7 @@
         html += '<div class="la-card la-card-inactive">'
           + '<div class="la-card-icon">🕑</div>'
           + '<div class="la-card-info">'
-          + '<div class="la-card-sub">Imorgons LA publiceras vanligtvis efter kl 14:30</div>'
+          + '<div class="la-card-sub">Morgondagens LA publiceras vanligtvis efter kl 14:30</div>'
           + '</div>'
           + '</div>';
       }

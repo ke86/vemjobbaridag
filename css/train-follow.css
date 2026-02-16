@@ -840,12 +840,9 @@ html.dark .ft-tab-btn.ft-tab-active {
 }
 
 .ft-dk-stop td {
-  color: var(--text-secondary) !important;
-  font-style: italic;
+  font-style: normal;
 }
 .ft-dk-stop td:first-child {
-  color: #60a5fa !important;
-  font-style: normal;
   font-weight: 500;
 }
 
@@ -894,15 +891,13 @@ html.dark .ft-tab-btn.ft-tab-active {
   font-size: 0.9em;
 }
 
-/* DK realtime: actual time in orange */
+/* DK realtime: actual time */
 .ft-dk-rt {
-  color: #f97316;
   font-weight: 600;
 }
 
 /* DK track column */
 .ft-dk-track {
-  color: #60a5fa;
   font-weight: 600;
   text-align: center;
   min-width: 36px;
@@ -937,4 +932,111 @@ html.dark .ft-tab-btn.ft-tab-active {
 .ft-countdown-departed {
   color: #6b7280 !important;
   font-size: 1.3em;
+}
+
+/* ==========================================
+   LA-SWITCH TOAST (København H)
+   ========================================== */
+
+.ft-la-toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8000;
+  width: calc(100% - 32px);
+  max-width: 380px;
+  animation: ftToastIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes ftToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.ft-la-toast-exit {
+  animation: ftToastOut 0.28s ease-in both;
+}
+
+@keyframes ftToastOut {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px) scale(0.96);
+  }
+}
+
+.ft-la-toast-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+html.dark .ft-la-toast-content {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ft-la-toast-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.ft-la-toast-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.ft-la-toast-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ft-la-toast-btn {
+  flex: 1;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.ft-la-toast-btn:active {
+  transform: scale(0.96);
+}
+
+.ft-la-toast-no {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+.ft-la-toast-no:active {
+  background: var(--border-color);
+}
+
+.ft-la-toast-yes {
+  background: var(--accent-blue);
+  color: #fff;
+}
+.ft-la-toast-yes:active {
+  filter: brightness(0.88);
 }

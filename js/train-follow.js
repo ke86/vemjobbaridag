@@ -451,6 +451,7 @@
     activeTopbarTab = 'timetable';
     ftLaStracka = null;
     ftLaPage = null;
+    _khToastShown = false;
     clearCookie();
     stopBtnFlipTimer();
     if (autoUnfollowTimer) { clearTimeout(autoUnfollowTimer); autoUnfollowTimer = null; }
@@ -762,6 +763,86 @@
     }
 
     return '11'; // default: Öresundståg via Peberholm
+  }
+
+  // ── LA-switch toast at København H ──────────────────
+  var _khToastShown = false;
+
+  /**
+   * Check if train has reached København H and prompt to switch LA sträcka.
+   * Called after each data refresh. Shows toast only once per follow session.
+   */
+  function checkKhLaToast() {
+    if (_khToastShown) return;
+    if (activeTopbarTab !== 'la') return;
+    if (!followedTrain) return;
+
+    var dkState = getDkTrackingState(followedTrain.trainNr);
+    if (!dkState || !dkState.stops || dkState.stops.length === 0) return;
+
+    // Find København H in the stop list
+    var khIdx = -1;
+    for (var i = 0; i < dkState.stops.length; i++) {
+      var sName = (dkState.stops[i].name || '').toLowerCase();
+      if (sName.indexOf('københavn h') >= 0 || sName === 'kh' || sName.indexOf('koebenhavn h') >= 0) {
+        khIdx = i;
+        break;
+      }
+    }
+    if (khIdx === -1) return;
+
+    var khStop = dkState.stops[khIdx];
+    // Trigger when KH is passed or atStation
+    if (!khStop._passed && khStop._phase !== 'atStation' && khStop._phase !== 'departed') return;
+
+    // Determine the NEXT sträcka (the one covering the rest of the journey after KH)
+    var nextStracka = detectStracka();
+
+    // Only prompt if the current LA sträcka differs from what's needed
+    if (ftLaStracka === nextStracka) return;
+
+    _khToastShown = true;
+    var strackaName = nextStracka === '10' ? 'Sträcka 10' : 'Sträcka 11';
+    showKhLaToast(nextStracka, strackaName);
+  }
+
+  function showKhLaToast(newNr, strackaName) {
+    // Remove any existing toast
+    var existing = document.querySelector('.ft-la-toast');
+    if (existing) existing.remove();
+
+    var toast = document.createElement('div');
+    toast.className = 'ft-la-toast';
+    toast.innerHTML =
+      '<div class="ft-la-toast-content">'
+      + '<div class="ft-la-toast-text">'
+      + '<span class="ft-la-toast-icon">🔄</span>'
+      + '<span>Tåget vid <strong>København H</strong><br>Byta till <strong>' + strackaName + '</strong>?</span>'
+      + '</div>'
+      + '<div class="ft-la-toast-actions">'
+      + '<button class="ft-la-toast-btn ft-la-toast-no">Nej</button>'
+      + '<button class="ft-la-toast-btn ft-la-toast-yes">Ja, byt</button>'
+      + '</div>'
+      + '</div>';
+
+    // Wire up buttons
+    toast.querySelector('.ft-la-toast-yes').addEventListener('click', function() {
+      ftLaStracka = newNr;
+      ftLaPage = getTargetPage(newNr, followedTrain.trainNr);
+      renderFtLa();
+      toast.classList.add('ft-la-toast-exit');
+      setTimeout(function() { toast.remove(); }, 300);
+    });
+    toast.querySelector('.ft-la-toast-no').addEventListener('click', function() {
+      toast.classList.add('ft-la-toast-exit');
+      setTimeout(function() { toast.remove(); }, 300);
+    });
+
+    // Insert into the LA content area
+    var laContent = document.getElementById('ftLaContent');
+    if (laContent) {
+      laContent.appendChild(toast);
+    }
   }
 
   /**
@@ -1275,7 +1356,7 @@
         + '<div class="ft-next-label">AVGÅTT FRÅN</div>'
         + '<div class="ft-next-station">' + stop.name + '</div>'
         + '<div class="ft-countdown-row" data-target="' + stop.dep + '" data-direction="up">'
-        + '<span class="ft-countdown-label">AVGICK FÖR</span>'
+        + '<span class="ft-countdown-label">AVGÅNG FÖR</span>'
         + '<span class="ft-countdown-value" id="ftCountdown">0:00</span>'
         + '</div>'
         + '<div class="ft-detail-row">'
@@ -1541,6 +1622,11 @@
       var depTime = next.departure ? (next.departure.estimated || next.departure.planned) : '';
       var trackStr = next.track || '—';
 
+      var delayHtml = '';
+      if (delayMin > 0) {
+        delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
+      }
+
       // SE departed hold — show "AVGÅTT FRÅN" with count-up
       if (next._phase === 'departed') {
         var seDepartedTime = next.departure ? next.departure.actual : depTime;
@@ -1548,7 +1634,7 @@
           + '<div class="ft-next-label">AVGÅTT FRÅN</div>'
           + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
           + '<div class="ft-countdown-row" data-target="' + seDepartedTime + '" data-direction="up">'
-          + '<span class="ft-countdown-label">AVGICK FÖR</span>'
+          + '<span class="ft-countdown-label">AVGÅNG FÖR</span>'
           + '<span class="ft-countdown-value" id="ftCountdown">0:00</span>'
           + '</div>'
           + '<div class="ft-detail-row">'
@@ -1558,6 +1644,25 @@
           + '</div>'
           + '</div>'
           + '</div>';
+      } else if (next._phase === 'atStation') {
+      // SE at station — arrived but not yet departed
+      var seArrActual = next.arrival ? (next.arrival.actual || next.arrival.estimated || next.arrival.planned) : '';
+      var seDepPlanned = next.departure ? (next.departure.estimated || next.departure.planned) : '';
+      infoHtml += '<div class="ft-next-card ft-card-atstation">'
+        + '<div class="ft-next-label">VID STATION ' + delayHtml + '</div>'
+        + '<div class="ft-next-station">' + stationName(next.station) + '</div>'
+        + '<div class="ft-countdown-row" data-target="' + seDepPlanned + '">'
+        + '<span class="ft-countdown-label">AVGÅNG OM</span>'
+        + '<span class="ft-countdown-value" id="ftCountdown">--:--</span>'
+        + '</div>'
+        + '<div class="ft-detail-row">'
+        + '<div class="ft-track-circle"><span class="ft-track-nr">' + trackStr + '</span><span class="ft-track-label">SPÅR</span></div>'
+        + '<div class="ft-times">'
+        + (seArrActual ? '<div class="ft-time-box"><span class="ft-time-label">ANKOMST</span><span class="ft-time-value">' + seArrActual + '</span></div>' : '')
+        + (seDepPlanned ? '<div class="ft-time-box"><span class="ft-time-label">AVGÅNG</span><span class="ft-time-value">' + seDepPlanned + '</span></div>' : '')
+        + '</div>'
+        + '</div>'
+        + '</div>';
       } else {
       // Normal SE station card
       var countdownTarget = '';
@@ -1577,11 +1682,6 @@
       } else if (depTime && (!next.departure || !next.departure.actual)) {
         countdownTarget = depTime;
         countdownLabel = 'AVGÅNG OM';
-      }
-
-      var delayHtml = '';
-      if (delayMin > 0) {
-        delayHtml = '<span class="ft-delay-text ft-delay-' + (delayMin >= 6 ? 'major' : 'minor') + '">+' + delayMin + ' min</span>';
       }
 
       infoHtml += '<div class="ft-next-card">'
@@ -1608,12 +1708,13 @@
       var s = stops[k];
       var arr = s.arrival ? (s.arrival.actual || s.arrival.estimated || s.arrival.planned) : '';
       var dep = s.departure ? (s.departure.actual || s.departure.estimated || s.departure.planned) : '';
+      var seIsNext = (k === nextIdx) && !dkCardUsed;
       upcomingStops.push({
         station: stationName(s.station),
         arr: arr,
         dep: dep,
         passed: s.passed,
-        isNext: k === nextIdx
+        isNext: seIsNext
       });
     }
 
@@ -1630,9 +1731,10 @@
       // DK separator removed (v4.25.57)
       for (var di = 0; di < dkState.stops.length; di++) {
         var dkStop = dkState.stops[di];
-        var rowCls = dkStop._passed ? 'ft-stop-passed ft-dk-stop' : (dkStop._isNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
+        var dkIsNext = dkStop._isNext && dkCardUsed;
+        var rowCls = dkStop._passed ? 'ft-stop-passed ft-dk-stop' : (dkIsNext ? 'ft-stop-next ft-dk-stop' : 'ft-dk-stop');
         var chk = dkStop._passed ? '<span class="ft-check">✓</span> ' : '';
-        var mrk = dkStop._isNext ? '<span class="ft-marker">▶</span> ' : '';
+        var mrk = dkIsNext ? '<span class="ft-marker">▶</span> ' : '';
 
         // Arrival cell: show realtime if different from planned
         var arrCell = '';
@@ -1815,6 +1917,7 @@
       // Update mini timetable if LA tab is active
       if (activeTopbarTab === 'la') {
         renderMiniTimetable();
+        checkKhLaToast();
       }
     } catch (err) {
       if (contentEl && announcements.length === 0) {
@@ -1860,7 +1963,7 @@
 
       if (a.ActivityType === 'Ankomst') {
         stop.arrival = timeObj;
-        if (actual) stop.passed = true;
+        // Don't mark passed on arrival — wait for departure
       } else if (a.ActivityType === 'Avgang') {
         stop.departure = timeObj;
         if (actual) stop.passed = true;
@@ -1871,9 +1974,24 @@
     var firstStation = stops.length > 0 ? stops[0].station : '';
     var lastStation = stops.length > 0 ? stops[stops.length - 1].station : '';
 
+    // Last station (terminus) has only arrival, no departure — mark passed on actual arrival
+    var terminus = stops.length > 0 ? stops[stops.length - 1] : null;
+    if (terminus && !terminus.departure && terminus.arrival && terminus.arrival.actual) {
+      terminus.passed = true;
+    }
+
     var nextIdx = -1;
     for (var j = 0; j < stops.length; j++) {
       if (!stops[j].passed) { nextIdx = j; break; }
+    }
+
+    // Detect atStation: train arrived but not yet departed
+    if (nextIdx >= 0) {
+      var atStop = stops[nextIdx];
+      if (atStop.arrival && atStop.arrival.actual &&
+          atStop.departure && (!atStop.departure.actual)) {
+        atStop._phase = 'atStation';
+      }
     }
 
     // 30s hold: if previous stop departed within 30s, hold on it
