@@ -1040,3 +1040,62 @@ html.dark .ft-la-toast-content {
 .ft-la-toast-yes:active {
   filter: brightness(0.88);
 }
+
+/* ==========================================
+   COLLAPSED PASSED STATIONS
+   ========================================== */
+
+.ft-collapsed-row {
+  display: none;
+}
+
+.ft-toggle-row {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.ft-toggle-row td {
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  border-bottom: 1px solid var(--border-color);
+}
+.ft-toggle-row:active td {
+  background: rgba(59, 130, 246, 0.08);
+}
+html.dark .ft-toggle-row:active td {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.ft-toggle-icon {
+  display: inline-block;
+  font-size: 11px;
+  transition: transform 0.2s ease;
+}
+
+.ft-toggle-text {
+  font-size: 13px;
+}
+
+/* ==========================================
+   LA TAB PULSE (København H)
+   ========================================== */
+
+.ft-tab-btn.ft-tab-pulse {
+  animation: ftTabPulse 2s ease-in-out infinite;
+}
+
+@keyframes ftTabPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+}
+
+html.dark .ft-tab-btn.ft-tab-pulse {
+  animation: ftTabPulseDark 2s ease-in-out infinite;
+}
+
+@keyframes ftTabPulseDark {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; box-shadow: 0 0 8px rgba(96, 165, 250, 0.5); }
+}

@@ -452,6 +452,8 @@
     ftLaStracka = null;
     ftLaPage = null;
     _khToastShown = false;
+    _khPulseActive = false;
+    _khPulseStracka = null;
     clearCookie();
     stopBtnFlipTimer();
     if (autoUnfollowTimer) { clearTimeout(autoUnfollowTimer); autoUnfollowTimer = null; }
@@ -686,7 +688,7 @@
       '<div class="ft-topbar-left">'
       + '<div class="ft-tab-toggle">'
       +   '<button class="ft-tab-btn' + (isTimetable ? ' ft-tab-active' : '') + '" data-tab="timetable">Följ tåg</button>'
-      +   '<button class="ft-tab-btn' + (!isTimetable ? ' ft-tab-active' : '') + '" data-tab="la">LA</button>'
+      +   '<button class="ft-tab-btn' + (!isTimetable ? ' ft-tab-active' : '') + (_khPulseActive ? ' ft-tab-pulse' : '') + '" data-tab="la">LA</button>'
       + '</div>'
       + '</div>'
       + '<div class="ft-topbar-right">'
@@ -703,6 +705,17 @@
         activeTopbarTab = tab;
         updateTopbar();
         onTabSwitch(tab);
+        // If switching to LA and pulse is active → show toast
+        if (tab === 'la' && _khPulseActive && !_khToastShown) {
+          _khPulseActive = false;
+          _khToastShown = true;
+          applyLaPulse(false);
+          var strackaName = _khPulseStracka === '10' ? 'Sträcka 10' : 'Sträcka 11';
+          // Small delay so LA content renders first
+          setTimeout(function() {
+            showKhLaToast(_khPulseStracka, strackaName);
+          }, 300);
+        }
       });
     }
 
@@ -767,14 +780,16 @@
 
   // ── LA-switch toast at København H ──────────────────
   var _khToastShown = false;
+  var _khPulseActive = false;
+  var _khPulseStracka = null;  // stash sträcka for deferred toast
 
   /**
    * Check if train has reached København H and prompt to switch LA sträcka.
-   * Called after each data refresh. Shows toast only once per follow session.
+   * If LA tab is active → show toast immediately.
+   * If LA tab is NOT active → start pulsing the LA tab.
    */
   function checkKhLaToast() {
     if (_khToastShown) return;
-    if (activeTopbarTab !== 'la') return;
     if (!followedTrain) return;
 
     var dkState = getDkTrackingState(followedTrain.trainNr);
@@ -801,9 +816,28 @@
     // Only prompt if the current LA sträcka differs from what's needed
     if (ftLaStracka === nextStracka) return;
 
-    _khToastShown = true;
-    var strackaName = nextStracka === '10' ? 'Sträcka 10' : 'Sträcka 11';
-    showKhLaToast(nextStracka, strackaName);
+    if (activeTopbarTab === 'la') {
+      // LA tab already open → show toast immediately
+      _khToastShown = true;
+      var strackaName = nextStracka === '10' ? 'Sträcka 10' : 'Sträcka 11';
+      showKhLaToast(nextStracka, strackaName);
+    } else if (!_khPulseActive) {
+      // LA tab not open → pulse the tab
+      _khPulseActive = true;
+      _khPulseStracka = nextStracka;
+      applyLaPulse(true);
+    }
+  }
+
+  /** Add or remove pulse class on the LA tab button */
+  function applyLaPulse(on) {
+    var laBtn = topbarEl ? topbarEl.querySelector('.ft-tab-btn[data-tab="la"]') : null;
+    if (!laBtn) return;
+    if (on) {
+      laBtn.classList.add('ft-tab-pulse');
+    } else {
+      laBtn.classList.remove('ft-tab-pulse');
+    }
   }
 
   function showKhLaToast(newNr, strackaName) {
@@ -1801,13 +1835,54 @@
       + '</tr></thead><tbody>';
 
     // Order: DK first for trains FROM Denmark, SE first for trains TO Denmark
+    var combinedRows;
     if (dkState && dkState.direction === 'toSE') {
-      tableHtml += buildDkRows() + buildSeRows();
+      combinedRows = buildDkRows() + buildSeRows();
     } else {
-      tableHtml += buildSeRows() + buildDkRows();
+      combinedRows = buildSeRows() + buildDkRows();
     }
 
-    tableHtml += '</tbody></table></div>';
+    // --- Collapse old passed stations (keep last 2 visible) ---
+    var tmpDiv = document.createElement('div');
+    tmpDiv.innerHTML = '<table><tbody>' + combinedRows + '</tbody></table>';
+    var allRows = tmpDiv.querySelectorAll('tbody tr');
+    var passedIndices = [];
+    for (var pi = 0; pi < allRows.length; pi++) {
+      if (allRows[pi].classList.contains('ft-stop-passed')) {
+        passedIndices.push(pi);
+      }
+    }
+    var hiddenCount = 0;
+    if (passedIndices.length > 2) {
+      var hideUpTo = passedIndices[passedIndices.length - 2]; // keep last 2
+      for (var hi = 0; hi < allRows.length; hi++) {
+        if (allRows[hi].classList.contains('ft-stop-passed') && hi < hideUpTo) {
+          allRows[hi].classList.add('ft-collapsed-row');
+          hiddenCount++;
+        }
+      }
+    }
+    // Re-serialize rows — respect expanded state
+    var finalRows = '';
+    if (hiddenCount > 0) {
+      var toggleIcon = _passedExpanded ? '▾' : '▸';
+      var toggleText = _passedExpanded
+        ? 'Dölj tidigare'
+        : hiddenCount + ' tidigare station' + (hiddenCount > 1 ? 'er' : '');
+      finalRows += '<tr class="ft-toggle-row" onclick="window._ftTogglePassed()">'
+        + '<td colspan="' + comboColSpan + '">'
+        + '<span class="ft-toggle-icon">' + toggleIcon + '</span> '
+        + '<span class="ft-toggle-text">' + toggleText + '</span>'
+        + '</td></tr>';
+    }
+    for (var ri = 0; ri < allRows.length; ri++) {
+      if (!_passedExpanded && allRows[ri].classList.contains('ft-collapsed-row')) {
+        allRows[ri].style.display = 'none';
+      }
+      finalRows += allRows[ri].outerHTML;
+    }
+
+    tableHtml += finalRows + '</tbody></table></div>';
 
     contentEl.innerHTML = '<div class="ft-sticky-info">' + infoHtml + '</div>'
       + '<div class="ft-stops-scroll">' + tableHtml + '</div>';
@@ -1817,6 +1892,25 @@
     scrollToNextStop();
     startClockTimer();
   }
+
+  // --- Toggle collapsed passed stations ---
+  var _passedExpanded = false;
+  window._ftTogglePassed = function() {
+    _passedExpanded = !_passedExpanded;
+    var rows = document.querySelectorAll('.ft-collapsed-row');
+    var toggleRow = document.querySelector('.ft-toggle-row');
+    for (var i = 0; i < rows.length; i++) {
+      rows[i].style.display = _passedExpanded ? '' : 'none';
+    }
+    if (toggleRow) {
+      var icon = toggleRow.querySelector('.ft-toggle-icon');
+      var text = toggleRow.querySelector('.ft-toggle-text');
+      if (icon) icon.textContent = _passedExpanded ? '▾' : '▸';
+      if (text) text.textContent = _passedExpanded
+        ? 'Dölj tidigare'
+        : rows.length + ' tidigare station' + (rows.length > 1 ? 'er' : '');
+    }
+  };
 
   /**
    * Auto-scroll the stops table so the marked station (.ft-stop-next)
@@ -1917,8 +2011,9 @@
       // Update mini timetable if LA tab is active
       if (activeTopbarTab === 'la') {
         renderMiniTimetable();
-        checkKhLaToast();
       }
+      // Check KH toast regardless of active tab (may pulse LA tab)
+      checkKhLaToast();
     } catch (err) {
       if (contentEl && announcements.length === 0) {
         contentEl.innerHTML =
