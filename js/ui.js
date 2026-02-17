@@ -37,6 +37,137 @@ let deleteConfirmModal, deleteModalText, deleteModalCancel, deleteModalConfirm;
 let selectedFile = null;
 let pendingDeleteEmployeeId = null;
 
+// OB-tillägg data (date-keyed object loaded from JSON)
+let _obData = null;
+
+function loadObData() {
+  fetch('data/ob-tillagg.json')
+    .then(function(res) { return res.json(); })
+    .then(function(data) { _obData = data; })
+    .catch(function() { _obData = null; });
+}
+
+function getObForDate(dateKey) {
+  if (!_obData || !_obData[dateKey]) return null;
+  return _obData[dateKey];
+}
+
+/**
+ * Calculate OB segments that overlap with a work shift.
+ * Returns { segments: [...], totalKr: number }
+ * If no timeStr (e.g. FP), returns all segments for the day with hours = full segment.
+ */
+function calculateObForShift(dateKey, timeStr) {
+  var ob = getObForDate(dateKey);
+  if (!ob || !ob.s || ob.s.length === 0) return null;
+
+  var segments = ob.s;
+  var hasShift = timeStr && timeStr !== '-';
+  var shiftStart = 0;
+  var shiftEnd = 0;
+
+  if (hasShift) {
+    var parts = timeStr.split('-');
+    if (parts.length === 2) {
+      shiftStart = timeToMinutes(parts[0].trim());
+      shiftEnd = timeToMinutes(parts[1].trim());
+      // Handle overnight shifts (e.g. 22:00 - 06:00)
+      if (shiftEnd <= shiftStart) shiftEnd += 1440;
+    }
+  }
+
+  var result = [];
+  var totalKr = 0;
+
+  for (var i = 0; i < segments.length; i++) {
+    var seg = segments[i];
+    var segStart = timeToMinutes(seg.f);
+    var segEnd = timeToMinutes(seg.t);
+    if (seg.t === '24:00') segEnd = 1440;
+
+    if (hasShift) {
+      // Calculate overlap between shift and OB segment
+      var overlapStart = Math.max(shiftStart, segStart);
+      var overlapEnd = Math.min(shiftEnd, segEnd);
+      var overlapMinutes = Math.max(0, overlapEnd - overlapStart);
+
+      if (overlapMinutes > 0) {
+        var hours = overlapMinutes / 60;
+        var kr = Math.round(hours * seg.kr * 100) / 100;
+        totalKr += kr;
+        result.push({
+          from: seg.f,
+          to: seg.t,
+          type: seg.k ? 'Kvalificerad' : 'Enkel',
+          krPerH: seg.kr,
+          reason: seg.r,
+          hours: Math.round(hours * 100) / 100,
+          kr: kr
+        });
+      }
+    } else {
+      // No shift — show all segments (info only)
+      var segHours = (segEnd - segStart) / 60;
+      result.push({
+        from: seg.f,
+        to: seg.t,
+        type: seg.k ? 'Kvalificerad' : 'Enkel',
+        krPerH: seg.kr,
+        reason: seg.r,
+        hours: Math.round(segHours * 100) / 100,
+        kr: null
+      });
+    }
+  }
+
+  if (result.length === 0) return null;
+  return { segments: result, totalKr: Math.round(totalKr * 100) / 100, hasShift: hasShift, holiday: ob.h || null };
+}
+
+function timeToMinutes(str) {
+  var p = str.split(':');
+  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+}
+
+/**
+ * Build OB-tillägg HTML for the day popup
+ */
+function buildObHtml(dateKey, timeStr) {
+  var data = calculateObForShift(dateKey, timeStr);
+  if (!data) return '';
+
+  var html = '<div class="detail-ob">';
+  html += '<div class="detail-ob-title">OB-tillägg</div>';
+
+  if (data.holiday) {
+    html += '<div class="detail-ob-holiday">' + data.holiday + '</div>';
+  }
+
+  for (var i = 0; i < data.segments.length; i++) {
+    var seg = data.segments[i];
+    html += '<div class="detail-ob-seg">';
+    html += '<span class="ob-seg-time">' + seg.from + '–' + seg.to + '</span>';
+    html += '<span class="ob-seg-type ob-seg-' + (seg.type === 'Kvalificerad' ? 'kval' : 'enkel') + '">' + seg.type + '</span>';
+    if (data.hasShift && seg.kr !== null) {
+      html += '<span class="ob-seg-kr">' + formatKr(seg.kr) + '</span>';
+    }
+    html += '</div>';
+    html += '<div class="detail-ob-reason">' + seg.reason + ' · ' + seg.krPerH + ' kr/tim</div>';
+  }
+
+  if (data.hasShift && data.totalKr > 0) {
+    html += '<div class="detail-ob-total">Totalt: ' + formatKr(data.totalKr) + '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function formatKr(val) {
+  if (val === Math.floor(val)) return val + ' kr';
+  return val.toFixed(2).replace('.', ',') + ' kr';
+}
+
 // ==========================================
 // FILTER COOKIE HELPERS
 // ==========================================
@@ -111,6 +242,9 @@ function initFilterStylePicker() {
  * Initialize UI elements
  */
 function initUI() {
+  // Load OB-tillägg data
+  loadObData();
+
   // Header & Navigation
   menuBtn = document.getElementById('menuBtn');
   sidebar = document.getElementById('sidebar');
@@ -1414,6 +1548,9 @@ function expandDayCell(el, dayNum, dateKey, badgeText, timeStr, overlayBadge, sh
     overlayHtml = `<div class="detail-overlay">${fpLabel} + arbetspass</div>`;
   }
 
+  // OB-tillägg
+  const obHtml = buildObHtml(dateKey, timeStr);
+
   // Create popup
   const popup = document.createElement('div');
   popup.className = 'schedule-day-detail';
@@ -1430,6 +1567,7 @@ function expandDayCell(el, dayNum, dateKey, badgeText, timeStr, overlayBadge, sh
       ${turnHtml}
       ${timeHtml}
     </div>
+    ${obHtml}
   `;
 
   // Position the popup
@@ -1441,8 +1579,8 @@ function expandDayCell(el, dayNum, dateKey, badgeText, timeStr, overlayBadge, sh
   const cellRect = el.getBoundingClientRect();
 
   // Center popup horizontally on the cell, clamp to grid bounds
-  let left = cellRect.left - gridRect.left + (cellRect.width / 2) - 75;
-  left = Math.max(4, Math.min(left, gridRect.width - 154));
+  let left = cellRect.left - gridRect.left + (cellRect.width / 2) - 95;
+  left = Math.max(4, Math.min(left, gridRect.width - 194));
 
   // Position below cell, or above if near bottom
   let top = cellRect.bottom - gridRect.top + 6;

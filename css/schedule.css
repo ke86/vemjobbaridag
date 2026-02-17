@@ -409,7 +409,7 @@ html.dark .holiday-cell {
 .schedule-day-detail {
   position: absolute;
   z-index: 20;
-  width: 150px;
+  width: 190px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -509,9 +509,92 @@ html.dark .holiday-cell {
   text-align: center;
 }
 
+/* ---- OB-tillägg in day popup ---- */
+.detail-ob {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
+}
+.detail-ob-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+.detail-ob-holiday {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-blue, #3b82f6);
+  margin-bottom: 4px;
+}
+.detail-ob-seg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 1px;
+}
+.ob-seg-time {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  min-width: 68px;
+}
+.ob-seg-type {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.ob-seg-kval {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+.ob-seg-enkel {
+  background: rgba(234, 179, 8, 0.15);
+  color: #b45309;
+}
+.ob-seg-kr {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.detail-ob-reason {
+  font-size: 9px;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+  line-height: 1.3;
+}
+.detail-ob-total {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 11px;
+  font-weight: 700;
+  color: #16a34a;
+  text-align: right;
+}
+
 /* Dark mode shadow */
 html.dark .schedule-day-detail {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+html.dark .ob-seg-kval {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+html.dark .ob-seg-enkel {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fbbf24;
+}
+html.dark .detail-ob-total {
+  color: #4ade80;
 }
 
 /* ==========================================
