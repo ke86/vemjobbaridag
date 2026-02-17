@@ -130,6 +130,10 @@ var _docTextExtracted = false;
 var _docSearchTimer = null;
 var _docCurrentHighlights = [];
 
+// Resize state
+var _docLastRenderWidth = 0;
+var _docResizeTimer = null;
+
 // =============================================
 // PAGE SHOW / HIDE
 // =============================================
@@ -282,58 +286,118 @@ function loadDocPdf(url) {
   pdfjsLib.getDocument(url).promise.then(function(pdf) {
     _docPdfDoc = pdf;
     _docPdfLoaded = true;
-    pagesContainer.innerHTML = '';
-    _docPageCanvases = [];
-
-    var containerWidth = pagesContainer.clientWidth || 360;
-    var dpr = window.devicePixelRatio || 1;
-    if (dpr < 2) dpr = 2; // minimum 2x for sharp text
-    var renderQueue = [];
-    for (var p = 1; p <= pdf.numPages; p++) {
-      renderQueue.push(p);
-    }
-
-    function renderNext() {
-      if (renderQueue.length === 0) {
-        // All pages rendered — start text extraction for search
-        if (!_docTextExtracted) extractAllText();
-        return;
-      }
-      var pageNum = renderQueue.shift();
-      pdf.getPage(pageNum).then(function(page) {
-        var cssScale = containerWidth / page.getViewport({ scale: 1 }).width;
-        var renderScale = cssScale * dpr;
-        var viewport = page.getViewport({ scale: renderScale });
-
-        var wrap = document.createElement('div');
-        wrap.className = 'doc-page-wrap';
-        wrap.setAttribute('data-page', pageNum);
-
-        var canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = (viewport.width / dpr) + 'px';
-        canvas.style.height = (viewport.height / dpr) + 'px';
-        wrap.appendChild(canvas);
-        pagesContainer.appendChild(wrap);
-
-        _docPageCanvases.push({ pageNum: pageNum, wrap: wrap });
-
-        var ctx = canvas.getContext('2d');
-        page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
-          // Setup pinch zoom if available (from la.js)
-          if (typeof setupPinchZoom === 'function') {
-            setupPinchZoom(wrap, canvas);
-          }
-          renderNext();
-        });
-      });
-    }
-    renderNext();
+    renderDocPages();
   }).catch(function() {
     pagesContainer.innerHTML = '<div class="doc-loading doc-error">Kunde inte ladda PDF</div>';
   });
 }
+
+// Render (or re-render) all pages of the already-loaded PDF
+function renderDocPages() {
+  var pagesContainer = document.getElementById('docPdfPages');
+  if (!pagesContainer || !_docPdfDoc) return;
+
+  // Detect which page is currently visible before re-render
+  var visiblePage = getVisibleDocPage();
+
+  // Clear old canvases & highlights
+  clearDocHighlights();
+  pagesContainer.innerHTML = '';
+  _docPageCanvases = [];
+
+  var containerWidth = pagesContainer.clientWidth || 360;
+  _docLastRenderWidth = containerWidth;
+  var dpr = window.devicePixelRatio || 1;
+  if (dpr < 2) dpr = 2; // minimum 2x for sharp text
+  var pdf = _docPdfDoc;
+  var renderQueue = [];
+  for (var p = 1; p <= pdf.numPages; p++) {
+    renderQueue.push(p);
+  }
+
+  function renderNext() {
+    if (renderQueue.length === 0) {
+      // All pages rendered — start text extraction for search
+      if (!_docTextExtracted) extractAllText();
+      // Restore scroll position
+      if (visiblePage > 0) {
+        setTimeout(function() { scrollToDocPage(visiblePage); }, 50);
+      }
+      return;
+    }
+    var pageNum = renderQueue.shift();
+    pdf.getPage(pageNum).then(function(page) {
+      var cssScale = containerWidth / page.getViewport({ scale: 1 }).width;
+      var renderScale = cssScale * dpr;
+      var viewport = page.getViewport({ scale: renderScale });
+
+      var wrap = document.createElement('div');
+      wrap.className = 'doc-page-wrap';
+      wrap.setAttribute('data-page', pageNum);
+
+      var canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = (viewport.width / dpr) + 'px';
+      canvas.style.height = (viewport.height / dpr) + 'px';
+      wrap.appendChild(canvas);
+      pagesContainer.appendChild(wrap);
+
+      _docPageCanvases.push({ pageNum: pageNum, wrap: wrap });
+
+      var ctx = canvas.getContext('2d');
+      page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+        // Setup pinch zoom if available (from la.js)
+        if (typeof setupPinchZoom === 'function') {
+          setupPinchZoom(wrap, canvas);
+        }
+        renderNext();
+      });
+    });
+  }
+  renderNext();
+}
+
+// Find which page is currently most visible in the scroll container
+function getVisibleDocPage() {
+  var pagesContainer = document.getElementById('docPdfPages');
+  if (!pagesContainer || _docPageCanvases.length === 0) return 0;
+  var containerTop = pagesContainer.scrollTop;
+  var containerMid = containerTop + pagesContainer.clientHeight / 3;
+  for (var i = 0; i < _docPageCanvases.length; i++) {
+    var wrap = _docPageCanvases[i].wrap;
+    var top = wrap.offsetTop;
+    var bottom = top + wrap.offsetHeight;
+    if (top <= containerMid && bottom > containerMid) {
+      return _docPageCanvases[i].pageNum;
+    }
+  }
+  return _docPageCanvases.length > 0 ? _docPageCanvases[0].pageNum : 0;
+}
+
+// =============================================
+// RESIZE / ORIENTATION — re-render at new width
+// =============================================
+function onDocResize() {
+  if (!_docPdfLoaded || !_docPdfDoc) return;
+  // Only re-render if PDF view is visible
+  var pdfView = document.getElementById('docPdfView');
+  if (!pdfView || pdfView.style.display === 'none') return;
+
+  var pagesContainer = document.getElementById('docPdfPages');
+  if (!pagesContainer) return;
+  var newWidth = pagesContainer.clientWidth || 360;
+
+  // Only re-render if width changed significantly (> 30px)
+  if (Math.abs(newWidth - _docLastRenderWidth) < 30) return;
+
+  if (_docResizeTimer) clearTimeout(_docResizeTimer);
+  _docResizeTimer = setTimeout(function() {
+    renderDocPages();
+  }, 300);
+}
+
+window.addEventListener('resize', onDocResize);
 
 // =============================================
 // SCROLL TO PAGE
