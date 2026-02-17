@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.50.85';
+const CACHE_VERSION = 'v4.51.86';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)

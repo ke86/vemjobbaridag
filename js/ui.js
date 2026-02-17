@@ -152,11 +152,16 @@ function buildObHtml(dateKey, timeStr) {
       html += '<span class="ob-seg-kr">' + formatKr(seg.kr) + '</span>';
     }
     html += '</div>';
-    html += '<div class="detail-ob-reason">' + seg.reason + ' · ' + seg.krPerH + ' kr/tim</div>';
+    // Show reason + per-hour rate, and hours if shift
+    var reasonLine = seg.reason + ' · ' + seg.krPerH + ' kr/tim';
+    if (data.hasShift && seg.hours) {
+      reasonLine += ' · ' + formatHours(seg.hours);
+    }
+    html += '<div class="detail-ob-reason">' + reasonLine + '</div>';
   }
 
   if (data.hasShift && data.totalKr > 0) {
-    html += '<div class="detail-ob-total">Totalt: ' + formatKr(data.totalKr) + '</div>';
+    html += '<div class="detail-ob-total">OB totalt: ' + formatKr(data.totalKr) + '</div>';
   }
 
   html += '</div>';
@@ -166,6 +171,16 @@ function buildObHtml(dateKey, timeStr) {
 function formatKr(val) {
   if (val === Math.floor(val)) return val + ' kr';
   return val.toFixed(2).replace('.', ',') + ' kr';
+}
+
+function formatHours(h) {
+  var mins = Math.round(h * 60);
+  if (mins >= 60) {
+    var hh = Math.floor(mins / 60);
+    var mm = mins % 60;
+    return mm === 0 ? hh + ' tim' : hh + ' tim ' + mm + ' min';
+  }
+  return mins + ' min';
 }
 
 // ==========================================
@@ -1575,27 +1590,31 @@ function expandDayCell(el, dayNum, dateKey, badgeText, timeStr, overlayBadge, sh
   if (!grid) return;
   grid.style.position = 'relative';
 
+  // Append first (hidden) so we can measure actual height
+  popup.style.visibility = 'hidden';
+  grid.appendChild(popup);
+  const popupHeight = popup.offsetHeight;
+  const popupWidth = popup.offsetWidth;
+  popup.style.visibility = '';
+
   const gridRect = grid.getBoundingClientRect();
   const cellRect = el.getBoundingClientRect();
 
   // Center popup horizontally on the cell, clamp to grid bounds
-  let left = cellRect.left - gridRect.left + (cellRect.width / 2) - 95;
-  left = Math.max(4, Math.min(left, gridRect.width - 194));
+  let left = cellRect.left - gridRect.left + (cellRect.width / 2) - (popupWidth / 2);
+  left = Math.max(4, Math.min(left, gridRect.width - popupWidth - 4));
 
-  // Position below cell, or above if near bottom
+  // Position below cell; if it overflows, try above
   let top = cellRect.bottom - gridRect.top + 6;
-  if (top + 120 > gridRect.height) {
-    top = cellRect.top - gridRect.top - 6;
+  if (top + popupHeight > gridRect.height) {
+    top = cellRect.top - gridRect.top - popupHeight - 6;
     popup.classList.add('above');
   }
+  // If still overflows top, just place at top of grid
+  if (top < 0) top = 4;
 
   popup.style.left = `${left}px`;
-  popup.style.top = popup.classList.contains('above') ? 'auto' : `${top}px`;
-  if (popup.classList.contains('above')) {
-    popup.style.bottom = `${gridRect.height - (cellRect.top - gridRect.top)}px`;
-  }
-
-  grid.appendChild(popup);
+  popup.style.top = `${top}px`;
 
   // Close on outside click
   setTimeout(() => {
