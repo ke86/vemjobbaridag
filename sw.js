@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.41.76';
+const CACHE_VERSION = 'v4.43.78';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -24,6 +24,7 @@ const FILES_TO_CACHE = [
   './css/train-follow.css',
   './css/animations.css',
   './css/la.css',
+  './css/documents.css',
   // JS files
   './js/config.js',
   './js/firebase.js',
@@ -42,6 +43,7 @@ const FILES_TO_CACHE = [
   './js/denmark.js',
   './js/train-follow.js',
   './js/la.js',
+  './js/documents.js',
   './js/app.js',
   // Assets
   './icon.png',

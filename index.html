@@ -38,6 +38,7 @@
   <link rel="stylesheet" href="css/train-follow.css">
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/la.css">
+  <link rel="stylesheet" href="css/documents.css">
 </head>
 <body>
   <!-- Login Screen -->
@@ -89,6 +90,7 @@
       <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
       <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
       <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema (Test)</a></li>
+      <li><a href="#" data-page="documents"><span class="icon">📄</span> Dokument</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
   </nav>
@@ -331,6 +333,34 @@
     </div>
   </main>
 
+  <!-- Documents Page -->
+  <main class="documents-page page" id="documentsPage">
+    <div class="doc-container" id="docContainer">
+      <!-- Document list view (shown first) -->
+      <div class="doc-list-view" id="docListView">
+        <div class="doc-card" data-doc="kollektivavtal">
+          <span class="doc-card-icon">📜</span>
+          <div class="doc-card-info">
+            <span class="doc-card-title">Kollektivavtal</span>
+            <span class="doc-card-sub">VR Sverige – Tågföretagen</span>
+          </div>
+          <span class="doc-card-arrow">›</span>
+        </div>
+      </div>
+      <!-- PDF viewer (shown when a document is opened) -->
+      <div class="doc-pdf-view" id="docPdfView" style="display:none;">
+        <div class="doc-pdf-toolbar">
+          <button class="doc-back-btn" id="docBackBtn">← Tillbaka</button>
+          <button class="doc-toc-btn" id="docTocBtn">☰ Innehåll</button>
+        </div>
+        <div class="doc-toc-panel" id="docTocPanel" style="display:none;">
+          <div class="doc-toc-list" id="docTocList"></div>
+        </div>
+        <div class="doc-pdf-pages" id="docPdfPages"></div>
+      </div>
+    </div>
+  </main>
+
   <!-- Settings Page -->
   <main class="settings-page page" id="settingsPage">
     <div class="settings-container">
@@ -379,6 +409,16 @@
               <button class="style-option selected" data-style="flip">Flippar</button>
               <button class="style-option" data-style="pill">Knappar</button>
             </div>
+          </div>
+          <div class="settings-item" id="wakeLockItem">
+            <div class="settings-label">
+              <span class="settings-icon">☀️</span>
+              <span>Håll skärmen vaken</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="wakeLockToggle" checked>
+              <span class="toggle-slider"></span>
+            </label>
           </div>
         </div>
       </div>
@@ -533,7 +573,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.41.76</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.43.78</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -676,6 +716,7 @@
   <script src="js/denmark.js"></script>
   <script src="js/train-follow.js"></script>
   <script src="js/la.js"></script>
+  <script src="js/documents.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Service Worker Registration -->

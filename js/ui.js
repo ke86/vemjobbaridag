@@ -133,6 +133,9 @@ function initUI() {
   initFilterStylePicker();
   applyFilterStyle(getFilterStyle());
 
+  // Wake lock — keep screen awake
+  initWakeLock();
+
   // Pages
   schedulePage = document.getElementById('schedulePage');
   uploadPage = document.getElementById('uploadPage');
@@ -1584,6 +1587,76 @@ function renderListView(emp) {
       </div>
     </div>
   `;
+}
+
+// ==========================================
+// WAKE LOCK — Håll skärmen vaken
+// ==========================================
+
+var _wakeLockSentinel = null;
+
+function isWakeLockSupported() {
+  return ('wakeLock' in navigator);
+}
+
+function requestWakeLock() {
+  if (!isWakeLockSupported()) return;
+  navigator.wakeLock.request('screen').then(function(sentinel) {
+    _wakeLockSentinel = sentinel;
+    _wakeLockSentinel.addEventListener('release', function() {
+      _wakeLockSentinel = null;
+    });
+  }).catch(function() {
+    // Wake lock request failed (low battery, background tab, etc.)
+  });
+}
+
+function releaseWakeLock() {
+  if (_wakeLockSentinel) {
+    _wakeLockSentinel.release().then(function() {
+      _wakeLockSentinel = null;
+    }).catch(function() {
+      _wakeLockSentinel = null;
+    });
+  }
+}
+
+function initWakeLock() {
+  var toggle = document.getElementById('wakeLockToggle');
+  if (!toggle) return;
+
+  // Hide setting if not supported
+  var settingsItem = toggle.closest('.settings-item');
+  if (!isWakeLockSupported()) {
+    if (settingsItem) settingsItem.style.display = 'none';
+    return;
+  }
+
+  // Restore from cookie (default = ON)
+  var saved = getFilterCookie('screen_wake_lock');
+  if (saved === '0') {
+    toggle.checked = false;
+  } else {
+    toggle.checked = true;
+    requestWakeLock();
+  }
+
+  toggle.addEventListener('change', function() {
+    if (toggle.checked) {
+      setFilterCookie('screen_wake_lock', '1');
+      requestWakeLock();
+    } else {
+      setFilterCookie('screen_wake_lock', '0');
+      releaseWakeLock();
+    }
+  });
+
+  // Re-acquire wake lock when returning to tab (browser releases on tab switch)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && toggle.checked) {
+      requestWakeLock();
+    }
+  });
 }
 
 // ==========================================

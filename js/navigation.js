@@ -141,6 +141,10 @@ function showPage(pageId) {
     document.getElementById('laPage').classList.add('active');
     headerTitle.textContent = 'Dagens LA';
     if (typeof onLaPageShow === 'function') onLaPageShow();
+  } else if (pageId === 'documents') {
+    document.getElementById('documentsPage').classList.add('active');
+    headerTitle.textContent = 'Dokument';
+    if (typeof onDocumentsPageShow === 'function') onDocumentsPageShow();
   }
 
   closeSidebarMenu();

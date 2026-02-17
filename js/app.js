@@ -31,6 +31,9 @@ function initApp() {
   // Initialize Departure Board
   initDeparturePage();
 
+  // Initialize Documents page
+  initDocuments();
+
   // Setup event listeners
   setupEventListeners();
 
