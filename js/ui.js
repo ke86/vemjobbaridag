@@ -526,9 +526,9 @@ function getNextTrainForEmployee(employeeId) {
     }
   }
 
-  if (currentTrain || nextTrain || recentTrain) {
-    return currentTrain || nextTrain || recentTrain;
-  }
+  if (currentTrain) return currentTrain;
+  if (nextTrain) return nextTrain;
+  if (recentTrain) return Object.assign({}, recentTrain, { finished: true });
 
   // All trains are done — return last train with finished flag
   const lastTrain = trainSegs[trainSegs.length - 1];

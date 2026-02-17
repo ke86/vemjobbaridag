@@ -257,24 +257,33 @@
   // STATION NAME MAP
   // ==========================================
   var SIG_NAMES = {
+    // Skåne / Öresundståg
     'Mc': 'Malmö C', 'Hie': 'Hyllie', 'Tri': 'Triangeln', 'Lu': 'Lund C',
     'Klv': 'Kävlinge', 'Lkr': 'Landskrona', 'Hb': 'Helsingborg C',
     'Åp': 'Åstorp', 'Elv': 'Eslöv', 'Hör': 'Höör', 'Hm': 'Hässleholm C',
-    'Kr': 'Kristianstad C', 'Hd': 'Halmstad C', 'Av': 'Alvesta',
-    'Vö': 'Växjö', 'Eba': 'Emmaboda', 'Kac': 'Kalmar C', 'Ck': 'Karlskrona C',
-    'Tb': 'Trelleborg', 'Ys': 'Ystad', 'Sim': 'Simrishamn',
-    'G': 'Göteborg C', 'Cst': 'Stockholm C', 'Mö': 'Malmö Godsbangård',
-    'Smp': 'Sölvesborg', 'Bgs': 'Borås C', 'Fby': 'Falkenberg',
-    'Vb': 'Varberg', 'K': 'Kungsbacka', 'Fa': 'Falköping C',
-    'Sk': 'Skövde C', 'Lå': 'Linköping C', 'Nk': 'Norrköping C',
-    'Kn': 'Katrineholm C', 'Söc': 'Södertälje C', 'Fg': 'Flemingsberg',
-    'Äs': 'Arlöv', 'Brl': 'Burlöv', 'Sv': 'Svågertorp',
-    'Kh': 'Karlshamn', 'Rn': 'Ronneby', 'Hpbg': 'Höganäs',
-    'Å': 'Ängelholm', 'Bå': 'Båstad', 'La': 'Laholm',
-    'Mh': 'Markaryd', 'Ay': 'Älmhult', 'Ö': 'Örebro C',
-    'Hr': 'Hallsberg', 'Mjö': 'Mjölby', 'Km': 'Köpenhamn',
-    'Kk': 'Kastrup', 'Jö': 'Jönköping C', 'Nä': 'Nässjö C',
-    'Ht': 'Hestra', 'Bor': 'Borås', 'Vr': 'Värnamo'
+    'Kr': 'Kristianstad C', 'Tb': 'Trelleborg', 'Ys': 'Ystad', 'Sim': 'Simrishamn',
+    'Äs': 'Arlöv', 'Brl': 'Burlöv', 'Sv': 'Svågertorp', 'Mö': 'Malmö Godsbangård',
+    'Tye': 'Tygelsjö', 'Haa': 'Halmstad Arena', 'Öso': 'Östervärn',
+    'Stp': 'Svedala', 'Skr': 'Skurup', 'Rö': 'Rydsgård',
+    // Västkustbanan
+    'Hd': 'Halmstad C', 'Fby': 'Falkenberg', 'Vb': 'Varberg', 'Vbc': 'Varberg C',
+    'Kb': 'Kungsbacka', 'K': 'Kungsbacka', 'Mdn': 'Mölndal',
+    'G': 'Göteborg C', 'Å': 'Ängelholm', 'Bå': 'Båstad', 'La': 'Laholm',
+    'Hpbg': 'Höganäs',
+    // Blekinge / Småland
+    'Smp': 'Sölvesborg', 'Kh': 'Karlshamn', 'Rn': 'Ronneby',
+    'Ck': 'Karlskrona C', 'Av': 'Alvesta', 'Vö': 'Växjö',
+    'Eba': 'Emmaboda', 'Kac': 'Kalmar C',
+    'Mh': 'Markaryd', 'Ay': 'Älmhult',
+    'Jö': 'Jönköping C', 'Nä': 'Nässjö C', 'Ht': 'Hestra',
+    'Bor': 'Borås', 'Bgs': 'Borås C', 'Vr': 'Värnamo',
+    // Västra stambanan / Övriga
+    'Cst': 'Stockholm C', 'Söc': 'Södertälje C', 'Fg': 'Flemingsberg',
+    'Fa': 'Falköping C', 'Sk': 'Skövde C',
+    'Lå': 'Linköping C', 'Nk': 'Norrköping C', 'Mjö': 'Mjölby',
+    'Kn': 'Katrineholm C', 'Ö': 'Örebro C', 'Hr': 'Hallsberg',
+    // Danmark-kopplade
+    'Km': 'Köpenhamn', 'Kk': 'Kastrup'
   };
 
   function stationName(sig) {
@@ -434,12 +443,11 @@
     showPage('trainFollow');
     showLoading();
 
-    // Load station names (one-time, non-blocking)
-    fetchStationNames();
-
-    // Fetch immediately then poll
-    fetchAndRender();
-    pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
+    // Load station names BEFORE first render, then fetch train data
+    fetchStationNames().then(function() {
+      fetchAndRender();
+      pollTimer = setInterval(fetchAndRender, POLL_INTERVAL);
+    });
   }
 
   function stopFollowing(keepPage) {
@@ -1740,22 +1748,26 @@
     var upcomingStops = [];
     for (var k = 0; k < stops.length; k++) {
       var s = stops[k];
-      var arr = s.arrival ? (s.arrival.actual || s.arrival.estimated || s.arrival.planned) : '';
-      var dep = s.departure ? (s.departure.actual || s.departure.estimated || s.departure.planned) : '';
+      var arrPlanned = s.arrival ? (s.arrival.planned || '') : '';
+      var arrRt = s.arrival ? (s.arrival.actual || s.arrival.estimated || '') : '';
+      var depPlanned = s.departure ? (s.departure.planned || '') : '';
+      var depRt = s.departure ? (s.departure.actual || s.departure.estimated || '') : '';
       var seIsNext = (k === nextIdx) && !dkCardUsed;
       upcomingStops.push({
         station: stationName(s.station),
-        arr: arr,
-        dep: dep,
+        arrPlanned: arrPlanned,
+        arrRt: arrRt,
+        depPlanned: depPlanned,
+        depRt: depRt,
         passed: s.passed,
         isNext: seIsNext
       });
     }
 
-    // Build Danish stop rows helper with tracking state + realtime
+    // Build Danish stop rows helper — returns array of { html, passed }
     function buildDkRows() {
-      var dkHtml = '';
-      if (!dkState || !dkState.stops.length) return dkHtml;
+      var rows = [];
+      if (!dkState || !dkState.stops.length) return rows;
       var hasTrack = false;
       for (var ti = 0; ti < dkState.stops.length; ti++) {
         if (dkState.stops[ti].track) { hasTrack = true; break; }
@@ -1788,14 +1800,17 @@
 
         var trackCell = hasTrack ? '<td class="ft-dk-track">' + (dkStop.track || '') + '</td>' : '';
 
-        dkHtml += '<tr class="' + rowCls + '">'
-          + '<td>' + chk + mrk + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + dkStop.name + '</span></span></td>'
-          + '<td>' + arrCell + '</td>'
-          + '<td>' + depCell + '</td>'
-          + trackCell
-          + '</tr>';
+        rows.push({
+          passed: !!dkStop._passed,
+          html: '<tr class="' + rowCls + '">'
+            + '<td>' + chk + mrk + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + dkStop.name + '</span></span></td>'
+            + '<td>' + arrCell + '</td>'
+            + '<td>' + depCell + '</td>'
+            + trackCell
+            + '</tr>'
+        });
       }
-      return dkHtml;
+      return rows;
     }
 
     // Check if DK rows have track data (affects column count)
@@ -1807,9 +1822,9 @@
     }
     var comboColSpan = comboHasTrack ? '4' : '3';
 
-    // Build Swedish stop rows helper
+    // Build Swedish stop rows helper — returns array of { html, passed }
     function buildSeRows() {
-      var seHtml = '';
+      var rows = [];
       var hasDk = dkState && dkState.stops.length > 0;
       // SE separator removed (v4.25.57)
       for (var m = 0; m < upcomingStops.length; m++) {
@@ -1818,14 +1833,34 @@
         if (st.isNext) rowClass = 'ft-stop-next';
         var check = st.passed ? '<span class="ft-check">✓</span> ' : '';
         var marker = st.isNext ? '<span class="ft-marker">▶</span> ' : '';
-        seHtml += '<tr class="' + rowClass + '">'
-          + '<td>' + check + marker + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + st.station + '</span></span></td>'
-          + '<td>' + st.arr + '</td>'
-          + '<td>' + st.dep + '</td>'
-          + (comboHasTrack ? '<td></td>' : '')
-          + '</tr>';
+
+        // Arrival cell: show realtime if different from planned
+        var arrCell = '';
+        if (st.arrRt && st.arrPlanned && st.arrRt !== st.arrPlanned) {
+          arrCell = '<span class="ft-dk-planned">' + st.arrPlanned + '</span> <span class="ft-dk-rt">' + st.arrRt + '</span>';
+        } else {
+          arrCell = st.arrRt || st.arrPlanned || '';
+        }
+
+        // Departure cell: show realtime if different from planned
+        var depCell = '';
+        if (st.depRt && st.depPlanned && st.depRt !== st.depPlanned) {
+          depCell = '<span class="ft-dk-planned">' + st.depPlanned + '</span> <span class="ft-dk-rt">' + st.depRt + '</span>';
+        } else {
+          depCell = st.depRt || st.depPlanned || '';
+        }
+
+        rows.push({
+          passed: st.passed,
+          html: '<tr class="' + rowClass + '">'
+            + '<td>' + check + marker + '<span class="ft-scroll-wrap"><span class="ft-scroll-text">' + st.station + '</span></span></td>'
+            + '<td>' + arrCell + '</td>'
+            + '<td>' + depCell + '</td>'
+            + (comboHasTrack ? '<td></td>' : '')
+            + '</tr>'
+        });
       }
-      return seHtml;
+      return rows;
     }
 
     tableHtml += '<div class="ft-stops-card">'
@@ -1835,34 +1870,28 @@
       + '</tr></thead><tbody>';
 
     // Order: DK first for trains FROM Denmark, SE first for trains TO Denmark
-    var combinedRows;
+    var allRowObjs;
     if (dkState && dkState.direction === 'toSE') {
-      combinedRows = buildDkRows() + buildSeRows();
+      allRowObjs = buildDkRows().concat(buildSeRows());
     } else {
-      combinedRows = buildSeRows() + buildDkRows();
+      allRowObjs = buildSeRows().concat(buildDkRows());
     }
 
     // --- Collapse old passed stations (keep last 2 visible) ---
-    var tmpDiv = document.createElement('div');
-    tmpDiv.innerHTML = '<table><tbody>' + combinedRows + '</tbody></table>';
-    var allRows = tmpDiv.querySelectorAll('tbody tr');
     var passedIndices = [];
-    for (var pi = 0; pi < allRows.length; pi++) {
-      if (allRows[pi].classList.contains('ft-stop-passed')) {
-        passedIndices.push(pi);
-      }
+    for (var pi = 0; pi < allRowObjs.length; pi++) {
+      if (allRowObjs[pi].passed) passedIndices.push(pi);
     }
     var hiddenCount = 0;
     if (passedIndices.length > 2) {
-      var hideUpTo = passedIndices[passedIndices.length - 2]; // keep last 2
-      for (var hi = 0; hi < allRows.length; hi++) {
-        if (allRows[hi].classList.contains('ft-stop-passed') && hi < hideUpTo) {
-          allRows[hi].classList.add('ft-collapsed-row');
-          hiddenCount++;
-        }
+      var hideUpTo = passedIndices[passedIndices.length - 2];
+      for (var hi = 0; hi < passedIndices.length - 2; hi++) {
+        allRowObjs[passedIndices[hi]].collapsed = true;
+        hiddenCount++;
       }
     }
-    // Re-serialize rows — respect expanded state
+
+    // Build final HTML
     var finalRows = '';
     if (hiddenCount > 0) {
       var toggleIcon = _passedExpanded ? '▾' : '▸';
@@ -1875,11 +1904,13 @@
         + '<span class="ft-toggle-text">' + toggleText + '</span>'
         + '</td></tr>';
     }
-    for (var ri = 0; ri < allRows.length; ri++) {
-      if (allRows[ri].classList.contains('ft-collapsed-row')) {
-        allRows[ri].style.display = _passedExpanded ? 'table-row' : 'none';
+    for (var ri = 0; ri < allRowObjs.length; ri++) {
+      if (allRowObjs[ri].collapsed) {
+        var display = _passedExpanded ? 'table-row' : 'none';
+        finalRows += allRowObjs[ri].html.replace('<tr class="', '<tr style="display:' + display + '" class="ft-collapsed-row ');
+      } else {
+        finalRows += allRowObjs[ri].html;
       }
-      finalRows += allRows[ri].outerHTML;
     }
 
     tableHtml += finalRows + '</tbody></table></div>';
