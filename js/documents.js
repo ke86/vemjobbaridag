@@ -149,12 +149,14 @@ function onDocumentsPageShow() {
 // INIT
 // =============================================
 function initDocuments() {
-  // Card click → open PDF
-  var card = document.querySelector('.doc-card[data-doc="kollektivavtal"]');
-  if (card) {
-    card.addEventListener('click', function() {
-      openDocPdf('kollektivavtal');
-    });
+  // Card clicks → open PDF
+  var cards = document.querySelectorAll('.doc-card[data-doc]');
+  for (var c = 0; c < cards.length; c++) {
+    (function(card) {
+      card.addEventListener('click', function() {
+        openDocPdf(card.getAttribute('data-doc'));
+      });
+    })(cards[c]);
   }
 
   // Back button
@@ -214,9 +216,6 @@ function initDocuments() {
 
   // Search input events
   initDocSearch();
-
-  // Build TOC HTML
-  buildTocPanel(DOC_KOLLEKTIVAVTAL_TOC);
 }
 
 // =============================================
@@ -260,6 +259,22 @@ function buildTocPanel(tocData) {
 }
 
 // =============================================
+// DOCUMENT REGISTRY
+// =============================================
+var DOC_REGISTRY = {
+  kollektivavtal: {
+    url: 'docs/Kollektivavtal.pdf',
+    toc: DOC_KOLLEKTIVAVTAL_TOC
+  },
+  k26tko: {
+    url: 'docs/K26-TKO.pdf',
+    toc: null
+  }
+};
+
+var _docCurrentId = null;
+
+// =============================================
 // OPEN PDF
 // =============================================
 function openDocPdf(docId) {
@@ -268,8 +283,40 @@ function openDocPdf(docId) {
   if (listView) listView.style.display = 'none';
   if (pdfView) pdfView.style.display = '';
 
-  if (docId === 'kollektivavtal' && !_docPdfLoaded) {
-    loadDocPdf('docs/Kollektivavtal.pdf');
+  var doc = DOC_REGISTRY[docId];
+  if (!doc) return;
+
+  // If switching document or first load
+  if (_docCurrentId !== docId) {
+    _docCurrentId = docId;
+    _docPdfLoaded = false;
+    _docPdfDoc = null;
+    _docTextExtracted = false;
+    _docTextCache = [];
+    _docPageCanvases = [];
+    clearDocHighlights();
+
+    // Update TOC
+    var tocPanel = document.getElementById('docTocPanel');
+    var tocBtn = document.getElementById('docTocBtn');
+    if (doc.toc) {
+      buildTocPanel(doc.toc);
+      if (tocBtn) tocBtn.style.display = '';
+    } else {
+      if (tocPanel) tocPanel.style.display = 'none';
+      if (tocBtn) { tocBtn.style.display = 'none'; tocBtn.classList.remove('doc-toc-btn-active'); }
+    }
+
+    // Reset search
+    var searchPanel = document.getElementById('docSearchPanel');
+    var searchBtn = document.getElementById('docSearchBtn');
+    var searchInput = document.getElementById('docSearchInput');
+    if (searchPanel) searchPanel.style.display = 'none';
+    if (searchBtn) searchBtn.classList.remove('doc-search-btn-active');
+    if (searchInput) searchInput.value = '';
+    clearDocSearchResults();
+
+    loadDocPdf(doc.url);
   }
 }
 

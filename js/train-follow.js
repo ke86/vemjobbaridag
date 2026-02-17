@@ -5,7 +5,7 @@
  * Persistence: cookie-based (per-device, valid until midnight).
  */
 
-/* global showPage, trainRealtimeStore */
+/* global showPage, trainRealtimeStore, pdfjsLib */
 
 (function() {
   'use strict';
@@ -47,6 +47,19 @@
   var apiStationNames = {};         // LocationSignature → AdvertisedLocationName (from Trafikverket)
   var clockTimer = null;            // setInterval id for the live clock
   var autoUnfollowTimer = null;     // setTimeout id for auto-unfollow 5 min after final station
+
+  // ==========================================
+  // TKØ — K26 train number → PDF page(s)
+  // ==========================================
+  var TKO_PDF_URL = 'docs/K26-TKO.pdf';
+  var TKO_TRAIN_MAP = {"1001":[1],"1004":[1,2],"1005":[2],"1007":[2,3],"1008":[3],"1009":[4],"1010":[4],"1012":[5],"1013":[5],"1015":[6],"1016":[6],"1017":[7],"1018":[7],"1019":[8],"1020":[8],"1021":[9],"1022":[9],"1023":[9,10],"1024":[10,11],"1025":[11],"1026":[12],"1027":[12],"1028":[12,13],"1029":[13],"1030":[14],"1031":[14],"1032":[15],"1033":[15],"1034":[16],"1035":[16],"1036":[16,17],"1037":[17],"1038":[18],"1039":[18],"1040":[19],"1041":[19],"1042":[20],"1043":[20],"1044":[20,21],"1045":[21],"1046":[22],"1047":[22],"1048":[23],"1049":[23],"1050":[24],"1051":[24],"1052":[25],"1053":[25],"1054":[26],"1055":[26],"1056":[27],"1057":[27],"1058":[28],"1059":[28],"1060":[29],"1061":[29],"1062":[30],"1063":[30],"1064":[31],"1065":[31],"1066":[32],"1067":[32],"1068":[33],"1069":[33],"1070":[34],"1071":[34],"1072":[35],"1073":[35],"1074":[36],"1075":[36],"1076":[37],"1077":[37],"1078":[38],"1079":[38],"1080":[39],"1081":[39],"1082":[40],"1083":[40],"1084":[41],"1085":[41],"1086":[42],"1087":[42],"1088":[43],"1089":[43],"1090":[44],"1091":[44],"1092":[45],"1093":[45],"1094":[46],"1095":[46],"1096":[47],"1097":[47],"1098":[48],"1099":[48],"1100":[49],"1101":[49],"1102":[50],"1103":[50],"1104":[51],"1105":[51],"1106":[52],"1107":[52],"1108":[53],"1109":[53],"1110":[54],"1111":[54],"1112":[55],"1113":[55],"1114":[56],"1115":[56],"1116":[57],"1117":[57],"1118":[58],"1119":[58],"1120":[59],"1121":[59],"1122":[60],"1124":[60],"1125":[61],"1127":[61],"1128":[62],"1129":[62],"1130":[63],"1132":[63],"1133":[64],"1135":[64],"1136":[65],"1137":[65],"1138":[66],"1140":[66],"1141":[67],"1143":[67],"1144":[68],"1145":[68],"1146":[69],"1148":[69],"1149":[70],"1151":[70],"1152":[71],"1153":[71],"1154":[72],"1156":[72],"1157":[73],"1159":[73],"1160":[73],"1162":[74],"1164":[74],"1165":[75],"1168":[75],"1177":[78],"1180":[78],"1181":[79],"1188":[79],"1189":[80]};
+  var _tkoPageIdx = 0;   // current page index in pages array
+  var _tkoPdfDoc = null;  // cached pdfjs document
+
+  function getTkoPages(trainNr) {
+    var nr = String(trainNr).replace(/\D/g, '');
+    return TKO_TRAIN_MAP[nr] || null;
+  }
 
   // ==========================================
   // REJSEPLANEN DK STOPS  (two-step: departureBoard → journeyDetail)
@@ -459,6 +472,8 @@
     activeTopbarTab = 'timetable';
     ftLaStracka = null;
     ftLaPage = null;
+    _tkoPageIdx = 0;
+    _tkoPdfDoc = null;
     _khToastShown = false;
     _khPulseActive = false;
     _khPulseStracka = null;
@@ -680,7 +695,7 @@
     }
   }
 
-  var activeTopbarTab = 'timetable'; // 'timetable' or 'la'
+  var activeTopbarTab = 'timetable'; // 'timetable', 'la' or 'tko'
   var ftLaStracka = null;   // '10' or '11', null = auto-detect
   var ftLaPage = null;      // 1 or 2, null = auto from getTargetPage()
 
@@ -691,12 +706,21 @@
     updateHeaderRoute();
 
     var isTimetable = activeTopbarTab === 'timetable';
+    var isLa = activeTopbarTab === 'la';
+    var isTko = activeTopbarTab === 'tko';
+    var hasTko = followedTrain && getTkoPages(followedTrain.trainNr);
+
+    var tabsHtml =
+        '<button class="ft-tab-btn' + (isTimetable ? ' ft-tab-active' : '') + '" data-tab="timetable">Följ tåg</button>'
+      + '<button class="ft-tab-btn' + (isLa ? ' ft-tab-active' : '') + (_khPulseActive ? ' ft-tab-pulse' : '') + '" data-tab="la">LA</button>';
+    if (hasTko) {
+      tabsHtml += '<button class="ft-tab-btn' + (isTko ? ' ft-tab-active' : '') + '" data-tab="tko">TKØ</button>';
+    }
 
     topbarEl.innerHTML =
       '<div class="ft-topbar-left">'
       + '<div class="ft-tab-toggle">'
-      +   '<button class="ft-tab-btn' + (isTimetable ? ' ft-tab-active' : '') + '" data-tab="timetable">Följ tåg</button>'
-      +   '<button class="ft-tab-btn' + (!isTimetable ? ' ft-tab-active' : '') + (_khPulseActive ? ' ft-tab-pulse' : '') + '" data-tab="la">LA</button>'
+      + tabsHtml
       + '</div>'
       + '</div>'
       + '<div class="ft-topbar-right">'
@@ -909,15 +933,12 @@
   function showTabContent(tab) {
     var ftContent = document.getElementById('ftPageContent');
     var laContent = document.getElementById('ftLaContent');
+    var tkoContent = document.getElementById('ftTkoContent');
     if (!ftContent || !laContent) return;
 
-    if (tab === 'la') {
-      ftContent.style.display = 'none';
-      laContent.style.display = '';
-    } else {
-      ftContent.style.display = '';
-      laContent.style.display = 'none';
-    }
+    ftContent.style.display = tab === 'timetable' ? '' : 'none';
+    laContent.style.display = tab === 'la' ? '' : 'none';
+    if (tkoContent) tkoContent.style.display = tab === 'tko' ? '' : 'none';
   }
 
   /**
@@ -928,6 +949,8 @@
 
     if (tab === 'la') {
       renderFtLa();
+    } else if (tab === 'tko') {
+      renderFtTko();
     }
   }
 
@@ -1027,6 +1050,137 @@
 
     // Detect overflow on sträcka-bar label and add marquee animation
     detectBarLabelOverflow();
+  }
+
+  // ==========================================
+  // TKØ — Render K26 PDF page for followed train
+  // ==========================================
+
+  /**
+   * Render the TKØ PDF page(s) into ftTkoContent.
+   * Shows a bar with train info + page toggle (if multi-page), then renders the PDF page.
+   */
+  function renderFtTko() {
+    var container = document.getElementById('ftTkoContent');
+    if (!container || !followedTrain) return;
+
+    var pages = getTkoPages(followedTrain.trainNr);
+    if (!pages) {
+      container.innerHTML =
+        '<div class="ft-tko-no-data">'
+        + '<div class="ft-tko-no-data-icon">🚆</div>'
+        + '<div class="ft-tko-no-data-text">Tåg ' + followedTrain.trainNr + ' finns inte i K26 TKØ.</div>'
+        + '</div>';
+      return;
+    }
+
+    // Clamp page index
+    if (_tkoPageIdx >= pages.length) _tkoPageIdx = 0;
+    var currentPage = pages[_tkoPageIdx];
+
+    // Build info bar
+    var barHtml = '<div class="ft-tko-bar">'
+      + '<div class="ft-tko-bar-left">'
+      + '<span class="ft-tko-bar-label">K26 TKØ — Tåg ' + followedTrain.trainNr + '</span>'
+      + '</div>';
+
+    if (pages.length > 1) {
+      barHtml += '<div class="ft-tko-bar-right">'
+        + '<div class="ft-tab-toggle ft-tko-page-toggle">';
+      for (var i = 0; i < pages.length; i++) {
+        barHtml += '<button class="ft-tab-btn' + (i === _tkoPageIdx ? ' ft-tab-active' : '') + '" data-tko-idx="' + i + '">sida ' + pages[i] + '</button>';
+      }
+      barHtml += '</div></div>';
+    }
+    barHtml += '</div>';
+
+    container.innerHTML = barHtml
+      + '<div class="ft-tko-pdf" id="ftTkoPdf">'
+      + '<div class="la-viewer-loading"><div class="la-spinner"></div><span>Hämtar TKØ sida ' + currentPage + '...</span></div>'
+      + '</div>';
+
+    // Wire up page toggle buttons
+    if (pages.length > 1) {
+      var pageBtns = container.querySelectorAll('.ft-tko-page-toggle .ft-tab-btn');
+      for (var j = 0; j < pageBtns.length; j++) {
+        pageBtns[j].addEventListener('click', function() {
+          var idx = parseInt(this.getAttribute('data-tko-idx'), 10);
+          if (idx === _tkoPageIdx) return;
+          _tkoPageIdx = idx;
+          renderFtTko();
+        });
+      }
+    }
+
+    // Load and render the PDF page
+    loadTkoPage(currentPage);
+  }
+
+  /**
+   * Load the K26 TKØ PDF (cached) and render a specific page number into #ftTkoPdf.
+   * Uses the same DPR-sharp rendering pattern as documents.js.
+   */
+  function loadTkoPage(pageNum) {
+    var pdfContainer = document.getElementById('ftTkoPdf');
+    if (!pdfContainer) return;
+
+    function doRender(pdfDoc) {
+      pdfDoc.getPage(pageNum).then(function(page) {
+        var containerWidth = pdfContainer.clientWidth || 360;
+        var dpr = window.devicePixelRatio || 1;
+        if (dpr < 2) dpr = 2;
+
+        var baseVp = page.getViewport({ scale: 1 });
+        var cssScale = containerWidth / baseVp.width;
+        var renderScale = cssScale * dpr;
+        var viewport = page.getViewport({ scale: renderScale });
+
+        var canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = (viewport.width / dpr) + 'px';
+        canvas.style.height = (viewport.height / dpr) + 'px';
+        canvas.className = 'ft-tko-canvas';
+
+        var ctx = canvas.getContext('2d');
+        page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function() {
+          pdfContainer.innerHTML = '';
+          var wrap = document.createElement('div');
+          wrap.className = 'ft-tko-wrap';
+          wrap.appendChild(canvas);
+          pdfContainer.appendChild(wrap);
+
+          // Enable pinch-to-zoom
+          if (typeof window.setupPinchZoom === 'function') {
+            window.setupPinchZoom(wrap, canvas);
+          }
+        });
+      }).catch(function() {
+        pdfContainer.innerHTML =
+          '<div class="la-viewer-error"><div class="la-viewer-error-icon">⚠️</div>'
+          + '<div class="la-viewer-error-text">Kunde inte rendera sida ' + pageNum + '.</div></div>';
+      });
+    }
+
+    // Use cached PDF doc or load fresh
+    if (_tkoPdfDoc) {
+      doRender(_tkoPdfDoc);
+    } else {
+      if (typeof pdfjsLib === 'undefined') {
+        pdfContainer.innerHTML =
+          '<div class="la-viewer-error"><div class="la-viewer-error-icon">⚠️</div>'
+          + '<div class="la-viewer-error-text">PDF-modulen är inte laddad.</div></div>';
+        return;
+      }
+      pdfjsLib.getDocument(TKO_PDF_URL).promise.then(function(pdfDoc) {
+        _tkoPdfDoc = pdfDoc;
+        doRender(pdfDoc);
+      }).catch(function() {
+        pdfContainer.innerHTML =
+          '<div class="la-viewer-error"><div class="la-viewer-error-icon">⚠️</div>'
+          + '<div class="la-viewer-error-text">Kunde inte ladda K26 TKØ PDF.</div></div>';
+      });
+    }
   }
 
   /**
@@ -2344,6 +2498,8 @@
       showTabContent(activeTopbarTab);
       if (activeTopbarTab === 'la') {
         renderFtLa();
+      } else if (activeTopbarTab === 'tko') {
+        renderFtTko();
       } else if (nextStationData) {
         renderPage();
       } else {
@@ -2370,9 +2526,11 @@
     pageActive = false;
     // Restore header title when leaving the train follow page
     restoreHeader();
-    // Clear LA content to free memory
+    // Clear LA + TKØ content to free memory
     var laContent = document.getElementById('ftLaContent');
     if (laContent) laContent.innerHTML = '';
+    var tkoContent = document.getElementById('ftTkoContent');
+    if (tkoContent) tkoContent.innerHTML = '';
     // Keep polling in background — button still needs updates
   };
 
