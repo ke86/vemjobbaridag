@@ -326,6 +326,17 @@
   will-change: transform;
 }
 
+/* Highlight layer — sits on top of canvas, follows same transform */
+.doc-highlight-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform;
+  z-index: 2;
+}
+
 /* Loading / Error */
 .doc-loading {
   text-align: center;
@@ -335,6 +346,14 @@
 }
 .doc-error {
   color: var(--red, #ef4444);
+}
+
+/* ---- LANDSCAPE — fill screen width ---- */
+@media (orientation: landscape) {
+  .doc-container {
+    max-width: 100%;
+    padding: 8px 16px;
+  }
 }
 
 /* ---- DARK MODE ---- */

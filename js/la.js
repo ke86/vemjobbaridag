@@ -443,7 +443,11 @@
     var lastTap = 0;
 
     function applyTransform() {
-      canvas.style.transform = 'translate(' + curX + 'px, ' + curY + 'px) scale(' + curScale + ')';
+      var t = 'translate(' + curX + 'px, ' + curY + 'px) scale(' + curScale + ')';
+      canvas.style.transform = t;
+      // Sync highlight layer (used by documents page search highlights)
+      var hl = wrap.querySelector('.doc-highlight-layer');
+      if (hl) hl.style.transform = t;
     }
 
     function clampPan() {

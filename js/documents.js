@@ -564,6 +564,18 @@ function highlightOnPage(pageNum, query) {
   var canvas = wrap.querySelector('canvas');
   if (!canvas) return;
 
+  // Create highlight layer — same size as canvas, follows zoom transform
+  var layer = document.createElement('div');
+  layer.className = 'doc-highlight-layer';
+  layer.style.width = canvas.style.width;
+  layer.style.height = canvas.style.height;
+  // Copy current canvas transform so highlights match zoom state
+  if (canvas.style.transform) {
+    layer.style.transform = canvas.style.transform;
+  }
+  wrap.appendChild(layer);
+  _docCurrentHighlights.push(layer);
+
   var queryLower = query.toLowerCase();
   var scaleX = canvas.clientWidth / pageData.viewport.width;
   var scaleY = canvas.clientHeight / pageData.viewport.height;
@@ -593,8 +605,7 @@ function highlightOnPage(pageNum, query) {
     overlay.style.top = cssTop + 'px';
     overlay.style.width = Math.max(cssWidth, 20) + 'px';
     overlay.style.height = Math.max(cssHeight, 10) + 'px';
-    wrap.appendChild(overlay);
-    _docCurrentHighlights.push(overlay);
+    layer.appendChild(overlay);
   }
 }
 
