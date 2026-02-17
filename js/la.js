@@ -549,7 +549,8 @@
     showCards(); // reset to cards view
   };
 
-  // Export for reuse by train-follow LA tab
+  // Export for reuse by train-follow LA tab & documents page
+  window.setupPinchZoom = setupPinchZoom;
   window.laApi = {
     fetchPdf: fetchPdf,
     renderPdf: function(buffer, container, label) {

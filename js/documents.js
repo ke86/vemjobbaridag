@@ -518,6 +518,12 @@ function handleSearchResultClick(e) {
   var query = item.getAttribute('data-query');
   if (!pageNum) return;
 
+  // Close search panel
+  var searchPanel = document.getElementById('docSearchPanel');
+  var searchBtn = document.getElementById('docSearchBtn');
+  if (searchPanel) searchPanel.style.display = 'none';
+  if (searchBtn) searchBtn.classList.remove('doc-search-btn-active');
+
   // Scroll to page
   scrollToDocPage(pageNum);
 
