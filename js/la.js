@@ -352,11 +352,15 @@
         (function(pageNum) {
           pdf.getPage(pageNum).then(function(page) {
             var viewport = page.getViewport({ scale: scale });
+            var wrap = document.createElement('div');
+            wrap.className = 'la-zoom-wrap';
             var canvas = document.createElement('canvas');
             canvas.width = viewport.width;
             canvas.height = viewport.height;
-            canvas.style.order = pageNum; // keep order even if async
-            container.appendChild(canvas);
+            wrap.style.order = pageNum;
+            wrap.appendChild(canvas);
+            container.appendChild(wrap);
+            setupPinchZoom(wrap, canvas);
 
             var ctx = canvas.getContext('2d');
             page.render({ canvasContext: ctx, viewport: viewport });
@@ -397,10 +401,14 @@
       var scale = 2;
       pdf.getPage(pageNum).then(function(page) {
         var viewport = page.getViewport({ scale: scale });
+        var wrap = document.createElement('div');
+        wrap.className = 'la-zoom-wrap';
         var canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        container.appendChild(canvas);
+        wrap.appendChild(canvas);
+        container.appendChild(wrap);
+        setupPinchZoom(wrap, canvas);
         var ctx = canvas.getContext('2d');
         page.render({ canvasContext: ctx, viewport: viewport });
       });
@@ -411,6 +419,116 @@
         + '<div class="la-viewer-error-text">Kunde inte läsa PDF.<br>' + err.message + '</div>'
         + '</div>';
     });
+  }
+
+  // ── Pinch-to-zoom on PDF canvas ──────────────────────
+  function setupPinchZoom(wrap, canvas) {
+    var curScale = 1;
+    var curX = 0;
+    var curY = 0;
+    var MIN_SCALE = 1;
+    var MAX_SCALE = 4;
+
+    // Pinch state
+    var startDist = 0;
+    var startScale = 1;
+    var startMidX = 0;
+    var startMidY = 0;
+    var startX = 0;
+    var startY = 0;
+    var isPinching = false;
+    var isPanning = false;
+
+    // Double-tap detection
+    var lastTap = 0;
+
+    function applyTransform() {
+      canvas.style.transform = 'translate(' + curX + 'px, ' + curY + 'px) scale(' + curScale + ')';
+    }
+
+    function clampPan() {
+      if (curScale <= 1) { curX = 0; curY = 0; return; }
+      var wW = wrap.clientWidth;
+      var wH = wrap.clientHeight;
+      var cW = canvas.clientWidth * curScale;
+      var cH = canvas.clientHeight * curScale;
+      var maxX = Math.max(0, (cW - wW) / 2);
+      var maxY = Math.max(0, (cH - wH) / 2);
+      curX = Math.max(-maxX, Math.min(maxX, curX));
+      curY = Math.max(-maxY, Math.min(maxY, curY));
+    }
+
+    function getDist(t1, t2) {
+      var dx = t1.clientX - t2.clientX;
+      var dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    wrap.addEventListener('touchstart', function(e) {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        isPinching = true;
+        isPanning = false;
+        startDist = getDist(e.touches[0], e.touches[1]);
+        startScale = curScale;
+        startMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        startMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        startX = curX;
+        startY = curY;
+      } else if (e.touches.length === 1 && curScale > 1) {
+        isPanning = true;
+        startMidX = e.touches[0].clientX;
+        startMidY = e.touches[0].clientY;
+        startX = curX;
+        startY = curY;
+      }
+
+      // Double-tap to reset
+      if (e.touches.length === 1) {
+        var now = Date.now();
+        if (now - lastTap < 300) {
+          e.preventDefault();
+          curScale = 1; curX = 0; curY = 0;
+          applyTransform();
+          lastTap = 0;
+          return;
+        }
+        lastTap = now;
+      }
+    }, { passive: false });
+
+    wrap.addEventListener('touchmove', function(e) {
+      if (isPinching && e.touches.length === 2) {
+        e.preventDefault();
+        var dist = getDist(e.touches[0], e.touches[1]);
+        var newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, startScale * (dist / startDist)));
+
+        // Zoom towards pinch midpoint
+        var midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        var midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        curX = startX + (midX - startMidX);
+        curY = startY + (midY - startMidY);
+        curScale = newScale;
+        clampPan();
+        applyTransform();
+      } else if (isPanning && e.touches.length === 1 && curScale > 1) {
+        e.preventDefault();
+        curX = startX + (e.touches[0].clientX - startMidX);
+        curY = startY + (e.touches[0].clientY - startMidY);
+        clampPan();
+        applyTransform();
+      }
+    }, { passive: false });
+
+    wrap.addEventListener('touchend', function(e) {
+      if (e.touches.length < 2) isPinching = false;
+      if (e.touches.length < 1) isPanning = false;
+      // Snap back to 1x if close
+      if (curScale < 1.05) {
+        curScale = 1; curX = 0; curY = 0;
+        applyTransform();
+      }
+    }, { passive: true });
   }
 
   // ── Close PDF view (back to cards) ─────────────────────
