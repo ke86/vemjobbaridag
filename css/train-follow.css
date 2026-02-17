@@ -711,7 +711,6 @@ html.dark .ft-tab-btn.ft-tab-active {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 14px;
-  overflow: hidden;
 }
 
 /* Stops title (always visible, no collapse) */
@@ -1053,6 +1052,9 @@ html.dark .ft-la-toast-content {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  position: sticky;
+  top: 29px;
+  z-index: 1;
 }
 .ft-toggle-row td {
   padding: 8px 10px;
@@ -1060,6 +1062,7 @@ html.dark .ft-la-toast-content {
   font-weight: 600;
   color: var(--accent-blue);
   border-bottom: 1px solid var(--border-color);
+  background: var(--bg-card);
 }
 .ft-toggle-row:active td {
   background: rgba(59, 130, 246, 0.08);
