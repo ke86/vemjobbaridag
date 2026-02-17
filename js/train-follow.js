@@ -490,6 +490,11 @@
     if (!keepPage) {
       showPage('schedule');
     }
+
+    // Notify auto-follow engine that following stopped
+    if (window.trainFollow && typeof window.trainFollow.onStopCallback === 'function') {
+      setTimeout(function() { window.trainFollow.onStopCallback(); }, 200);
+    }
   }
 
   function updateButton() {
@@ -2562,12 +2567,14 @@
   window.trainFollow = {
     open: function() { openModal(); },
     close: function() { closeModal(); },
+    start: function(nr) { startFollowing(nr); },
     stop: function() { stopFollowing(false); },
     getFollowed: function() { return followedTrain; },
     getRouteText: function() { return getRouteText(); },
     getNextStationData: function() { return nextStationData; },
     getDkStopsData: function() { return dkStopsData; },
-    getActiveTab: function() { return activeTopbarTab; }
+    getActiveTab: function() { return activeTopbarTab; },
+    onStopCallback: null // set by auto-follow engine
   };
 
   if (document.readyState === 'loading') {

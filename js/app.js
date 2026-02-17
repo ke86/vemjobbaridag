@@ -271,6 +271,18 @@ function setupEventListeners() {
   // Sync rate-limit (restore cooldown/count on load)
   if (typeof initSyncRateLimit === 'function') initSyncRateLimit();
 
+  // Profil section (collapsible)
+  const profileHeader = document.getElementById('profileHeader');
+  const profileSection = document.getElementById('profileSection');
+  if (profileHeader && profileSection) {
+    profileHeader.addEventListener('click', () => {
+      profileSection.classList.toggle('expanded');
+      if (profileSection.classList.contains('expanded')) {
+        if (typeof populateProfileSelect === 'function') populateProfileSelect();
+      }
+    });
+  }
+
   // Utseende section (collapsible)
   const appearanceHeader = document.getElementById('appearanceHeader');
   const appearanceSection = document.getElementById('appearanceSection');

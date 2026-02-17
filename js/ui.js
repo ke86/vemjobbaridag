@@ -218,6 +218,318 @@ function restoreFilterCookies() {
 // FILTER STYLE (flip / pill)
 // ==========================================
 
+// ==========================================
+// PROFILE — person selection + auto-follow
+// ==========================================
+
+var _profileEmployeeId = null;  // currently selected employee id
+var _autoFollowEnabled = false; // auto-follow toggle state
+
+/**
+ * Populate the profile select dropdown from registeredEmployees.
+ * Called after schedule data is loaded / synced.
+ */
+function populateProfileSelect() {
+  var sel = document.getElementById('profileSelect');
+  if (!sel) return;
+
+  // Preserve current value
+  var current = sel.value || _profileEmployeeId || '';
+
+  // Build sorted list of employees
+  var emps = [];
+  for (var id in registeredEmployees) {
+    if (registeredEmployees.hasOwnProperty(id)) {
+      var e = registeredEmployees[id];
+      emps.push({ id: id, name: e.name || id });
+    }
+  }
+  emps.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
+
+  // Clear and rebuild options
+  sel.innerHTML = '<option value="">— Ingen vald —</option>';
+  for (var i = 0; i < emps.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = emps[i].id;
+    opt.textContent = emps[i].name;
+    if (emps[i].id === current) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+/**
+ * Initialize profile: restore from cookies, wire up events.
+ */
+function initProfile() {
+  var sel = document.getElementById('profileSelect');
+  var toggle = document.getElementById('autoFollowToggle');
+  var autoItem = document.getElementById('autoFollowItem');
+  var statusEl = document.getElementById('profileStatus');
+
+  // Restore from cookies
+  _profileEmployeeId = getFilterCookie('profile_employee') || '';
+  _autoFollowEnabled = getFilterCookie('auto_follow_train') === '1';
+
+  if (sel) {
+    sel.value = _profileEmployeeId;
+    sel.addEventListener('change', function() {
+      _profileEmployeeId = sel.value;
+      setFilterCookie('profile_employee', _profileEmployeeId);
+      // Show/hide auto-follow toggle
+      if (autoItem) autoItem.style.display = _profileEmployeeId ? '' : 'none';
+      // Reset auto-follow if no person selected
+      if (!_profileEmployeeId && toggle) {
+        _autoFollowEnabled = false;
+        toggle.checked = false;
+        setFilterCookie('auto_follow_train', '0');
+      }
+      updateProfileStatus();
+    });
+  }
+
+  if (toggle) {
+    toggle.checked = _autoFollowEnabled;
+    toggle.addEventListener('change', function() {
+      _autoFollowEnabled = toggle.checked;
+      setFilterCookie('auto_follow_train', _autoFollowEnabled ? '1' : '0');
+      updateProfileStatus();
+      // Kick off or stop auto-follow engine
+      if (_autoFollowEnabled && _profileEmployeeId) {
+        startAutoFollow();
+      } else {
+        stopAutoFollow();
+      }
+    });
+  }
+
+  // Show auto-follow toggle only if person is selected
+  if (autoItem) autoItem.style.display = _profileEmployeeId ? '' : 'none';
+
+  // Populate dropdown
+  populateProfileSelect();
+
+  updateProfileStatus();
+
+  // If auto-follow was previously enabled, start engine after data loads
+  if (_autoFollowEnabled && _profileEmployeeId) {
+    // Delay to allow dagvy data to load from cache/firebase
+    setTimeout(function() { startAutoFollow(); }, 3000);
+  }
+}
+
+/**
+ * Update the profile status text in Settings.
+ */
+function updateProfileStatus() {
+  var statusEl = document.getElementById('profileStatus');
+  if (!statusEl) return;
+
+  if (!_profileEmployeeId) {
+    statusEl.innerHTML = '';
+    return;
+  }
+
+  var emp = registeredEmployees[_profileEmployeeId];
+  var name = emp ? emp.name : _profileEmployeeId;
+
+  if (_autoFollowEnabled) {
+    var followed = window.trainFollow ? window.trainFollow.getFollowed() : null;
+    var extra = '';
+    if (followed) {
+      extra = ' — följer tåg ' + followed.trainNr;
+    }
+    statusEl.innerHTML = '<span class="profile-status-active">✓ Auto-följ aktivt' + extra + '</span>';
+  } else {
+    statusEl.innerHTML = 'Vald person: ' + name;
+  }
+}
+
+/**
+ * Get the currently selected profile employee id.
+ */
+function getProfileEmployeeId() {
+  return _profileEmployeeId || null;
+}
+
+/**
+ * Check if auto-follow is enabled.
+ */
+function isAutoFollowEnabled() {
+  return _autoFollowEnabled && !!_profileEmployeeId;
+}
+
+// ==========================================
+// AUTO-FOLLOW ENGINE
+// ==========================================
+
+var _autoFollowTimer = null;
+var _autoFollowLastTrain = null; // last train nr we auto-followed
+var AUTO_FOLLOW_INTERVAL = 60000; // check every 60s
+
+/**
+ * Get the current or next train for an employee, always based on TODAY.
+ * Returns { trainNr, timeStart, timeEnd, startMin, endMin, finished } or null.
+ */
+function getAutoFollowTrain(employeeId) {
+  var emp = registeredEmployees[employeeId];
+  if (!emp) return null;
+
+  var normalizedName = normalizeName(emp.name);
+  var dagvyDoc = dagvyAllData[normalizedName];
+  if (!dagvyDoc || !dagvyDoc.days) return null;
+
+  var today = new Date();
+  var dateKey = getDateKey(today);
+  var dayData = null;
+  for (var i = 0; i < dagvyDoc.days.length; i++) {
+    if (dagvyDoc.days[i].date === dateKey) { dayData = dagvyDoc.days[i]; break; }
+  }
+  if (!dayData || !dayData.segments) return null;
+
+  var nowMinutes = today.getHours() * 60 + today.getMinutes();
+
+  var trainSegs = [];
+  for (var s = 0; s < dayData.segments.length; s++) {
+    var seg = dayData.segments[s];
+    var trainNr = null;
+    if (seg.trainNr && seg.trainNr.length > 0) {
+      trainNr = seg.trainNr.replace(/\s.*/g, '').trim();
+    } else if (seg.activity && /^\d{3,5}(\s+\S+)*$/i.test(seg.activity.trim())) {
+      trainNr = seg.activity.trim().replace(/\s.*/g, '').trim();
+    }
+    if (!trainNr) continue;
+
+    var startMin = null;
+    var endMin = null;
+    if (seg.timeStart) {
+      var ps = seg.timeStart.split(':');
+      startMin = parseInt(ps[0], 10) * 60 + parseInt(ps[1], 10);
+    }
+    if (seg.timeEnd) {
+      var pe = seg.timeEnd.split(':');
+      endMin = parseInt(pe[0], 10) * 60 + parseInt(pe[1], 10);
+    }
+
+    trainSegs.push({
+      trainNr: trainNr,
+      timeStart: seg.timeStart || '',
+      timeEnd: seg.timeEnd || '',
+      startMin: startMin,
+      endMin: endMin,
+      fromStation: seg.fromStation || '',
+      toStation: seg.toStation || ''
+    });
+  }
+
+  if (trainSegs.length === 0) return null;
+
+  // Find current train (running now) or next upcoming
+  var currentTrain = null;
+  var nextTrain = null;
+
+  for (var t = 0; t < trainSegs.length; t++) {
+    var tr = trainSegs[t];
+    if (tr.startMin === null) continue;
+
+    // Currently running
+    if (tr.startMin <= nowMinutes && tr.endMin !== null && tr.endMin >= nowMinutes) {
+      currentTrain = tr;
+      break;
+    }
+    // Next future train (with 15 min pre-buffer so we start early)
+    if (tr.startMin > nowMinutes && tr.startMin - nowMinutes <= 15 && !nextTrain) {
+      nextTrain = tr;
+    }
+    // Next future train (any)
+    if (tr.startMin > nowMinutes && !nextTrain) {
+      nextTrain = tr;
+    }
+  }
+
+  if (currentTrain) return currentTrain;
+  if (nextTrain) return nextTrain;
+
+  // All done
+  var lastTrain = trainSegs[trainSegs.length - 1];
+  if (lastTrain.endMin !== null && lastTrain.endMin < nowMinutes) {
+    return Object.assign({}, lastTrain, { finished: true });
+  }
+
+  return trainSegs[0];
+}
+
+/**
+ * Start the auto-follow engine.
+ * Checks periodically which train the profile person should be on and follows it.
+ */
+function startAutoFollow() {
+  stopAutoFollow(); // clear any existing timer
+
+  if (!_profileEmployeeId || !_autoFollowEnabled) return;
+
+  // Hook into train-follow stop callback
+  if (window.trainFollow) {
+    window.trainFollow.onStopCallback = onAutoFollowTrainStopped;
+  }
+
+  // Run immediately, then on interval
+  autoFollowCheck();
+  _autoFollowTimer = setInterval(autoFollowCheck, AUTO_FOLLOW_INTERVAL);
+
+  updateProfileStatus();
+}
+
+/**
+ * Stop the auto-follow engine.
+ */
+function stopAutoFollow() {
+  if (_autoFollowTimer) {
+    clearInterval(_autoFollowTimer);
+    _autoFollowTimer = null;
+  }
+  _autoFollowLastTrain = null;
+
+  // Remove callback hook
+  if (window.trainFollow) {
+    window.trainFollow.onStopCallback = null;
+  }
+
+  updateProfileStatus();
+}
+
+/**
+ * Periodic check: find the right train and follow it if not already following.
+ */
+function autoFollowCheck() {
+  if (!_profileEmployeeId || !_autoFollowEnabled) return;
+
+  var train = getAutoFollowTrain(_profileEmployeeId);
+  if (!train || train.finished) return; // no active/upcoming train
+
+  // Already following this train?
+  var followed = window.trainFollow ? window.trainFollow.getFollowed() : null;
+  if (followed && followed.trainNr === train.trainNr) return;
+
+  // Follow the new train
+  _autoFollowLastTrain = train.trainNr;
+  if (window.trainFollow) {
+    window.trainFollow.start(train.trainNr);
+  }
+}
+
+/**
+ * Called when train-follow stops (auto-unfollow or manual stop).
+ * If auto-follow is still on, check for the next train after a short delay.
+ */
+function onAutoFollowTrainStopped() {
+  if (!_autoFollowEnabled || !_profileEmployeeId) return;
+
+  // Short delay to let UI settle, then check for next train
+  setTimeout(function() {
+    autoFollowCheck();
+  }, 2000);
+}
+
 function getFilterStyle() {
   return getFilterCookie('filter_style') || 'flip';
 }
@@ -259,6 +571,9 @@ function initFilterStylePicker() {
 function initUI() {
   // Load OB-tillägg data
   loadObData();
+
+  // Profile (person select + auto-follow)
+  initProfile();
 
   // Header & Navigation
   menuBtn = document.getElementById('menuBtn');
@@ -834,6 +1149,9 @@ function isEmployeeFinished(shift) {
 }
 
 function renderEmployees() {
+  // Keep profile dropdown in sync with latest employees
+  populateProfileSelect();
+
   const dateKey = getDateKey(currentDate);
   const allShifts = employeesData[dateKey] || [];
   const showLediga = showLedigaCheckbox ? showLedigaCheckbox.checked : false;
