@@ -352,9 +352,18 @@
         <div class="doc-pdf-toolbar">
           <button class="doc-back-btn" id="docBackBtn">← Tillbaka</button>
           <button class="doc-toc-btn" id="docTocBtn">☰ Innehåll</button>
+          <button class="doc-search-btn" id="docSearchBtn">🔍 Sök</button>
         </div>
         <div class="doc-toc-panel" id="docTocPanel" style="display:none;">
           <div class="doc-toc-list" id="docTocList"></div>
+        </div>
+        <div class="doc-search-panel" id="docSearchPanel" style="display:none;">
+          <div class="doc-search-input-row">
+            <input type="text" class="doc-search-input" id="docSearchInput" placeholder="Sök i dokumentet…" autocomplete="off">
+            <button class="doc-search-clear" id="docSearchClear" hidden>✕</button>
+          </div>
+          <div class="doc-search-status" id="docSearchStatus"></div>
+          <div class="doc-search-results" id="docSearchResults"></div>
         </div>
         <div class="doc-pdf-pages" id="docPdfPages"></div>
       </div>
@@ -573,7 +582,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.45.80</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.46.81</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
