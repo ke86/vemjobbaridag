@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v4.43.78';
+const CACHE_VERSION = 'v4.45.80';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -48,6 +48,8 @@ const FILES_TO_CACHE = [
   // Assets
   './icon.png',
   './manifest.json',
+  // Documents (PDF)
+  './docs/Kollektivavtal.pdf',
   // Turn icons (SVG)
   './icons/SE.svg',
   './icons/DK.svg',

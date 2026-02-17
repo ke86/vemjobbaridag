@@ -224,7 +224,7 @@ function openDocPdf(docId) {
   if (pdfView) pdfView.style.display = '';
 
   if (docId === 'kollektivavtal' && !_docPdfLoaded) {
-    loadDocPdf('mnt/Kollektivavtal.pdf');
+    loadDocPdf('docs/Kollektivavtal.pdf');
   }
 }
 
