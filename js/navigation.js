@@ -145,6 +145,13 @@ function showPage(pageId) {
     document.getElementById('documentsPage').classList.add('active');
     headerTitle.textContent = 'Dokument';
     if (typeof onDocumentsPageShow === 'function') onDocumentsPageShow();
+  } else if (pageId === 'bromax') {
+    document.getElementById('bromaxPage').classList.add('active');
+    headerTitle.textContent = 'BromaX31';
+    var bromaxIframe = document.getElementById('bromaxIframe');
+    if (bromaxIframe && bromaxIframe.src === 'about:blank') {
+      bromaxIframe.src = 'https://bromsax31.se/';
+    }
   }
 
   closeSidebarMenu();
