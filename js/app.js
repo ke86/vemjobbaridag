@@ -126,6 +126,15 @@ function setupEventListeners() {
     });
   });
 
+  // External links in sidebar — open in new tab and close menu
+  document.querySelectorAll('.sidebar-menu a[data-external]').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open(link.href, '_blank', 'noopener');
+      closeSidebarMenu();
+    });
+  });
+
   // Native date picker
   if (nativeDatePicker) {
     nativeDatePicker.addEventListener('change', (e) => {

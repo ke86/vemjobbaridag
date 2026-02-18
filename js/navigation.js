@@ -145,9 +145,6 @@ function showPage(pageId) {
     document.getElementById('documentsPage').classList.add('active');
     headerTitle.textContent = 'Dokument';
     if (typeof onDocumentsPageShow === 'function') onDocumentsPageShow();
-  } else if (pageId === 'bromax') {
-    document.getElementById('bromaxPage').classList.add('active');
-    headerTitle.textContent = 'BromaX31';
   }
 
   closeSidebarMenu();
