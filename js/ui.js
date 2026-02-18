@@ -436,10 +436,14 @@ function updateAlarmTogglesVisibility() {
   // Minutes selector + reminders: visible when auto-follow on AND at least one alarm toggle on
   if (minutesItem) minutesItem.style.display = (show && anyAlarmOn) ? '' : 'none';
   if (remindersPanel) remindersPanel.style.display = (show && anyAlarmOn) ? '' : 'none';
-  // Push toggle: visible when alarms are on AND Notification API exists
+  // Push toggle: visible when alarms are on (show hint if Notification API missing)
   var pushItem = document.getElementById('alarmPushItem');
-  var pushVisible = show && anyAlarmOn && typeof Notification !== 'undefined';
-  if (pushItem) pushItem.style.display = pushVisible ? '' : 'none';
+  var pushToggle = document.getElementById('alarmPushToggle');
+  var pushHint = document.getElementById('alarmPushHint');
+  var hasNotifAPI = typeof Notification !== 'undefined';
+  if (pushItem) pushItem.style.display = (show && anyAlarmOn) ? '' : 'none';
+  if (pushToggle) pushToggle.disabled = !hasNotifAPI;
+  if (pushHint) pushHint.style.display = (!hasNotifAPI && show && anyAlarmOn) ? '' : 'none';
   // Reset toggles if hidden
   if (!show) {
     _alarmTurstartEnabled = false;
