@@ -417,6 +417,47 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+          <div class="settings-item alarm-toggle-item" id="alarmTurstartItem" style="display:none;">
+            <div class="settings-label">
+              <span class="settings-icon">🔔</span>
+              <span>Påminnelse vid turstart</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="alarmTurstartToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-item alarm-toggle-item" id="alarmRastItem" style="display:none;">
+            <div class="settings-label">
+              <span class="settings-icon">🔔</span>
+              <span>Påminnelse efter rast</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="alarmRastToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-item alarm-toggle-item" id="alarmMinutesItem" style="display:none;">
+            <div class="settings-label">
+              <span class="settings-icon">⏱️</span>
+              <span>Minuter innan</span>
+            </div>
+            <select class="alarm-minutes-select" id="alarmMinutesSelect">
+              <option value="6">6 min</option>
+              <option value="7">7 min</option>
+              <option value="8">8 min</option>
+              <option value="9">9 min</option>
+              <option value="10" selected>10 min</option>
+              <option value="11">11 min</option>
+              <option value="12">12 min</option>
+            </select>
+          </div>
+          <div class="alarm-reminders-panel" id="alarmRemindersPanel" style="display:none;">
+            <div class="alarm-reminders-header">📋 Dagens påminnelser</div>
+            <div class="alarm-reminders-list" id="alarmRemindersList">
+              <div class="alarm-reminders-empty">Inga påminnelser idag</div>
+            </div>
+          </div>
           <div class="profile-status" id="profileStatus"></div>
         </div>
       </div>
@@ -621,7 +662,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.59.94</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.61.96</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -649,6 +690,18 @@
       <!-- PDF rendered here by la.js -->
     </div>
   </main>
+
+  <!-- Train Alarm Modal -->
+  <div class="alarm-modal-overlay" id="alarmModal">
+    <div class="alarm-modal-card">
+      <div class="alarm-modal-bell" id="alarmBellIcon">🔔</div>
+      <h3 class="alarm-modal-title" id="alarmModalTitle">Turstart om 10 min</h3>
+      <div class="alarm-modal-train" id="alarmModalTrain">Tåg 1015</div>
+      <div class="alarm-modal-time" id="alarmModalTime">Avgång 06:30</div>
+      <div class="alarm-modal-delay" id="alarmModalDelay"></div>
+      <button class="alarm-modal-btn" id="alarmModalOkBtn">Okej</button>
+    </div>
+  </div>
 
   <!-- Delete Confirmation Modal -->
   <div class="modal-overlay" id="deleteConfirmModal">

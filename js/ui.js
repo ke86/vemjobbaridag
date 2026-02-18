@@ -260,15 +260,28 @@ function populateProfileSelect() {
 /**
  * Initialize profile: restore from cookies, wire up events.
  */
+var _alarmTurstartEnabled = false;
+var _alarmRastEnabled = false;
+
 function initProfile() {
   var sel = document.getElementById('profileSelect');
   var toggle = document.getElementById('autoFollowToggle');
   var autoItem = document.getElementById('autoFollowItem');
   var statusEl = document.getElementById('profileStatus');
+  var alarmTurstartToggle = document.getElementById('alarmTurstartToggle');
+  var alarmRastToggle = document.getElementById('alarmRastToggle');
+  var alarmTurstartItem = document.getElementById('alarmTurstartItem');
+  var alarmRastItem = document.getElementById('alarmRastItem');
+
+  var alarmMinutesSel = document.getElementById('alarmMinutesSelect');
 
   // Restore from cookies
   _profileEmployeeId = getFilterCookie('profile_employee') || '';
   _autoFollowEnabled = getFilterCookie('auto_follow_train') === '1';
+  _alarmTurstartEnabled = getFilterCookie('alarm_turstart') === '1';
+  _alarmRastEnabled = getFilterCookie('alarm_rast') === '1';
+  var savedMinutes = parseInt(getFilterCookie('alarm_minutes'), 10);
+  if (savedMinutes >= 6 && savedMinutes <= 12) _alarmTriggerMinutes = savedMinutes;
 
   if (sel) {
     sel.value = _profileEmployeeId;
@@ -283,6 +296,7 @@ function initProfile() {
         toggle.checked = false;
         setFilterCookie('auto_follow_train', '0');
       }
+      updateAlarmTogglesVisibility();
       updateProfileStatus();
     });
   }
@@ -292,6 +306,7 @@ function initProfile() {
     toggle.addEventListener('change', function() {
       _autoFollowEnabled = toggle.checked;
       setFilterCookie('auto_follow_train', _autoFollowEnabled ? '1' : '0');
+      updateAlarmTogglesVisibility();
       updateProfileStatus();
       // Kick off or stop auto-follow engine
       if (_autoFollowEnabled && _profileEmployeeId) {
@@ -302,19 +317,212 @@ function initProfile() {
     });
   }
 
+  // Alarm toggles
+  if (alarmTurstartToggle) {
+    alarmTurstartToggle.checked = _alarmTurstartEnabled;
+    alarmTurstartToggle.addEventListener('change', function() {
+      _alarmTurstartEnabled = alarmTurstartToggle.checked;
+      setFilterCookie('alarm_turstart', _alarmTurstartEnabled ? '1' : '0');
+    });
+  }
+  if (alarmRastToggle) {
+    alarmRastToggle.checked = _alarmRastEnabled;
+    alarmRastToggle.addEventListener('change', function() {
+      _alarmRastEnabled = alarmRastToggle.checked;
+      setFilterCookie('alarm_rast', _alarmRastEnabled ? '1' : '0');
+      updateAlarmTogglesVisibility();
+      renderAlarmReminders();
+    });
+  }
+
+  // Alarm minutes selector
+  if (alarmMinutesSel) {
+    alarmMinutesSel.value = String(_alarmTriggerMinutes);
+    alarmMinutesSel.addEventListener('change', function() {
+      _alarmTriggerMinutes = parseInt(alarmMinutesSel.value, 10);
+      setFilterCookie('alarm_minutes', String(_alarmTriggerMinutes));
+      renderAlarmReminders();
+    });
+  }
+
+  // Also update reminders when turstart toggle changes
+  if (alarmTurstartToggle) {
+    alarmTurstartToggle.addEventListener('change', function() {
+      updateAlarmTogglesVisibility();
+      renderAlarmReminders();
+    });
+  }
+
   // Show auto-follow toggle only if person is selected
   if (autoItem) autoItem.style.display = _profileEmployeeId ? '' : 'none';
+
+  // Show/hide alarm toggles
+  updateAlarmTogglesVisibility();
 
   // Populate dropdown
   populateProfileSelect();
 
   updateProfileStatus();
 
+  // Render reminders after dagvy data loads
+  setTimeout(function() { renderAlarmReminders(); }, 3500);
+
   // If auto-follow was previously enabled, start engine after data loads
   if (_autoFollowEnabled && _profileEmployeeId) {
     // Delay to allow dagvy data to load from cache/firebase
     setTimeout(function() { startAutoFollow(); }, 3000);
   }
+}
+
+/**
+ * Show/hide alarm toggle items — visible only when auto-follow is active.
+ */
+function updateAlarmTogglesVisibility() {
+  var show = _profileEmployeeId && _autoFollowEnabled;
+  var anyAlarmOn = _alarmTurstartEnabled || _alarmRastEnabled;
+  var turstartItem = document.getElementById('alarmTurstartItem');
+  var rastItem = document.getElementById('alarmRastItem');
+  var minutesItem = document.getElementById('alarmMinutesItem');
+  var remindersPanel = document.getElementById('alarmRemindersPanel');
+  if (turstartItem) turstartItem.style.display = show ? '' : 'none';
+  if (rastItem) rastItem.style.display = show ? '' : 'none';
+  // Minutes selector + reminders: visible when auto-follow on AND at least one alarm toggle on
+  if (minutesItem) minutesItem.style.display = (show && anyAlarmOn) ? '' : 'none';
+  if (remindersPanel) remindersPanel.style.display = (show && anyAlarmOn) ? '' : 'none';
+  // Reset toggles if hidden
+  if (!show) {
+    _alarmTurstartEnabled = false;
+    _alarmRastEnabled = false;
+    var t1 = document.getElementById('alarmTurstartToggle');
+    var t2 = document.getElementById('alarmRastToggle');
+    if (t1) t1.checked = false;
+    if (t2) t2.checked = false;
+    setFilterCookie('alarm_turstart', '0');
+    setFilterCookie('alarm_rast', '0');
+  }
+}
+
+/**
+ * Getters for alarm state (used by alarm engine).
+ */
+function isAlarmTurstartEnabled() { return _alarmTurstartEnabled; }
+function isAlarmRastEnabled() { return _alarmRastEnabled; }
+
+/**
+ * Show the train alarm modal.
+ * @param {string} type - 'turstart' or 'rast'
+ * @param {string} trainNr
+ * @param {string} depTime - e.g. '06:30'
+ * @param {number|null} delayMin - minutes delayed, 0 = on time, null = unknown
+ */
+function showAlarmModal(type, trainNr, depTime, delayMin) {
+  var overlay = document.getElementById('alarmModal');
+  var titleEl = document.getElementById('alarmModalTitle');
+  var trainEl = document.getElementById('alarmModalTrain');
+  var timeEl = document.getElementById('alarmModalTime');
+  var delayEl = document.getElementById('alarmModalDelay');
+  var okBtn = document.getElementById('alarmModalOkBtn');
+  if (!overlay) return;
+
+  titleEl.textContent = type === 'turstart' ? 'Turstart om 10 min' : 'Rast slut om 10 min';
+  trainEl.textContent = 'Tåg ' + trainNr;
+  timeEl.textContent = 'Avgång ' + depTime;
+
+  // Delay info
+  delayEl.className = 'alarm-modal-delay';
+  if (delayMin === null || delayMin === undefined) {
+    delayEl.textContent = '';
+  } else if (delayMin <= 0) {
+    delayEl.textContent = 'I tid ✓';
+    delayEl.classList.add('on-time');
+  } else {
+    delayEl.textContent = 'Ca ' + delayMin + ' min försenat';
+    delayEl.classList.add('delayed');
+  }
+
+  overlay.classList.add('active');
+
+  // Dismiss on OK
+  function dismiss() {
+    overlay.classList.remove('active');
+    okBtn.removeEventListener('click', dismiss);
+  }
+  okBtn.addEventListener('click', dismiss);
+}
+
+/**
+ * Hide the alarm modal (if open).
+ */
+function hideAlarmModal() {
+  var overlay = document.getElementById('alarmModal');
+  if (overlay) overlay.classList.remove('active');
+}
+
+/**
+ * Render today's alarm reminders list in the profile section.
+ */
+function renderAlarmReminders() {
+  var listEl = document.getElementById('alarmRemindersList');
+  if (!listEl) return;
+
+  if (!_profileEmployeeId || !_autoFollowEnabled) {
+    listEl.innerHTML = '<div class="alarm-reminders-empty">Inga påminnelser idag</div>';
+    return;
+  }
+
+  var segments = getAlarmSegments(_profileEmployeeId);
+  var items = [];
+
+  if (_alarmTurstartEnabled && segments.turstart) {
+    var ts = segments.turstart;
+    var alarmMin = ts.startMin - _alarmTriggerMinutes;
+    var alarmH = Math.floor(alarmMin / 60);
+    var alarmM = alarmMin % 60;
+    var alarmTime = (alarmH < 10 ? '0' : '') + alarmH + ':' + (alarmM < 10 ? '0' : '') + alarmM;
+    var keyTs = 'turstart_' + ts.trainNr + '_' + ts.startMin;
+    items.push({
+      sortMin: alarmMin,
+      time: alarmTime,
+      label: 'Turstart <strong>tåg ' + ts.trainNr + '</strong>',
+      detail: _alarmTriggerMinutes + ' min före ' + ts.timeStart,
+      done: !!_alarmAcknowledged[keyTs]
+    });
+  }
+
+  if (_alarmRastEnabled && segments.efterRast) {
+    var er = segments.efterRast;
+    var alarmMinR = er.startMin - _alarmTriggerMinutes;
+    var alarmHR = Math.floor(alarmMinR / 60);
+    var alarmMR = alarmMinR % 60;
+    var alarmTimeR = (alarmHR < 10 ? '0' : '') + alarmHR + ':' + (alarmMR < 10 ? '0' : '') + alarmMR;
+    var keyEr = 'rast_' + er.trainNr + '_' + er.startMin;
+    items.push({
+      sortMin: alarmMinR,
+      time: alarmTimeR,
+      label: 'Rast slut <strong>tåg ' + er.trainNr + '</strong>',
+      detail: _alarmTriggerMinutes + ' min före ' + er.timeStart,
+      done: !!_alarmAcknowledged[keyEr]
+    });
+  }
+
+  if (items.length === 0) {
+    listEl.innerHTML = '<div class="alarm-reminders-empty">Inga påminnelser idag</div>';
+    return;
+  }
+
+  // Sort by time
+  items.sort(function(a, b) { return a.sortMin - b.sortMin; });
+
+  var html = '';
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    html += '<div class="alarm-reminder-row' + (it.done ? ' done' : '') + '">';
+    html += '<span class="alarm-reminder-icon">' + (it.done ? '✅' : '⏰') + '</span>';
+    html += '<span class="alarm-reminder-time">' + it.time + '</span>';
+    html += '<span class="alarm-reminder-text">' + it.label + ' <span style="opacity:0.6;">(' + it.detail + ')</span></span>';
+    html += '</div>';
+  }
+  listEl.innerHTML = html;
 }
 
 /**
@@ -478,6 +686,9 @@ function startAutoFollow() {
   autoFollowCheck();
   _autoFollowTimer = setInterval(autoFollowCheck, AUTO_FOLLOW_INTERVAL);
 
+  // Start alarm engine alongside auto-follow
+  startAlarmEngine();
+
   updateProfileStatus();
 }
 
@@ -492,6 +703,9 @@ function stopAutoFollow() {
   _autoFollowLastTrain = null;
   _autoFollowPaused = false;
   _autoFollowPausedTrainNr = null;
+
+  // Stop alarm engine
+  stopAlarmEngine();
 
   // Remove callback hook
   if (window.trainFollow) {
@@ -579,6 +793,222 @@ function onAutoFollowTrainStopped() {
   setTimeout(function() {
     autoFollowCheck();
   }, 2000);
+}
+
+// ==========================================
+// ALARM ENGINE
+// ==========================================
+var _alarmTimer = null;
+var _alarmAcknowledged = {}; // key → true, tracks dismissed alarms
+var ALARM_CHECK_INTERVAL = 30000; // 30 seconds
+var _alarmTriggerMinutes = 10;     // configurable, default 10
+
+/**
+ * Get alarm-worthy segments for an employee today.
+ * Returns { turstart: segment|null, efterRast: segment|null }
+ * where segment = { trainNr, timeStart, startMin }
+ */
+function getAlarmSegments(employeeId) {
+  var result = { turstart: null, efterRast: null };
+
+  var emp = registeredEmployees[employeeId];
+  if (!emp) return result;
+
+  var normalizedName = normalizeName(emp.name);
+  var dagvyDoc = dagvyAllData[normalizedName];
+  if (!dagvyDoc || !dagvyDoc.days) return result;
+
+  var today = new Date();
+  var dateKey = getDateKey(today);
+  var dayData = null;
+  for (var i = 0; i < dagvyDoc.days.length; i++) {
+    if (dagvyDoc.days[i].date === dateKey) { dayData = dagvyDoc.days[i]; break; }
+  }
+  if (!dayData || !dayData.segments) return result;
+
+  // Collect all segments in order
+  var allSegs = dayData.segments;
+
+  // Find first train segment → turstart
+  for (var s = 0; s < allSegs.length; s++) {
+    var seg = allSegs[s];
+    var trainNr = extractTrainNr(seg);
+    if (trainNr && seg.timeStart) {
+      var ps = seg.timeStart.split(':');
+      result.turstart = {
+        trainNr: trainNr,
+        timeStart: seg.timeStart,
+        startMin: parseInt(ps[0], 10) * 60 + parseInt(ps[1], 10)
+      };
+      break;
+    }
+  }
+
+  // Find last "rast obetald" or "rast betald", then the train segment after it
+  var lastRastIndex = -1;
+  for (var r = 0; r < allSegs.length; r++) {
+    var act = (allSegs[r].activity || '').toLowerCase();
+    if (act.indexOf('rast obetald') !== -1 || act.indexOf('rast betald') !== -1) {
+      lastRastIndex = r;
+    }
+  }
+
+  if (lastRastIndex >= 0) {
+    // Find next train segment after last rast
+    for (var a = lastRastIndex + 1; a < allSegs.length; a++) {
+      var segAfter = allSegs[a];
+      var tnr = extractTrainNr(segAfter);
+      if (tnr && segAfter.timeStart) {
+        var pa = segAfter.timeStart.split(':');
+        result.efterRast = {
+          trainNr: tnr,
+          timeStart: segAfter.timeStart,
+          startMin: parseInt(pa[0], 10) * 60 + parseInt(pa[1], 10)
+        };
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Extract train number from a segment, same logic as getAutoFollowTrain.
+ */
+function extractTrainNr(seg) {
+  if (seg.trainNr && seg.trainNr.length > 0) {
+    return seg.trainNr.replace(/\s.*/g, '').trim();
+  }
+  if (seg.activity && /^\d{3,5}(\s+\S+)*$/i.test(seg.activity.trim())) {
+    return seg.activity.trim().replace(/\s.*/g, '').trim();
+  }
+  return null;
+}
+
+/**
+ * Check if any alarm should fire right now.
+ * Called every 30 seconds when auto-follow + profile are active.
+ */
+function alarmCheck() {
+  if (!_profileEmployeeId || !_autoFollowEnabled) return;
+
+  var segments = getAlarmSegments(_profileEmployeeId);
+  var now = new Date();
+  var nowMin = now.getHours() * 60 + now.getMinutes();
+
+  // Check turstart alarm
+  if (_alarmTurstartEnabled && segments.turstart) {
+    var ts = segments.turstart;
+    var diffTs = ts.startMin - nowMin;
+    var keyTs = 'turstart_' + ts.trainNr + '_' + ts.startMin;
+    if (diffTs >= 0 && diffTs <= _alarmTriggerMinutes && !_alarmAcknowledged[keyTs]) {
+      _alarmAcknowledged[keyTs] = true;
+      triggerAlarm('turstart', ts.trainNr, ts.timeStart);
+      return; // one alarm at a time
+    }
+  }
+
+  // Check efter rast alarm
+  if (_alarmRastEnabled && segments.efterRast) {
+    var er = segments.efterRast;
+    var diffEr = er.startMin - nowMin;
+    var keyEr = 'rast_' + er.trainNr + '_' + er.startMin;
+    if (diffEr >= 0 && diffEr <= _alarmTriggerMinutes && !_alarmAcknowledged[keyEr]) {
+      _alarmAcknowledged[keyEr] = true;
+      triggerAlarm('rast', er.trainNr, er.timeStart);
+      renderAlarmReminders();
+      return;
+    }
+  }
+
+  // Update reminders list status
+  renderAlarmReminders();
+}
+
+/**
+ * Trigger an alarm: show modal + play sound.
+ */
+function triggerAlarm(type, trainNr, depTime) {
+  // Try to get delay info from train-follow if it's following this train
+  var delayMin = null;
+  if (window.trainFollow) {
+    var followed = window.trainFollow.getFollowed();
+    if (followed && String(followed.trainNr) === String(trainNr)) {
+      var info = window.trainFollow.getDelayInfo();
+      if (info) delayMin = info.delayMin;
+    }
+  }
+
+  showAlarmModal(type, trainNr, depTime, delayMin);
+
+  // Play sound (function added in del 4, safe no-op if missing)
+  if (typeof playAlarmSound === 'function') {
+    playAlarmSound();
+  }
+}
+
+/**
+ * Play a pleasant 3-tone alarm sound using Web Audio API.
+ * Tones: C5 → E5 → G5 (major chord), repeated twice.
+ */
+function playAlarmSound() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    var freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+    var toneDuration = 0.18;
+    var gap = 0.06;
+    var repeatGap = 0.3;
+
+    for (var rep = 0; rep < 2; rep++) {
+      for (var i = 0; i < freqs.length; i++) {
+        var startTime = ctx.currentTime + rep * (freqs.length * (toneDuration + gap) + repeatGap) + i * (toneDuration + gap);
+
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = freqs[i];
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        // Smooth attack and release
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.3, startTime + 0.03);
+        gain.gain.setValueAtTime(0.3, startTime + toneDuration - 0.04);
+        gain.gain.linearRampToValueAtTime(0, startTime + toneDuration);
+
+        osc.start(startTime);
+        osc.stop(startTime + toneDuration);
+      }
+    }
+
+    // Close context after playback
+    var totalDuration = 2 * (freqs.length * (toneDuration + gap) + repeatGap);
+    setTimeout(function() { ctx.close(); }, totalDuration * 1000 + 200);
+  } catch (e) {
+    // Web Audio API not available — fail silently
+  }
+}
+
+/**
+ * Start the alarm engine. Called from startAutoFollow.
+ */
+function startAlarmEngine() {
+  stopAlarmEngine();
+  _alarmAcknowledged = {};
+  alarmCheck();
+  _alarmTimer = setInterval(alarmCheck, ALARM_CHECK_INTERVAL);
+}
+
+/**
+ * Stop the alarm engine. Called from stopAutoFollow.
+ */
+function stopAlarmEngine() {
+  if (_alarmTimer) {
+    clearInterval(_alarmTimer);
+    _alarmTimer = null;
+  }
 }
 
 function getFilterStyle() {
