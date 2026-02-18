@@ -262,6 +262,7 @@ function populateProfileSelect() {
  */
 var _alarmTurstartEnabled = false;
 var _alarmRastEnabled = false;
+var _alarmPushEnabled = false;
 
 function initProfile() {
   var sel = document.getElementById('profileSelect');
@@ -280,6 +281,7 @@ function initProfile() {
   _autoFollowEnabled = getFilterCookie('auto_follow_train') === '1';
   _alarmTurstartEnabled = getFilterCookie('alarm_turstart') === '1';
   _alarmRastEnabled = getFilterCookie('alarm_rast') === '1';
+  _alarmPushEnabled = getFilterCookie('alarm_push') === '1';
   var savedMinutes = parseInt(getFilterCookie('alarm_minutes'), 10);
   if (savedMinutes >= 6 && savedMinutes <= 12) _alarmTriggerMinutes = savedMinutes;
 
@@ -353,6 +355,51 @@ function initProfile() {
     });
   }
 
+  // Push notification toggle
+  var alarmPushToggle = document.getElementById('alarmPushToggle');
+  if (alarmPushToggle) {
+    // Only restore if permission was previously granted
+    if (_alarmPushEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      alarmPushToggle.checked = true;
+    } else {
+      _alarmPushEnabled = false;
+      alarmPushToggle.checked = false;
+    }
+    alarmPushToggle.addEventListener('change', function() {
+      if (alarmPushToggle.checked) {
+        if (typeof Notification === 'undefined') {
+          alarmPushToggle.checked = false;
+          _alarmPushEnabled = false;
+          return;
+        }
+        if (Notification.permission === 'granted') {
+          _alarmPushEnabled = true;
+          setFilterCookie('alarm_push', '1');
+        } else if (Notification.permission === 'denied') {
+          alarmPushToggle.checked = false;
+          _alarmPushEnabled = false;
+          setFilterCookie('alarm_push', '0');
+          showPushDeniedMsg();
+        } else {
+          Notification.requestPermission().then(function(perm) {
+            if (perm === 'granted') {
+              _alarmPushEnabled = true;
+              setFilterCookie('alarm_push', '1');
+            } else {
+              alarmPushToggle.checked = false;
+              _alarmPushEnabled = false;
+              setFilterCookie('alarm_push', '0');
+              if (perm === 'denied') showPushDeniedMsg();
+            }
+          });
+        }
+      } else {
+        _alarmPushEnabled = false;
+        setFilterCookie('alarm_push', '0');
+      }
+    });
+  }
+
   // Show auto-follow toggle only if person is selected
   if (autoItem) autoItem.style.display = _profileEmployeeId ? '' : 'none';
 
@@ -389,16 +436,64 @@ function updateAlarmTogglesVisibility() {
   // Minutes selector + reminders: visible when auto-follow on AND at least one alarm toggle on
   if (minutesItem) minutesItem.style.display = (show && anyAlarmOn) ? '' : 'none';
   if (remindersPanel) remindersPanel.style.display = (show && anyAlarmOn) ? '' : 'none';
+  // Push toggle: visible when alarms are on AND Notification API exists
+  var pushItem = document.getElementById('alarmPushItem');
+  var pushVisible = show && anyAlarmOn && typeof Notification !== 'undefined';
+  if (pushItem) pushItem.style.display = pushVisible ? '' : 'none';
   // Reset toggles if hidden
   if (!show) {
     _alarmTurstartEnabled = false;
     _alarmRastEnabled = false;
+    _alarmPushEnabled = false;
     var t1 = document.getElementById('alarmTurstartToggle');
     var t2 = document.getElementById('alarmRastToggle');
+    var t3 = document.getElementById('alarmPushToggle');
     if (t1) t1.checked = false;
     if (t2) t2.checked = false;
+    if (t3) t3.checked = false;
     setFilterCookie('alarm_turstart', '0');
     setFilterCookie('alarm_rast', '0');
+    setFilterCookie('alarm_push', '0');
+  }
+}
+
+/**
+ * Show a temporary message when push permission is denied.
+ */
+function showPushDeniedMsg() {
+  var statusEl = document.getElementById('profileStatus');
+  if (!statusEl) return;
+  var prev = statusEl.innerHTML;
+  statusEl.innerHTML = '<span style="color:#ef4444;">Notiser blockerade — tillåt i webbläsarens inställningar</span>';
+  setTimeout(function() {
+    statusEl.innerHTML = prev;
+  }, 4000);
+}
+
+/**
+ * Send a push notification for an alarm.
+ */
+function sendAlarmNotification(type, trainNr, depTime, delayMin) {
+  if (!_alarmPushEnabled) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+  var title = type === 'turstart' ? 'Turstart om ' + _alarmTriggerMinutes + ' min' : 'Rast slut om ' + _alarmTriggerMinutes + ' min';
+  var body = 'Tåg ' + trainNr + ' — avgång ' + depTime;
+  if (delayMin !== null && delayMin > 0) {
+    body += '\n⚠️ Ca ' + delayMin + ' min försenat';
+  } else if (delayMin !== null && delayMin <= 0) {
+    body += '\n✓ I tid';
+  }
+
+  try {
+    new Notification(title, {
+      body: body,
+      icon: 'icons/icon-192.png',
+      tag: 'alarm-' + type + '-' + trainNr,
+      requireInteraction: true
+    });
+  } catch (e) {
+    // Notification failed — fail silently
   }
 }
 
@@ -942,10 +1037,13 @@ function triggerAlarm(type, trainNr, depTime) {
 
   showAlarmModal(type, trainNr, depTime, delayMin);
 
-  // Play sound (function added in del 4, safe no-op if missing)
+  // Play sound
   if (typeof playAlarmSound === 'function') {
     playAlarmSound();
   }
+
+  // Push notification
+  sendAlarmNotification(type, trainNr, depTime, delayMin);
 }
 
 /**
