@@ -510,7 +510,18 @@ function autoFollowCheck() {
   if (!window.trainFollow) return;
 
   var train = getAutoFollowTrain(_profileEmployeeId);
-  if (!train || train.finished) return; // no active/upcoming train
+  if (!train) return;
+
+  // All trains done — unfollow 60 min after last train ended
+  if (train.finished) {
+    var now = new Date();
+    var nowMin = now.getHours() * 60 + now.getMinutes();
+    if (train.endMin !== null && (nowMin - train.endMin) >= 60) {
+      var followed = window.trainFollow.getFollowed();
+      if (followed) window.trainFollow.stop();
+    }
+    return;
+  }
 
   var followed = window.trainFollow.getFollowed();
 
