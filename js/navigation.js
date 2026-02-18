@@ -148,7 +148,6 @@ function showPage(pageId) {
   } else if (pageId === 'bromax') {
     document.getElementById('bromaxPage').classList.add('active');
     headerTitle.textContent = 'BromaX31';
-    loadBromaxIframe(false);
   }
 
   closeSidebarMenu();
@@ -168,68 +167,3 @@ function resetSettingsCollapse() {
   });
 }
 
-/**
- * Load BromaX31 in iframe with loading indicator, timeout and error handling.
- * @param {boolean} forceReload - force a fresh load even if already loaded
- */
-var _bromaxLoaded = false;
-var _bromaxTimer = null;
-
-function loadBromaxIframe(forceReload) {
-  var iframe = document.getElementById('bromaxIframe');
-  var loading = document.getElementById('bromaxLoading');
-  var error = document.getElementById('bromaxError');
-  var retryBtn = document.getElementById('bromaxRetryBtn');
-  if (!iframe) return;
-
-  // Already loaded and not forcing reload
-  if (_bromaxLoaded && !forceReload) return;
-
-  // Show loading, hide error, hide iframe
-  if (loading) loading.style.display = '';
-  if (error) error.style.display = 'none';
-  iframe.style.display = 'none';
-
-  // Clear previous timeout
-  if (_bromaxTimer) { clearTimeout(_bromaxTimer); _bromaxTimer = null; }
-
-  function onSuccess() {
-    if (_bromaxTimer) { clearTimeout(_bromaxTimer); _bromaxTimer = null; }
-    _bromaxLoaded = true;
-    if (loading) loading.style.display = 'none';
-    if (error) error.style.display = 'none';
-    iframe.style.display = '';
-  }
-
-  function onError() {
-    if (_bromaxTimer) { clearTimeout(_bromaxTimer); _bromaxTimer = null; }
-    _bromaxLoaded = false;
-    if (loading) loading.style.display = 'none';
-    if (error) error.style.display = '';
-    iframe.style.display = 'none';
-    iframe.src = 'about:blank';
-  }
-
-  // Listen for load/error
-  iframe.onload = function() {
-    // about:blank also fires onload — ignore it
-    if (iframe.src === 'about:blank' || iframe.src === '') return;
-    onSuccess();
-  };
-  iframe.onerror = onError;
-
-  // Timeout: if nothing loads in 10s, show error
-  _bromaxTimer = setTimeout(function() {
-    if (!_bromaxLoaded) onError();
-  }, 10000);
-
-  // Retry button
-  if (retryBtn) {
-    retryBtn.onclick = function() {
-      loadBromaxIframe(true);
-    };
-  }
-
-  // Start loading
-  iframe.src = 'https://bromsax31.se/';
-}

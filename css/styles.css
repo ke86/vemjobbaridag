@@ -717,69 +717,49 @@ html.dark .sidebar-sync-btn:hover {
   display: block;
 }
 
-/* BromaX31 iframe page */
+/* BromaX31 page */
 .bromax-page.active {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   height: calc(100vh - 56px);
-  overflow: hidden;
 }
-.bromax-iframe {
-  flex: 1;
-  width: 100%;
-  border: none;
-  min-height: 0;
-}
-.bromax-loading {
+.bromax-landing {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  flex: 1;
-  gap: 14px;
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-.bromax-error {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-  gap: 12px;
+  gap: 8px;
   text-align: center;
   padding: 40px 20px;
 }
-.bromax-error-icon {
-  font-size: 36px;
+.bromax-landing-icon {
+  font-size: 48px;
+  margin-bottom: 4px;
 }
-.bromax-error-text {
-  font-size: 15px;
+.bromax-landing-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.bromax-landing-text {
+  font-size: 14px;
   color: var(--text-secondary);
-  line-height: 1.5;
+  margin: 0 0 8px;
 }
-.bromax-retry-btn {
-  margin-top: 8px;
-  padding: 10px 24px;
-  border: none;
+.bromax-open-btn {
+  display: inline-block;
+  padding: 12px 28px;
   border-radius: 10px;
   background: var(--accent-blue);
   color: #fff;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
-}
-.bromax-retry-btn:active {
-  opacity: 0.8;
-}
-.bromax-open-link {
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--accent-blue);
   text-decoration: none;
+  transition: opacity 0.15s;
 }
-.bromax-open-link:hover {
-  text-decoration: underline;
+.bromax-open-btn:active {
+  opacity: 0.8;
 }
 
 /* ==========================================
