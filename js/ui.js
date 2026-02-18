@@ -363,8 +363,10 @@ function isAutoFollowEnabled() {
 // ==========================================
 
 var _autoFollowTimer = null;
-var _autoFollowLastTrain = null; // last train nr we auto-followed
-var AUTO_FOLLOW_INTERVAL = 60000; // check every 60s
+var _autoFollowLastTrain = null;   // last train nr we auto-followed
+var _autoFollowPaused = false;     // paused due to manual override
+var _autoFollowPausedTrainNr = null; // the scheduled train we paused on
+var AUTO_FOLLOW_INTERVAL = 60000;  // check every 60s
 
 /**
  * Get the current or next train for an employee, always based on TODAY.
@@ -488,6 +490,8 @@ function stopAutoFollow() {
     _autoFollowTimer = null;
   }
   _autoFollowLastTrain = null;
+  _autoFollowPaused = false;
+  _autoFollowPausedTrainNr = null;
 
   // Remove callback hook
   if (window.trainFollow) {
@@ -499,22 +503,55 @@ function stopAutoFollow() {
 
 /**
  * Periodic check: find the right train and follow it if not already following.
+ * Respects manual overrides and delayed trains.
  */
 function autoFollowCheck() {
   if (!_profileEmployeeId || !_autoFollowEnabled) return;
+  if (!window.trainFollow) return;
 
   var train = getAutoFollowTrain(_profileEmployeeId);
   if (!train || train.finished) return; // no active/upcoming train
 
-  // Already following this train?
-  var followed = window.trainFollow ? window.trainFollow.getFollowed() : null;
+  var followed = window.trainFollow.getFollowed();
+
+  // --- Manual pause logic ---
+  // If paused: only resume when the scheduled train changes to a new number
+  if (_autoFollowPaused) {
+    if (train.trainNr === _autoFollowPausedTrainNr) {
+      // Still same scheduled train — stay paused
+      return;
+    }
+    // Schedule moved to a new train → unpause
+    _autoFollowPaused = false;
+    _autoFollowPausedTrainNr = null;
+  }
+
+  // Already following the correct train?
   if (followed && followed.trainNr === train.trainNr) return;
 
-  // Follow the new train
-  _autoFollowLastTrain = train.trainNr;
-  if (window.trainFollow) {
-    window.trainFollow.start(train.trainNr);
+  // --- Manual override detection ---
+  // If user is following a DIFFERENT train than what auto-follow wants,
+  // and we didn't just auto-start it → user made a manual choice → pause
+  if (followed && followed.trainNr !== train.trainNr && _autoFollowLastTrain && followed.trainNr !== _autoFollowLastTrain) {
+    _autoFollowPaused = true;
+    _autoFollowPausedTrainNr = train.trainNr;
+    return;
   }
+
+  // --- Delay check ---
+  // If we're currently following a train that's delayed, don't switch away
+  if (followed && _autoFollowLastTrain === followed.trainNr) {
+    var delayInfo = window.trainFollow.getDelayInfo();
+    if (delayInfo && delayInfo.delayMin > 0) {
+      // Train is delayed — it hasn't actually finished, wait
+      return;
+    }
+  }
+
+  // Follow the new train silently (don't navigate to train page)
+  _autoFollowLastTrain = train.trainNr;
+  window.trainFollow.start(train.trainNr, true);
+  updateProfileStatus();
 }
 
 /**
@@ -523,6 +560,9 @@ function autoFollowCheck() {
  */
 function onAutoFollowTrainStopped() {
   if (!_autoFollowEnabled || !_profileEmployeeId) return;
+
+  // If paused (manual override), don't auto-start next
+  if (_autoFollowPaused) return;
 
   // Short delay to let UI settle, then check for next train
   setTimeout(function() {

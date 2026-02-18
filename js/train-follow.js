@@ -440,7 +440,7 @@
   // FOLLOW / STOP
   // ==========================================
 
-  function startFollowing(trainNr) {
+  function startFollowing(trainNr, silent) {
     stopFollowing(true);
     followedTrain = { trainNr: trainNr };
     currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
@@ -452,9 +452,11 @@
 
     startBtnFlipTimer();
 
-    // Navigate to train page & show loading
-    showPage('trainFollow');
-    showLoading();
+    if (!silent) {
+      // Navigate to train page & show loading
+      showPage('trainFollow');
+      showLoading();
+    }
 
     // Load station names BEFORE first render, then fetch train data
     fetchStationNames().then(function() {
@@ -847,8 +849,10 @@
     // Trigger when KH is passed or atStation
     if (!khStop._passed && khStop._phase !== 'atStation' && khStop._phase !== 'departed') return;
 
-    // Determine the NEXT sträcka (the one covering the rest of the journey after KH)
-    var nextStracka = detectStracka();
+    // After KH, the train switches sträcka: 11→10 or 10→11.
+    // KH is the junction — always flip to the other sträcka.
+    var currentStr = ftLaStracka || detectStracka();
+    var nextStracka = currentStr === '11' ? '10' : '11';
 
     // Only prompt if the current LA sträcka differs from what's needed
     if (ftLaStracka === nextStracka) return;
@@ -2567,13 +2571,14 @@
   window.trainFollow = {
     open: function() { openModal(); },
     close: function() { closeModal(); },
-    start: function(nr) { startFollowing(nr); },
+    start: function(nr, silent) { startFollowing(nr, silent); },
     stop: function() { stopFollowing(false); },
     getFollowed: function() { return followedTrain; },
     getRouteText: function() { return getRouteText(); },
     getNextStationData: function() { return nextStationData; },
     getDkStopsData: function() { return dkStopsData; },
     getActiveTab: function() { return activeTopbarTab; },
+    getDelayInfo: function() { return currentDelayInfo; },
     onStopCallback: null // set by auto-follow engine
   };
 

@@ -730,6 +730,57 @@ html.dark .sidebar-sync-btn:hover {
   border: none;
   min-height: 0;
 }
+.bromax-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.bromax-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 12px;
+  text-align: center;
+  padding: 40px 20px;
+}
+.bromax-error-icon {
+  font-size: 36px;
+}
+.bromax-error-text {
+  font-size: 15px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.bromax-retry-btn {
+  margin-top: 8px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bromax-retry-btn:active {
+  opacity: 0.8;
+}
+.bromax-open-link {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+.bromax-open-link:hover {
+  text-decoration: underline;
+}
 
 /* ==========================================
    LOGIN SCREEN - iOS Style

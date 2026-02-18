@@ -381,6 +381,16 @@
 
   <!-- BromaX31 Page -->
   <main class="bromax-page page" id="bromaxPage">
+    <div class="bromax-loading" id="bromaxLoading">
+      <div class="la-spinner"></div>
+      <span>Laddar bromsax31.se…</span>
+    </div>
+    <div class="bromax-error" id="bromaxError" style="display:none;">
+      <div class="bromax-error-icon">⚠️</div>
+      <div class="bromax-error-text">Kunde inte ladda bromsax31.se.<br>Sidan kan vara nere eller blockerad.</div>
+      <button class="bromax-retry-btn" id="bromaxRetryBtn">🔄 Försök igen</button>
+      <a class="bromax-open-link" href="https://bromsax31.se/" target="_blank" rel="noopener">Öppna i webbläsaren ↗</a>
+    </div>
     <iframe class="bromax-iframe" id="bromaxIframe" src="about:blank" title="BromaX31"></iframe>
   </main>
 
@@ -626,7 +636,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v4.55.90</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v4.56.91</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
