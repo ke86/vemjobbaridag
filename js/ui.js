@@ -1958,6 +1958,73 @@ function showPersonScheduleView(employeeId) {
   renderPersonSchedule();
 }
 
+/**
+ * Open the person picker bottom sheet.
+ */
+function openPersonPicker() {
+  var overlay = document.getElementById('personPickerOverlay');
+  var sheet = document.getElementById('personPickerSheet');
+  var list = document.getElementById('personPickerList');
+  if (!overlay || !sheet || !list) return;
+
+  // Build sorted list of all registered employees
+  var emps = [];
+  for (var id in registeredEmployees) {
+    if (registeredEmployees.hasOwnProperty(id)) {
+      var e = registeredEmployees[id];
+      emps.push({ id: id, name: e.name || id, initials: e.initials || '', color: e.color || '' });
+    }
+  }
+  emps.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
+
+  var html = '';
+  for (var i = 0; i < emps.length; i++) {
+    var emp = emps[i];
+    var isCurrent = emp.id === selectedEmployeeId;
+    html += '<div class="person-picker-item' + (isCurrent ? ' current' : '') + '" data-empid="' + emp.id + '">';
+    html += '<div class="avatar ' + emp.color + '">' + emp.initials + '</div>';
+    html += '<span class="person-picker-name">' + emp.name + '</span>';
+    if (isCurrent) html += '<span class="person-picker-check">✓</span>';
+    html += '</div>';
+  }
+  list.innerHTML = html;
+
+  // Show
+  overlay.classList.add('active');
+  requestAnimationFrame(function() { sheet.classList.add('active'); });
+
+  // Scroll to current person
+  var currentItem = list.querySelector('.person-picker-item.current');
+  if (currentItem) {
+    setTimeout(function() { currentItem.scrollIntoView({ block: 'center', behavior: 'instant' }); }, 50);
+  }
+
+  // Click handler on items
+  list.onclick = function(e) {
+    var item = e.target.closest('.person-picker-item');
+    if (!item) return;
+    var empId = item.getAttribute('data-empid');
+    if (empId && empId !== selectedEmployeeId) {
+      selectedEmployeeId = empId;
+      renderPersonSchedule();
+    }
+    closePersonPicker();
+  };
+
+  // Close on overlay click
+  overlay.onclick = function() { closePersonPicker(); };
+}
+
+/**
+ * Close the person picker bottom sheet.
+ */
+function closePersonPicker() {
+  var overlay = document.getElementById('personPickerOverlay');
+  var sheet = document.getElementById('personPickerSheet');
+  if (sheet) sheet.classList.remove('active');
+  setTimeout(function() { if (overlay) overlay.classList.remove('active'); }, 300);
+}
+
 function goToPersonSchedule(employeeId) {
   currentScheduleView = 'list';
 
@@ -2384,8 +2451,11 @@ function renderCalendarView(emp) {
   monthlyScheduleList.innerHTML = `
     <div class="person-schedule-card">
       <div class="person-schedule-header">
-        <div class="avatar ${emp.color}">${emp.initials}</div>
-        <span class="name">${emp.name}</span>
+        <button class="person-name-btn" onclick="openPersonPicker()">
+          <div class="avatar ${emp.color}">${emp.initials}</div>
+          <span class="name">${emp.name}</span>
+          <span class="person-switch-arrow">▾</span>
+        </button>
         <div class="view-toggle-inline">
           <span class="view-label active">Kalender</span>
           <div class="view-switch" id="viewToggleSwitch"></div>
@@ -2632,8 +2702,11 @@ function renderListView(emp) {
   monthlyScheduleList.innerHTML = `
     <div class="person-schedule-card">
       <div class="person-schedule-header">
-        <div class="avatar ${emp.color}">${emp.initials}</div>
-        <span class="name">${emp.name}</span>
+        <button class="person-name-btn" onclick="openPersonPicker()">
+          <div class="avatar ${emp.color}">${emp.initials}</div>
+          <span class="name">${emp.name}</span>
+          <span class="person-switch-arrow">▾</span>
+        </button>
         <div class="view-toggle-inline">
           <span class="view-label">Kalender</span>
           <div class="view-switch list-active" id="viewToggleSwitch"></div>

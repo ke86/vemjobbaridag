@@ -28,6 +28,14 @@ function initMonthPicker() {
     closeBtn.addEventListener('click', closeMonthPicker);
   }
 
+  // Person picker close button
+  var personPickerCloseBtn = document.getElementById('personPickerClose');
+  if (personPickerCloseBtn) {
+    personPickerCloseBtn.addEventListener('click', function() {
+      if (typeof closePersonPicker === 'function') closePersonPicker();
+    });
+  }
+
   const cancelBtn = document.getElementById('monthPickerCancel');
   if (cancelBtn) {
     cancelBtn.addEventListener('click', closeMonthPicker);

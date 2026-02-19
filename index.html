@@ -675,7 +675,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.0</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v5.2</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -764,6 +764,19 @@
     <div class="month-picker-footer">
       <button class="month-picker-btn today" id="monthPickerToday">📅 Idag</button>
       <button class="month-picker-btn cancel" id="monthPickerCancel">Avbryt</button>
+    </div>
+  </div>
+
+  <!-- Person Picker Bottom Sheet -->
+  <div class="person-picker-overlay" id="personPickerOverlay"></div>
+  <div class="person-picker-sheet" id="personPickerSheet">
+    <div class="month-picker-handle"></div>
+    <div class="person-picker-header">
+      <h3>Byt person</h3>
+      <button class="month-picker-close" id="personPickerClose">×</button>
+    </div>
+    <div class="person-picker-list" id="personPickerList">
+      <!-- Rendered dynamically -->
     </div>
   </div>
 
