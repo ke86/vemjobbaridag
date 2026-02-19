@@ -701,11 +701,13 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       const isTrain = seg.trainNr && seg.trainNr.length > 0;
       const isActivityTrain = !isTrain && isTrainLikeActivity(seg.activity);
       const isAnyTrain = isTrain || isActivityTrain;
+      const isPassresa = (seg.trainType === 'Passresa') || (!isTrain && (seg.activity || '').toLowerCase().indexOf('passresa') !== -1);
       const isRast = seg.activity && (seg.activity.includes('Rast') || seg.activity === 'Rasto');
       const isGang = seg.activity === 'Gångtid';
 
       let segClass = 'dagvy-seg-activity';
-      if (isAnyTrain) segClass = 'dagvy-seg-train';
+      if (isPassresa) segClass = 'dagvy-seg-passresa';
+      else if (isAnyTrain) segClass = 'dagvy-seg-train';
       else if (isRast) segClass = 'dagvy-seg-rast';
       else if (isGang) segClass = 'dagvy-seg-gang';
 
@@ -741,10 +743,14 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
       let middleHtml = '';
       let trainBadgeHtml = '';
 
-      if (isAnyTrain) {
+      if (isAnyTrain || isPassresa) {
         middleHtml = '<span class="dagvy-seg-route-text">' + route + '</span>';
-        const vxIcon = seg.trainType === 'Växling' ? 'VXL ' : '';
-        trainBadgeHtml = '<span class="dagvy-train-badge">' + vxIcon + displayTrainNr + '</span>';
+        let typePrefix = '';
+        if (seg.trainType === 'Växling') typePrefix = 'VXL ';
+        else if (isPassresa) typePrefix = 'PASS ';
+        const badgeContent = (typePrefix + displayTrainNr).trim();
+        const badgeClass = isPassresa ? 'dagvy-train-badge dagvy-badge-pass' : 'dagvy-train-badge';
+        trainBadgeHtml = '<span class="' + badgeClass + '">' + badgeContent + '</span>';
         if (hasCrew) {
           trainBadgeHtml += '<span class="dagvy-seg-crew-hint">👥 ›</span>';
         }

@@ -58,7 +58,40 @@
 
   function getTkoPages(trainNr) {
     var nr = String(trainNr).replace(/\D/g, '');
-    return TKO_TRAIN_MAP[nr] || null;
+    if (TKO_TRAIN_MAP[nr]) return TKO_TRAIN_MAP[nr];
+    var alias = getTrainAlias(nr);
+    if (alias && TKO_TRAIN_MAP[alias]) return TKO_TRAIN_MAP[alias];
+    return null;
+  }
+
+  // ==========================================
+  // TRAIN NUMBER ALIAS  SE ↔ DK
+  // Swedish 4-digit (e.g. 1301) ↔ Danish 5-digit with "2" prefix (21301)
+  // ==========================================
+
+  /**
+   * Returns the cross-border alias for a train number, or null.
+   *   "1301"  → "21301"   (SE → DK)
+   *   "21301" → "1301"    (DK → SE)
+   */
+  function getTrainAlias(trainNr) {
+    var nr = String(trainNr).replace(/\D/g, '');
+    // 4-digit starting with 1 → prefix "2" for DK
+    if (/^1\d{3}$/.test(nr)) return '2' + nr;
+    // 5-digit starting with 21 → strip "2" for SE
+    if (/^21\d{3}$/.test(nr)) return nr.substring(1);
+    return null;
+  }
+
+  /**
+   * Returns the Swedish train number (for Trafikverket).
+   * If already Swedish (4-digit 1xxx), returns as-is.
+   * If Danish (5-digit 21xxx), returns the 4-digit variant.
+   */
+  function getSeTrainNr(trainNr) {
+    var nr = String(trainNr).replace(/\D/g, '');
+    if (/^21\d{3}$/.test(nr)) return nr.substring(1);
+    return nr;
   }
 
   // ==========================================
@@ -108,6 +141,7 @@
    */
   async function fetchDkStopsFromRejseplanen(trainNr) {
     var targetNr = String(trainNr);
+    var aliasNr = getTrainAlias(targetNr);
 
     // Step 1 — scan departure boards to find JourneyDetailRef
     var ref = null;
@@ -133,9 +167,10 @@
             var m = item.name.match(/\d+/);
             if (m) num = m[0];
           }
-          if (num === targetNr && item.JourneyDetailRef && item.JourneyDetailRef.ref) {
+          // Match both original trainNr and its cross-border alias
+          if ((num === targetNr || (aliasNr && num === aliasNr)) && item.JourneyDetailRef && item.JourneyDetailRef.ref) {
             ref = item.JourneyDetailRef.ref;
-            console.log('[DK-fetch] Found train ' + targetNr + ' at ' + station.name);
+            console.log('[DK-fetch] Found train ' + targetNr + (num !== targetNr ? ' (as ' + num + ')' : '') + ' at ' + station.name);
             break;
           }
         }
@@ -234,9 +269,13 @@
       return liveResult;
     }
 
-    // Fallback to static denmark.js
+    // Fallback to static denmark.js (try original nr, then alias)
     if (typeof denmark !== 'undefined') {
       var dkInfo = denmark.getDanishStops(key);
+      if (!dkInfo) {
+        var aliasKey = getTrainAlias(key);
+        if (aliasKey) dkInfo = denmark.getDanishStops(aliasKey);
+      }
       if (dkInfo && dkInfo.stops && dkInfo.stops.length > 0) {
         // Convert static stops to same shape for consistency
         var staticStops = [];
@@ -442,10 +481,13 @@
 
   function startFollowing(trainNr, silent) {
     stopFollowing(true);
-    followedTrain = { trainNr: trainNr };
+    // Store Swedish trainNr for Trafikverket; keep display name as entered
+    var seNr = getSeTrainNr(trainNr);
+    var alias = getTrainAlias(seNr);
+    followedTrain = { trainNr: seNr, alias: alias, displayNr: trainNr };
     currentDelayInfo = { status: 'ontime', delayText: 'I tid', delayMin: 0 };
     updateButton();
-    saveCookie(trainNr);
+    saveCookie(seNr);
 
     announcements = [];
     nextStationData = null;
@@ -2138,15 +2180,27 @@
 
   async function fetchAndRender() {
     if (!followedTrain) return;
-    var trainNr = followedTrain.trainNr;
+    var trainNr = followedTrain.trainNr;   // always Swedish nr
+    var alias = followedTrain.alias || null;
 
-    // Build SE (Trafikverket) request
+    // Build SE (Trafikverket) request — use Swedish train number
+    // If alias exists, also query for it (OR filter) in case Trafikverket has it
+    var filterBody;
+    if (alias) {
+      filterBody = '<OR>'
+        + '<EQ name="AdvertisedTrainIdent" value="' + trainNr + '" />'
+        + '<EQ name="AdvertisedTrainIdent" value="' + alias + '" />'
+        + '</OR>';
+    } else {
+      filterBody = '<EQ name="AdvertisedTrainIdent" value="' + trainNr + '" />';
+    }
+
     var xml = '<REQUEST>'
       + '<LOGIN authenticationkey="' + API_KEY + '" />'
       + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
       + '<FILTER>'
       + '<AND>'
-      + '<EQ name="AdvertisedTrainIdent" value="' + trainNr + '" />'
+      + filterBody
       + '<GT name="AdvertisedTimeAtLocation" value="$dateadd(-12:00:00)" />'
       + '<LT name="AdvertisedTimeAtLocation" value="$dateadd(12:00:00)" />'
       + '</AND>'

@@ -110,9 +110,23 @@
    *     ]
    *   }
    */
+  /**
+   * Get cross-border alias: 1301→21301 or 21301→1301
+   */
+  function _alias(nr) {
+    if (/^1\d{3}$/.test(nr)) return '2' + nr;
+    if (/^21\d{3}$/.test(nr)) return nr.substring(1);
+    return null;
+  }
+
   function getDanishStops(trainNr, date) {
     var nr = String(trainNr);
     var variants = DK_DATA[nr];
+    // Try alias if no direct match
+    if (!variants) {
+      var alt = _alias(nr);
+      if (alt) { variants = DK_DATA[alt]; nr = alt; }
+    }
     if (!variants) return null;
 
     var d = date || new Date();
@@ -145,7 +159,10 @@
    * Returnerar true om danskt tidtabelldata finns för tågnumret.
    */
   function hasDanishData(trainNr) {
-    return DK_DATA.hasOwnProperty(String(trainNr));
+    var nr = String(trainNr);
+    if (DK_DATA.hasOwnProperty(nr)) return true;
+    var alt = _alias(nr);
+    return alt ? DK_DATA.hasOwnProperty(alt) : false;
   }
 
   /**

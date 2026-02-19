@@ -943,11 +943,11 @@ function getAlarmSegments(employeeId) {
     }
   }
 
-  // Find last "rast obetald" or "rast betald", then the train segment after it
+  // Find last rast (Rasto = obetald, Rast = betald), then the train segment after it
   var lastRastIndex = -1;
   for (var r = 0; r < allSegs.length; r++) {
     var act = (allSegs[r].activity || '').toLowerCase();
-    if (act.indexOf('rast obetald') !== -1 || act.indexOf('rast betald') !== -1) {
+    if (act === 'rasto' || act === 'rast' || act.indexOf('rast obetald') !== -1 || act.indexOf('rast betald') !== -1) {
       lastRastIndex = r;
     }
   }

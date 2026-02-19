@@ -85,31 +85,41 @@ function setupEventListeners() {
     if (e.key === 'Escape') closeSidebarMenu();
   });
 
-  // Touch swipe support
+  // Touch swipe support — day navigation
+  // Only triggers on intentional horizontal swipes, not vertical scrolling
   let touchStartX = 0;
-  let touchEndX = 0;
+  let touchStartY = 0;
 
   document.addEventListener('touchstart', (e) => {
     touchStartX = e.changedTouches[0].screenX;
-  });
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
 
   document.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    handleSwipe();
-  });
+    var dx = e.changedTouches[0].screenX - touchStartX;
+    var dy = e.changedTouches[0].screenY - touchStartY;
+    var absDx = Math.abs(dx);
+    var absDy = Math.abs(dy);
 
-  function handleSwipe() {
-    const swipeThreshold = 50;
-    const diff = touchStartX - touchEndX;
+    // Must be a clear horizontal swipe:
+    // - horizontal distance > 80px
+    // - vertical drift < 60px (otherwise it's a scroll)
+    // - horizontal movement must be at least 2x vertical
+    if (absDx > 80 && absDy < 60 && absDx > absDy * 2) {
+      // Only on pages that support day switching
+      var activePage = document.querySelector('.page.active');
+      if (!activePage) return;
+      var pageId = activePage.id || '';
+      var swipePages = ['departurePage', 'dagvyPage', 'schedulePage'];
+      if (swipePages.indexOf(pageId) === -1) return;
 
-    if (Math.abs(diff) > swipeThreshold) {
-      if (diff > 0) {
+      if (dx < 0) {
         goToNextDay();
       } else {
         goToPrevDay();
       }
     }
-  }
+  }, { passive: true });
 
   // Menu navigation
   menuLinks.forEach(link => {

@@ -406,8 +406,14 @@
   color: #4ade80;
 }
 
+/* Passresa badge */
+.dagvy-badge-pass {
+  background: #7c3aed;
+}
+
 /* Segment type colors */
 .dagvy-seg-train .dagvy-seg-middle { color: #1d4ed8; }
+.dagvy-seg-passresa .dagvy-seg-middle { color: #7c3aed; }
 .dagvy-seg-rast .dagvy-seg-middle { color: #16a34a; }
 .dagvy-seg-gang .dagvy-seg-middle { color: #888; font-weight: 400; }
 
@@ -651,7 +657,12 @@
   background: #3b82f6;
 }
 
+.dark .dagvy-train-badge.dagvy-badge-pass {
+  background: #7c3aed;
+}
+
 .dark .dagvy-seg-train .dagvy-seg-middle { color: #60a5fa; }
+.dark .dagvy-seg-passresa .dagvy-seg-middle { color: #a78bfa; }
 .dark .dagvy-seg-rast .dagvy-seg-middle { color: #4ade80; }
 .dark .dagvy-seg-gang .dagvy-seg-middle { color: #666; }
 
