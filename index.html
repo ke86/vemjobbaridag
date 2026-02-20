@@ -19,6 +19,7 @@
 
   <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-auth-compat.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
@@ -339,6 +340,22 @@
     <div class="doc-container" id="docContainer">
       <!-- Document list view (shown first) -->
       <div class="doc-list-view" id="docListView">
+        <div class="doc-card doc-card-remote" data-remote="driftmeddelande">
+          <span class="doc-card-icon">🚨</span>
+          <div class="doc-card-info">
+            <span class="doc-card-title">Driftmeddelande</span>
+            <span class="doc-card-sub">Operativa meddelanden</span>
+          </div>
+          <span class="doc-card-arrow">›</span>
+        </div>
+        <div class="doc-card doc-card-remote" data-remote="ta_danmark">
+          <span class="doc-card-icon">🇩🇰</span>
+          <div class="doc-card-info">
+            <span class="doc-card-title">TA Danmark</span>
+            <span class="doc-card-sub">Trafikaviseringar Danmark</span>
+          </div>
+          <span class="doc-card-arrow">›</span>
+        </div>
         <div class="doc-card" data-doc="kollektivavtal">
           <span class="doc-card-icon">📜</span>
           <div class="doc-card-info">
@@ -355,6 +372,14 @@
           </div>
           <span class="doc-card-arrow">›</span>
         </div>
+      </div>
+      <!-- ZIP file list view (shown when a remote ZIP doc is opened) -->
+      <div class="doc-zip-view" id="docZipView" style="display:none;">
+        <div class="doc-zip-toolbar">
+          <button class="doc-back-btn" id="docZipBackBtn">← Tillbaka</button>
+          <span class="doc-zip-title" id="docZipTitle"></span>
+        </div>
+        <div class="doc-zip-list" id="docZipList"></div>
       </div>
       <!-- PDF viewer (shown when a document is opened) -->
       <div class="doc-pdf-view" id="docPdfView" style="display:none;">
@@ -675,7 +700,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.7</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v5.8</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

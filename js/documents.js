@@ -118,6 +118,18 @@ var DOC_KOLLEKTIVAVTAL_TOC = [
 ];
 
 // =============================================
+// REMOTE ZIP CONFIG
+// =============================================
+var REMOTE_DOC_WORKER = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
+var REMOTE_DOC_API_KEY = 'onevr-docs-2026';
+var REMOTE_DOC_MAP = {
+  driftmeddelande: { endpoint: '/docs/Driftmeddelande', title: 'Driftmeddelande' },
+  ta_danmark:      { endpoint: '/docs/TA_-_Danmark',    title: 'TA Danmark' }
+};
+var _remoteZipCache = {};  // key → { files: [{name, blob}], ts }
+var _remoteZipActiveId = null;
+
+// =============================================
 // STATE
 // =============================================
 var _docPdfLoaded = false;
@@ -130,6 +142,9 @@ var _docTextExtracted = false;
 var _docSearchTimer = null;
 var _docCurrentHighlights = [];
 
+// Navigation depth: 'list' | 'zip' | 'pdf'
+var _docNavDepth = 'list';
+
 // Resize state
 var _docLastRenderWidth = 0;
 var _docResizeTimer = null;
@@ -141,32 +156,70 @@ function onDocumentsPageShow() {
   // Reset to list view when entering page
   var listView = document.getElementById('docListView');
   var pdfView = document.getElementById('docPdfView');
+  var zipView = document.getElementById('docZipView');
   if (listView) listView.style.display = '';
   if (pdfView) pdfView.style.display = 'none';
+  if (zipView) zipView.style.display = 'none';
+  _docNavDepth = 'list';
 }
 
 // =============================================
 // INIT
 // =============================================
 function initDocuments() {
-  // Card clicks → open PDF
+  // Card clicks → open local PDF
   var cards = document.querySelectorAll('.doc-card[data-doc]');
   for (var c = 0; c < cards.length; c++) {
     (function(card) {
       card.addEventListener('click', function() {
+        _docNavDepth = 'pdf';
         openDocPdf(card.getAttribute('data-doc'));
       });
     })(cards[c]);
   }
 
-  // Back button
+  // Remote ZIP card clicks
+  var remoteCards = document.querySelectorAll('.doc-card[data-remote]');
+  for (var r = 0; r < remoteCards.length; r++) {
+    (function(card) {
+      card.addEventListener('click', function() {
+        openRemoteZip(card.getAttribute('data-remote'));
+      });
+    })(remoteCards[r]);
+  }
+
+  // PDF Back button — context-aware (back to list or back to zip file list)
   var backBtn = document.getElementById('docBackBtn');
   if (backBtn) {
     backBtn.addEventListener('click', function() {
-      var listView = document.getElementById('docListView');
       var pdfView = document.getElementById('docPdfView');
-      if (listView) listView.style.display = '';
       if (pdfView) pdfView.style.display = 'none';
+
+      if (_docNavDepth === 'pdf' && _remoteZipActiveId) {
+        // Came from ZIP file list → go back to ZIP list
+        var zipView = document.getElementById('docZipView');
+        if (zipView) zipView.style.display = '';
+        _docNavDepth = 'zip';
+      } else {
+        // Came from main list → go back to main list
+        var listView = document.getElementById('docListView');
+        if (listView) listView.style.display = '';
+        _remoteZipActiveId = null;
+        _docNavDepth = 'list';
+      }
+    });
+  }
+
+  // ZIP Back button → back to main document list
+  var zipBackBtn = document.getElementById('docZipBackBtn');
+  if (zipBackBtn) {
+    zipBackBtn.addEventListener('click', function() {
+      var zipView = document.getElementById('docZipView');
+      var listView = document.getElementById('docListView');
+      if (zipView) zipView.style.display = 'none';
+      if (listView) listView.style.display = '';
+      _remoteZipActiveId = null;
+      _docNavDepth = 'list';
     });
   }
 
@@ -259,6 +312,194 @@ function buildTocPanel(tocData) {
 }
 
 // =============================================
+// REMOTE ZIP — FETCH, UNZIP, LIST, OPEN PDF
+// =============================================
+
+/**
+ * Open a remote ZIP document: show ZIP view with file list.
+ * Fetches from worker proxy if not cached.
+ */
+function openRemoteZip(remoteId) {
+  var config = REMOTE_DOC_MAP[remoteId];
+  if (!config) return;
+
+  _remoteZipActiveId = remoteId;
+  _docNavDepth = 'zip';
+
+  var listView = document.getElementById('docListView');
+  var zipView = document.getElementById('docZipView');
+  var pdfView = document.getElementById('docPdfView');
+  if (listView) listView.style.display = 'none';
+  if (pdfView) pdfView.style.display = 'none';
+  if (zipView) zipView.style.display = '';
+
+  var titleEl = document.getElementById('docZipTitle');
+  if (titleEl) titleEl.textContent = config.title;
+
+  // Check cache (valid 10 min)
+  var cached = _remoteZipCache[remoteId];
+  if (cached && (Date.now() - cached.ts) < 10 * 60 * 1000) {
+    renderZipFileList(cached.files);
+    return;
+  }
+
+  // Show loading
+  var zipList = document.getElementById('docZipList');
+  if (zipList) {
+    zipList.innerHTML =
+      '<div class="doc-zip-loading">' +
+        '<div class="doc-zip-spinner"></div>' +
+        '<div>Hämtar dokument…</div>' +
+      '</div>';
+  }
+
+  fetchRemoteZip(config.endpoint).then(function(files) {
+    _remoteZipCache[remoteId] = { files: files, ts: Date.now() };
+    // Only render if still on this ZIP view
+    if (_remoteZipActiveId === remoteId) {
+      renderZipFileList(files);
+    }
+  }).catch(function(err) {
+    if (_remoteZipActiveId === remoteId && zipList) {
+      zipList.innerHTML =
+        '<div class="doc-zip-loading doc-zip-error">' +
+          'Kunde inte hämta dokument: ' + (err.message || 'okänt fel') +
+        '</div>';
+    }
+  });
+}
+
+/**
+ * Fetch a ZIP from the worker proxy and unzip it.
+ * Returns array of { name, blob } sorted alphabetically.
+ */
+async function fetchRemoteZip(endpoint) {
+  var url = REMOTE_DOC_WORKER + endpoint;
+  var resp = await fetch(url, {
+    headers: { 'X-API-Key': REMOTE_DOC_API_KEY }
+  });
+  if (!resp.ok) {
+    throw new Error('HTTP ' + resp.status);
+  }
+  var arrayBuffer = await resp.arrayBuffer();
+
+  // Unzip with JSZip
+  var zip = await JSZip.loadAsync(arrayBuffer);
+  var files = [];
+
+  var promises = [];
+  zip.forEach(function(relativePath, zipEntry) {
+    if (zipEntry.dir) return;
+    // Only include PDF files
+    if (!relativePath.toLowerCase().endsWith('.pdf')) return;
+    promises.push(
+      zipEntry.async('blob').then(function(blob) {
+        // Clean up filename: strip folder paths
+        var name = relativePath.split('/').pop();
+        files.push({ name: name, blob: blob, size: blob.size });
+      })
+    );
+  });
+
+  await Promise.all(promises);
+
+  // Sort alphabetically
+  files.sort(function(a, b) {
+    return a.name.localeCompare(b.name, 'sv');
+  });
+
+  return files;
+}
+
+/**
+ * Render the list of PDF files extracted from a ZIP.
+ */
+function renderZipFileList(files) {
+  var zipList = document.getElementById('docZipList');
+  if (!zipList) return;
+
+  if (!files || files.length === 0) {
+    zipList.innerHTML = '<div class="doc-zip-loading">Inga PDF-filer hittades</div>';
+    return;
+  }
+
+  var html = '';
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    var displayName = f.name.replace(/\.pdf$/i, '');
+    var sizeKb = Math.round(f.size / 1024);
+    var sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+    html +=
+      '<div class="doc-zip-item" data-zip-idx="' + i + '">' +
+        '<span class="doc-zip-item-icon">📄</span>' +
+        '<div class="doc-zip-item-info">' +
+          '<span class="doc-zip-item-name">' + displayName + '</span>' +
+          '<span class="doc-zip-item-size">' + sizeStr + '</span>' +
+        '</div>' +
+        '<span class="doc-zip-item-arrow">›</span>' +
+      '</div>';
+  }
+  zipList.innerHTML = html;
+
+  // Click handlers
+  var items = zipList.querySelectorAll('.doc-zip-item');
+  for (var j = 0; j < items.length; j++) {
+    (function(item) {
+      item.addEventListener('click', function() {
+        var idx = parseInt(item.getAttribute('data-zip-idx'), 10);
+        openZipPdf(idx);
+      });
+    })(items[j]);
+  }
+}
+
+/**
+ * Open a PDF from the cached ZIP file list using its index.
+ */
+function openZipPdf(fileIdx) {
+  if (!_remoteZipActiveId) return;
+  var cached = _remoteZipCache[_remoteZipActiveId];
+  if (!cached || !cached.files[fileIdx]) return;
+
+  var file = cached.files[fileIdx];
+  _docNavDepth = 'pdf';
+
+  // Hide ZIP list, show PDF viewer
+  var zipView = document.getElementById('docZipView');
+  var pdfView = document.getElementById('docPdfView');
+  if (zipView) zipView.style.display = 'none';
+  if (pdfView) pdfView.style.display = '';
+
+  // Reset PDF state
+  _docCurrentId = 'zip_' + _remoteZipActiveId + '_' + fileIdx;
+  _docPdfLoaded = false;
+  _docPdfDoc = null;
+  _docTextExtracted = false;
+  _docTextCache = [];
+  _docPageCanvases = [];
+  clearDocHighlights();
+
+  // No TOC for ZIP PDFs
+  var tocPanel = document.getElementById('docTocPanel');
+  var tocBtn = document.getElementById('docTocBtn');
+  if (tocPanel) tocPanel.style.display = 'none';
+  if (tocBtn) { tocBtn.style.display = 'none'; tocBtn.classList.remove('doc-toc-btn-active'); }
+
+  // Reset search
+  var searchPanel = document.getElementById('docSearchPanel');
+  var searchBtn = document.getElementById('docSearchBtn');
+  var searchInput = document.getElementById('docSearchInput');
+  if (searchPanel) searchPanel.style.display = 'none';
+  if (searchBtn) searchBtn.classList.remove('doc-search-btn-active');
+  if (searchInput) searchInput.value = '';
+  clearDocSearchResults();
+
+  // Load PDF from blob
+  var blobUrl = URL.createObjectURL(file.blob);
+  loadDocPdf(blobUrl);
+}
+
+// =============================================
 // DOCUMENT REGISTRY
 // =============================================
 var DOC_REGISTRY = {
@@ -280,8 +521,12 @@ var _docCurrentId = null;
 function openDocPdf(docId) {
   var listView = document.getElementById('docListView');
   var pdfView = document.getElementById('docPdfView');
+  var zipView = document.getElementById('docZipView');
   if (listView) listView.style.display = 'none';
+  if (zipView) zipView.style.display = 'none';
   if (pdfView) pdfView.style.display = '';
+  // Clear remote zip context when opening local PDF
+  _remoteZipActiveId = null;
 
   var doc = DOC_REGISTRY[docId];
   if (!doc) return;
