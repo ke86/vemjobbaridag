@@ -455,11 +455,43 @@ async function fetchRemoteZip(endpoint) {
     throw new Error('HTTP ' + resp.status);
   }
 
-  // Worker returns application/zip — use raw binary directly
+  // Try raw binary first, fall back to base64 decoding
   var arrayBuffer = await resp.arrayBuffer();
+  var zip;
 
-  // Unzip with JSZip
-  var zip = await JSZip.loadAsync(arrayBuffer);
+  try {
+    // Attempt 1: raw ZIP binary
+    zip = await JSZip.loadAsync(arrayBuffer);
+  } catch (_zipErr) {
+    // Attempt 2: response is likely a base64 string (from Firebase via worker)
+    var text = new TextDecoder().decode(arrayBuffer);
+
+    // If wrapped in JSON object, extract .data field
+    try {
+      var parsed = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && typeof parsed.data === 'string') {
+        text = parsed.data;
+      } else if (typeof parsed === 'string') {
+        text = parsed;
+      }
+    } catch (_jsonErr) { /* not JSON, use text as-is */ }
+
+    // Clean base64: strip quotes, whitespace, BOM, line breaks
+    text = text.replace(/^\uFEFF/, '').replace(/^["'\s]+|["'\s]+$/g, '').replace(/[\r\n\t ]/g, '');
+
+    // URL-safe base64 (Firebase): - → +, _ → /
+    text = text.replace(/-/g, '+').replace(/_/g, '/');
+
+    // Fix padding
+    while (text.length % 4 !== 0) text += '=';
+
+    // Decode base64 to binary
+    var bin = atob(text);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    zip = await JSZip.loadAsync(bytes.buffer);
+  }
   var files = [];
   var metaJson = null;
 
