@@ -123,10 +123,11 @@ var DOC_KOLLEKTIVAVTAL_TOC = [
 var REMOTE_DOC_WORKER = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
 var REMOTE_DOC_API_KEY = 'onevr-docs-2026';
 var REMOTE_DOC_MAP = {
-  driftmeddelande: { endpoint: '/docs/Driftmeddelande', title: 'Driftmeddelande' },
-  ta_danmark:      { endpoint: '/docs/TA_-_Danmark',    title: 'TA Danmark' }
+  driftmeddelande: { endpoint: '/docs/Driftmeddelande', parsed: '/docs/Driftmeddelande/parsed', title: 'Driftmeddelande' },
+  ta_danmark:      { endpoint: '/docs/TA_-_Danmark',    parsed: '/docs/TA_-_Danmark/parsed',    title: 'TA Danmark' }
 };
-var _remoteZipCache = {};  // key → { files: [{name, blob}], ts }
+var _remoteListCache = {};  // key → { items: [...], ts }
+var _remoteZipCache = {};   // key → { zip: JSZip instance, ts }
 var _remoteZipActiveId = null;
 
 // =============================================
@@ -388,8 +389,8 @@ function buildTocPanel(tocData) {
 // =============================================
 
 /**
- * Open a remote ZIP document: show ZIP view with file list.
- * Fetches from worker proxy if not cached.
+ * Open a remote document list: fetch /parsed endpoint for metadata,
+ * then show list. ZIP is only fetched when user clicks a PDF.
  */
 function openRemoteZip(remoteId) {
   var config = REMOTE_DOC_MAP[remoteId];
@@ -408,10 +409,10 @@ function openRemoteZip(remoteId) {
   var titleEl = document.getElementById('docZipTitle');
   if (titleEl) titleEl.textContent = config.title;
 
-  // Check cache (valid 10 min)
-  var cached = _remoteZipCache[remoteId];
+  // Check list cache (valid 10 min)
+  var cached = _remoteListCache[remoteId];
   if (cached && (Date.now() - cached.ts) < 10 * 60 * 1000) {
-    renderZipFileList(cached.files);
+    renderDocList(cached.items);
     return;
   }
 
@@ -425,11 +426,11 @@ function openRemoteZip(remoteId) {
       '</div>';
   }
 
-  fetchRemoteZip(config.endpoint).then(function(files) {
-    _remoteZipCache[remoteId] = { files: files, ts: Date.now() };
-    // Only render if still on this ZIP view
+  // Fetch parsed metadata (lightweight JSON)
+  fetchRemoteDocList(config.parsed).then(function(items) {
+    _remoteListCache[remoteId] = { items: items, ts: Date.now() };
     if (_remoteZipActiveId === remoteId) {
-      renderZipFileList(files);
+      renderDocList(items);
     }
   }).catch(function(err) {
     if (_remoteZipActiveId === remoteId && zipList) {
@@ -442,138 +443,65 @@ function openRemoteZip(remoteId) {
 }
 
 /**
- * Fetch a ZIP from the worker proxy and unzip it.
- * Parses ta_data.json if present for rich metadata.
- * Returns array of { name, blob, size, meta } sorted by start date.
+ * Fetch parsed document list from /parsed endpoint.
+ * Returns array of metadata objects sorted by start date.
  */
-async function fetchRemoteZip(endpoint) {
-  var url = REMOTE_DOC_WORKER + endpoint;
+async function fetchRemoteDocList(parsedEndpoint) {
+  var url = REMOTE_DOC_WORKER + parsedEndpoint;
   var resp = await fetch(url, {
     headers: { 'X-API-Key': REMOTE_DOC_API_KEY }
   });
-  if (!resp.ok) {
-    throw new Error('HTTP ' + resp.status);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  var items = await resp.json();
+  if (!Array.isArray(items)) throw new Error('Oväntat svar');
+
+  // Enrich with parsed date info
+  for (var i = 0; i < items.length; i++) {
+    var parsed = parseZipFileMeta(items[i].filename || '', items[i]);
+    items[i]._title = parsed.title;
+    items[i]._dateFrom = parsed.dateFrom;
+    items[i]._dateTo = parsed.dateTo;
+    items[i]._week = parsed.week;
+    items[i]._taNumber = parsed.taNumber;
   }
 
-  // DEBUG: Log response details
-  var contentType = resp.headers.get('content-type') || 'unknown';
-  var arrayBuffer = await resp.arrayBuffer();
-  var debugBytes = new Uint8Array(arrayBuffer.slice(0, 200));
-  var debugText = new TextDecoder().decode(debugBytes);
-  console.log('[DOC-DEBUG] content-type: ' + contentType);
-  console.log('[DOC-DEBUG] byteLength: ' + arrayBuffer.byteLength);
-  console.log('[DOC-DEBUG] first 200 chars: ' + debugText);
-  console.log('[DOC-DEBUG] first 4 bytes: ' + debugBytes[0] + ' ' + debugBytes[1] + ' ' + debugBytes[2] + ' ' + debugBytes[3]);
-
-  // Try raw binary first, fall back to base64 decoding
-  var zip;
-
-  try {
-    zip = await JSZip.loadAsync(arrayBuffer);
-    console.log('[DOC-DEBUG] Raw ZIP worked!');
-  } catch (_zipErr) {
-    console.log('[DOC-DEBUG] Raw ZIP failed: ' + _zipErr.message);
-    var text = new TextDecoder().decode(arrayBuffer);
-    console.log('[DOC-DEBUG] Full text length: ' + text.length);
-    console.log('[DOC-DEBUG] First 300 chars: ' + text.substring(0, 300));
-    console.log('[DOC-DEBUG] Last 100 chars: ' + text.substring(text.length - 100));
-
-    // If wrapped in JSON object, extract .data field
-    try {
-      var parsed = JSON.parse(text);
-      console.log('[DOC-DEBUG] JSON parsed OK, type: ' + typeof parsed);
-      if (parsed && typeof parsed === 'object') {
-        console.log('[DOC-DEBUG] JSON keys: ' + Object.keys(parsed).join(', '));
-        if (typeof parsed.data === 'string') {
-          text = parsed.data;
-          console.log('[DOC-DEBUG] Extracted .data, length: ' + text.length);
-        }
-      } else if (typeof parsed === 'string') {
-        text = parsed;
-        console.log('[DOC-DEBUG] JSON was string, length: ' + text.length);
-      }
-    } catch (_jsonErr) {
-      console.log('[DOC-DEBUG] Not JSON: ' + _jsonErr.message);
-    }
-
-    // Clean base64
-    text = text.replace(/^\uFEFF/, '').replace(/^["'\s]+|["'\s]+$/g, '').replace(/[\r\n\t ]/g, '');
-    text = text.replace(/-/g, '+').replace(/_/g, '/');
-    while (text.length % 4 !== 0) text += '=';
-    console.log('[DOC-DEBUG] b64 ready, length: ' + text.length);
-    console.log('[DOC-DEBUG] b64 first 100: ' + text.substring(0, 100));
-
-    var bin = atob(text);
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    zip = await JSZip.loadAsync(bytes.buffer);
-  }
-  var files = [];
-  var metaJson = null;
-
-  // First pass: look for ta_data.json
-  var promises = [];
-  zip.forEach(function(relativePath, zipEntry) {
-    if (zipEntry.dir) return;
-    var fname = relativePath.split('/').pop().toLowerCase();
-    if (fname === 'ta_data.json') {
-      promises.push(
-        zipEntry.async('string').then(function(text) {
-          try { metaJson = JSON.parse(text); } catch (e) { /* ignore */ }
-        })
-      );
-    }
+  // Sort by start date (earliest first)
+  items.sort(function(a, b) {
+    if (a._dateFrom && b._dateFrom) {
+      if (a._dateFrom < b._dateFrom) return -1;
+      if (a._dateFrom > b._dateFrom) return 1;
+    } else if (a._dateFrom) return -1;
+    else if (b._dateFrom) return 1;
+    return (a.filename || '').localeCompare(b.filename || '', 'sv');
   });
-  await Promise.all(promises);
 
-  // Build lookup from ta_data.json by filename
-  var metaByFile = {};
-  if (metaJson && Array.isArray(metaJson)) {
-    for (var m = 0; m < metaJson.length; m++) {
-      if (metaJson[m].filename) {
-        metaByFile[metaJson[m].filename] = metaJson[m];
-      }
-    }
+  return items;
+}
+
+/**
+ * Fetch the actual ZIP file (for PDF viewing).
+ * Uses resp.blob() → JSZip. Cached 10 min.
+ */
+async function fetchRemoteZipBlob(remoteId) {
+  // Check cache
+  var cached = _remoteZipCache[remoteId];
+  if (cached && (Date.now() - cached.ts) < 10 * 60 * 1000) {
+    return cached.zip;
   }
 
-  // Second pass: extract PDF files
-  var pdfPromises = [];
-  zip.forEach(function(relativePath, zipEntry) {
-    if (zipEntry.dir) return;
-    if (!relativePath.toLowerCase().endsWith('.pdf')) return;
-    pdfPromises.push(
-      zipEntry.async('blob').then(function(blob) {
-        var name = relativePath.split('/').pop();
-        var meta = metaByFile[name] || null;
-        var parsed = parseZipFileMeta(name, meta);
-        files.push({
-          name: name,
-          blob: blob,
-          size: blob.size,
-          meta: meta,
-          title: parsed.title,
-          dateFrom: parsed.dateFrom,
-          dateTo: parsed.dateTo,
-          period: parsed.period,
-          week: parsed.week,
-          taNumber: parsed.taNumber
-        });
-      })
-    );
-  });
-  await Promise.all(pdfPromises);
+  var config = REMOTE_DOC_MAP[remoteId];
+  if (!config) throw new Error('Okänd dokumenttyp');
 
-  // Sort by start date (earliest first), then by name
-  files.sort(function(a, b) {
-    if (a.dateFrom && b.dateFrom) {
-      if (a.dateFrom < b.dateFrom) return -1;
-      if (a.dateFrom > b.dateFrom) return 1;
-    } else if (a.dateFrom) return -1;
-    else if (b.dateFrom) return 1;
-    return a.name.localeCompare(b.name, 'sv');
+  var url = REMOTE_DOC_WORKER + config.endpoint;
+  var resp = await fetch(url, {
+    headers: { 'X-API-Key': REMOTE_DOC_API_KEY }
   });
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-  return files;
+  var blob = await resp.blob();
+  var zip = await JSZip.loadAsync(blob);
+  _remoteZipCache[remoteId] = { zip: zip, ts: Date.now() };
+  return zip;
 }
 
 /**
@@ -651,39 +579,45 @@ function isDateRangeActive(dateFrom, dateTo) {
 }
 
 /**
- * Render the list of PDF files extracted from a ZIP.
- * Uses parsed metadata for rich display.
+ * Render the document list from /parsed JSON data.
  */
-function renderZipFileList(files) {
+function renderDocList(items) {
   var zipList = document.getElementById('docZipList');
   if (!zipList) return;
 
-  if (!files || files.length === 0) {
-    zipList.innerHTML = '<div class="doc-zip-loading">Inga PDF-filer hittades</div>';
+  if (!items || items.length === 0) {
+    zipList.innerHTML = '<div class="doc-zip-loading">Inga dokument hittades</div>';
     return;
   }
 
   var html = '';
-  for (var i = 0; i < files.length; i++) {
-    var f = files[i];
-    var active = isDateRangeActive(f.dateFrom, f.dateTo);
-    var dateRange = formatDateRange(f.dateFrom, f.dateTo);
+  for (var i = 0; i < items.length; i++) {
+    var f = items[i];
+    var active = isDateRangeActive(f._dateFrom, f._dateTo);
+    var dateRange = formatDateRange(f._dateFrom, f._dateTo);
 
     // Build subtitle line
     var subtitle = '';
     if (dateRange) subtitle = dateRange;
-    if (f.week) subtitle += (subtitle ? '  ·  ' : '') + f.week;
+    if (f._week) subtitle += (subtitle ? '  ·  ' : '') + f._week;
 
-    // Badge (right side): TA number or week
+    // Show train numbers if available
+    if (f.trainNumbers && f.trainNumbers.length > 0) {
+      var trainStr = f.trainNumbers.slice(0, 5).join(', ');
+      if (f.trainNumbers.length > 5) trainStr += ' …';
+      subtitle += (subtitle ? '  ·  ' : '') + trainStr;
+    }
+
+    // Badge (right side)
     var badge = '';
-    if (f.week) badge = f.week;
-    else if (f.taNumber) badge = 'TA ' + f.taNumber;
+    if (f._week) badge = f._week;
+    else if (f._taNumber) badge = 'TA ' + f._taNumber;
 
     html +=
       '<div class="doc-zip-item' + (active ? ' doc-zip-item-active' : '') + '" data-zip-idx="' + i + '">' +
         '<span class="doc-zip-item-icon">' + (active ? '🟢' : '📄') + '</span>' +
         '<div class="doc-zip-item-info">' +
-          '<span class="doc-zip-item-name">' + f.title + '</span>' +
+          '<span class="doc-zip-item-name">' + f._title + '</span>' +
           (subtitle ? '<span class="doc-zip-item-size">' + subtitle + '</span>' : '') +
         '</div>' +
         (badge ? '<span class="doc-zip-item-badge">' + badge + '</span>' : '') +
@@ -692,27 +626,28 @@ function renderZipFileList(files) {
   }
   zipList.innerHTML = html;
 
-  // Click handlers
-  var items = zipList.querySelectorAll('.doc-zip-item');
-  for (var j = 0; j < items.length; j++) {
+  // Click handlers — lazy-load ZIP and open PDF
+  var itemEls = zipList.querySelectorAll('.doc-zip-item');
+  for (var j = 0; j < itemEls.length; j++) {
     (function(item) {
       item.addEventListener('click', function() {
         var idx = parseInt(item.getAttribute('data-zip-idx'), 10);
-        openZipPdf(idx);
+        openRemotePdf(idx);
       });
-    })(items[j]);
+    })(itemEls[j]);
   }
 }
 
 /**
- * Open a PDF from the cached ZIP file list using its index.
+ * Open a PDF by fetching the ZIP lazily and extracting the right file.
  */
-function openZipPdf(fileIdx) {
+function openRemotePdf(fileIdx) {
   if (!_remoteZipActiveId) return;
-  var cached = _remoteZipCache[_remoteZipActiveId];
-  if (!cached || !cached.files[fileIdx]) return;
+  var cached = _remoteListCache[_remoteZipActiveId];
+  if (!cached || !cached.items[fileIdx]) return;
 
-  var file = cached.files[fileIdx];
+  var item = cached.items[fileIdx];
+  var filename = item.filename;
   _docNavDepth = 'pdf';
 
   // Hide ZIP list, show PDF viewer
@@ -730,7 +665,7 @@ function openZipPdf(fileIdx) {
   _docPageCanvases = [];
   clearDocHighlights();
 
-  // No TOC for ZIP PDFs
+  // No TOC for remote PDFs
   var tocPanel = document.getElementById('docTocPanel');
   var tocBtn = document.getElementById('docTocBtn');
   if (tocPanel) tocPanel.style.display = 'none';
@@ -745,9 +680,42 @@ function openZipPdf(fileIdx) {
   if (searchInput) searchInput.value = '';
   clearDocSearchResults();
 
-  // Load PDF from blob
-  var blobUrl = URL.createObjectURL(file.blob);
-  loadDocPdf(blobUrl);
+  // Show loading in PDF viewer
+  var pagesContainer = document.getElementById('docPdfPages');
+  if (pagesContainer) {
+    pagesContainer.innerHTML =
+      '<div class="doc-loading">' +
+        '<div class="doc-zip-spinner"></div>' +
+        '<div>Hämtar PDF…</div>' +
+      '</div>';
+  }
+
+  // Fetch ZIP (cached) → extract PDF → display
+  var remoteId = _remoteZipActiveId;
+  fetchRemoteZipBlob(remoteId).then(function(zip) {
+    // Find the PDF file in the ZIP
+    var pdfFile = zip.file(filename);
+    if (!pdfFile) {
+      // Try without path prefix
+      zip.forEach(function(path, entry) {
+        if (!entry.dir && path.split('/').pop() === filename) {
+          pdfFile = entry;
+        }
+      });
+    }
+    if (!pdfFile) throw new Error('PDF hittades inte i arkivet');
+    return pdfFile.async('blob');
+  }).then(function(blob) {
+    var blobUrl = URL.createObjectURL(blob);
+    loadDocPdf(blobUrl);
+  }).catch(function(err) {
+    if (pagesContainer) {
+      pagesContainer.innerHTML =
+        '<div class="doc-loading doc-error">' +
+          'Kunde inte ladda PDF: ' + (err.message || 'okänt fel') +
+        '</div>';
+    }
+  });
 }
 
 // =============================================
