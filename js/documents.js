@@ -499,14 +499,8 @@ async function fetchRemoteZipBlob(remoteId) {
   });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-  // DEBUG: Read response as text to see what we're getting
-  var arrayBuf = await resp.arrayBuffer();
-  var debugPreview = new TextDecoder().decode(arrayBuf.slice(0, 300));
-  var firstByte = new Uint8Array(arrayBuf)[0];
-  // Show debug info in error so user can screenshot it
-  var debugInfo = 'bytes:' + arrayBuf.byteLength + ' first:0x' + firstByte.toString(16) + ' preview:' + debugPreview.substring(0, 200);
-  throw new Error('DEBUG ZIP RESPONSE >>> ' + debugInfo);
-
+  var blob = await resp.blob();
+  var zip = await JSZip.loadAsync(blob);
   _remoteZipCache[remoteId] = { zip: zip, ts: Date.now() };
   return zip;
 }
