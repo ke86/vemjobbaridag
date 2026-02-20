@@ -454,7 +454,22 @@ async function fetchRemoteZip(endpoint) {
   if (!resp.ok) {
     throw new Error('HTTP ' + resp.status);
   }
+
+  // Worker may return raw binary ZIP or base64-encoded string.
+  // ZIP files always start with "PK" (0x504B). If not, assume base64.
   var arrayBuffer = await resp.arrayBuffer();
+  var firstBytes = new Uint8Array(arrayBuffer.slice(0, 2));
+  if (firstBytes[0] !== 0x50 || firstBytes[1] !== 0x4B) {
+    // Not a raw ZIP — decode as base64 text
+    var b64Text = new TextDecoder().decode(arrayBuffer);
+    b64Text = b64Text.replace(/^["'\s]+|["'\s]+$/g, ''); // strip wrapper quotes/whitespace
+    var binaryStr = atob(b64Text);
+    var bytes = new Uint8Array(binaryStr.length);
+    for (var bi = 0; bi < binaryStr.length; bi++) {
+      bytes[bi] = binaryStr.charCodeAt(bi);
+    }
+    arrayBuffer = bytes.buffer;
+  }
 
   // Unzip with JSZip
   var zip = await JSZip.loadAsync(arrayBuffer);
