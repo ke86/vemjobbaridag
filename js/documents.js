@@ -480,7 +480,8 @@ async function fetchRemoteDocList(parsedEndpoint) {
 
 /**
  * Fetch the actual ZIP file (for PDF viewing).
- * Uses resp.blob() → JSZip. Cached 10 min.
+ * Handles both raw ZIP and base64-encoded responses.
+ * Cached 10 min.
  */
 async function fetchRemoteZipBlob(remoteId) {
   // Check cache
@@ -498,8 +499,44 @@ async function fetchRemoteZipBlob(remoteId) {
   });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-  var blob = await resp.blob();
-  var zip = await JSZip.loadAsync(blob);
+  // Try raw ZIP first
+  var arrayBuf = await resp.arrayBuffer();
+  var zip;
+  try {
+    zip = await JSZip.loadAsync(arrayBuf);
+  } catch (_e) {
+    // Not a raw ZIP — extract base64 from response
+    var text = new TextDecoder().decode(arrayBuf);
+
+    // If JSON object, extract .data field
+    try {
+      var parsed = JSON.parse(text);
+      if (parsed && typeof parsed === 'object' && typeof parsed.data === 'string') {
+        text = parsed.data;
+      } else if (typeof parsed === 'string') {
+        text = parsed;
+      }
+    } catch (_je) { /* not JSON */ }
+
+    // Clean: strip quotes, whitespace
+    text = text.replace(/^["'\s]+|["'\s]+$/g, '');
+
+    // URL-safe base64 → standard
+    text = text.replace(/-/g, '+').replace(/_/g, '/');
+
+    // Strip any non-base64 characters (robust)
+    text = text.replace(/[^A-Za-z0-9+/=]/g, '');
+
+    // Fix padding
+    while (text.length % 4 !== 0) text += '=';
+
+    // Decode via fetch data-URI (more robust than atob)
+    var dataUri = 'data:application/octet-stream;base64,' + text;
+    var b64Resp = await fetch(dataUri);
+    var zipBuf = await b64Resp.arrayBuffer();
+    zip = await JSZip.loadAsync(zipBuf);
+  }
+
   _remoteZipCache[remoteId] = { zip: zip, ts: Date.now() };
   return zip;
 }
