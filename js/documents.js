@@ -463,6 +463,10 @@ async function fetchRemoteZip(endpoint) {
     // Not a raw ZIP — decode as base64 text
     var b64Text = new TextDecoder().decode(arrayBuffer);
     b64Text = b64Text.replace(/^["'\s]+|["'\s]+$/g, ''); // strip wrapper quotes/whitespace
+    // Handle URL-safe base64 (Firebase uses - and _ instead of + and /)
+    b64Text = b64Text.replace(/-/g, '+').replace(/_/g, '/');
+    // Add padding if needed
+    while (b64Text.length % 4 !== 0) b64Text += '=';
     var binaryStr = atob(b64Text);
     var bytes = new Uint8Array(binaryStr.length);
     for (var bi = 0; bi < binaryStr.length; bi++) {
