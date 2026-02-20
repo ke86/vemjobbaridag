@@ -177,15 +177,26 @@ function fetchRemoteDocMeta() {
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
       if (!data) return;
-      // Map API keys to our remote IDs
+
+      // Worker returns { files: [{category, uploadedAt, ...}] }
+      // Build lookup: category → meta
+      var byCategory = {};
+      if (data.files && Array.isArray(data.files)) {
+        for (var i = 0; i < data.files.length; i++) {
+          var f = data.files[i];
+          if (f.category) byCategory[f.category] = f;
+        }
+      }
+
+      // Map worker category names to our remote IDs
       var mapping = {
         'Driftmeddelande': 'driftmeddelande',
         'TA_-_Danmark': 'ta_danmark'
       };
-      for (var apiKey in mapping) {
-        if (!mapping.hasOwnProperty(apiKey)) continue;
-        var remoteId = mapping[apiKey];
-        var meta = data[apiKey];
+      for (var catKey in mapping) {
+        if (!mapping.hasOwnProperty(catKey)) continue;
+        var remoteId = mapping[catKey];
+        var meta = byCategory[catKey];
         if (!meta || !meta.uploadedAt) continue;
 
         // Format date
