@@ -455,41 +455,57 @@ async function fetchRemoteZip(endpoint) {
     throw new Error('HTTP ' + resp.status);
   }
 
-  // Try raw binary first, fall back to base64 decoding
+  // DEBUG: Log response details
+  var contentType = resp.headers.get('content-type') || 'unknown';
   var arrayBuffer = await resp.arrayBuffer();
+  var debugBytes = new Uint8Array(arrayBuffer.slice(0, 200));
+  var debugText = new TextDecoder().decode(debugBytes);
+  console.log('[DOC-DEBUG] content-type: ' + contentType);
+  console.log('[DOC-DEBUG] byteLength: ' + arrayBuffer.byteLength);
+  console.log('[DOC-DEBUG] first 200 chars: ' + debugText);
+  console.log('[DOC-DEBUG] first 4 bytes: ' + debugBytes[0] + ' ' + debugBytes[1] + ' ' + debugBytes[2] + ' ' + debugBytes[3]);
+
+  // Try raw binary first, fall back to base64 decoding
   var zip;
 
   try {
-    // Attempt 1: raw ZIP binary
     zip = await JSZip.loadAsync(arrayBuffer);
+    console.log('[DOC-DEBUG] Raw ZIP worked!');
   } catch (_zipErr) {
-    // Attempt 2: response is likely a base64 string (from Firebase via worker)
+    console.log('[DOC-DEBUG] Raw ZIP failed: ' + _zipErr.message);
     var text = new TextDecoder().decode(arrayBuffer);
+    console.log('[DOC-DEBUG] Full text length: ' + text.length);
+    console.log('[DOC-DEBUG] First 300 chars: ' + text.substring(0, 300));
+    console.log('[DOC-DEBUG] Last 100 chars: ' + text.substring(text.length - 100));
 
     // If wrapped in JSON object, extract .data field
     try {
       var parsed = JSON.parse(text);
-      if (parsed && typeof parsed === 'object' && typeof parsed.data === 'string') {
-        text = parsed.data;
+      console.log('[DOC-DEBUG] JSON parsed OK, type: ' + typeof parsed);
+      if (parsed && typeof parsed === 'object') {
+        console.log('[DOC-DEBUG] JSON keys: ' + Object.keys(parsed).join(', '));
+        if (typeof parsed.data === 'string') {
+          text = parsed.data;
+          console.log('[DOC-DEBUG] Extracted .data, length: ' + text.length);
+        }
       } else if (typeof parsed === 'string') {
         text = parsed;
+        console.log('[DOC-DEBUG] JSON was string, length: ' + text.length);
       }
-    } catch (_jsonErr) { /* not JSON, use text as-is */ }
+    } catch (_jsonErr) {
+      console.log('[DOC-DEBUG] Not JSON: ' + _jsonErr.message);
+    }
 
-    // Clean base64: strip quotes, whitespace, BOM, line breaks
+    // Clean base64
     text = text.replace(/^\uFEFF/, '').replace(/^["'\s]+|["'\s]+$/g, '').replace(/[\r\n\t ]/g, '');
-
-    // URL-safe base64 (Firebase): - → +, _ → /
     text = text.replace(/-/g, '+').replace(/_/g, '/');
-
-    // Fix padding
     while (text.length % 4 !== 0) text += '=';
+    console.log('[DOC-DEBUG] b64 ready, length: ' + text.length);
+    console.log('[DOC-DEBUG] b64 first 100: ' + text.substring(0, 100));
 
-    // Decode base64 to binary
     var bin = atob(text);
     var bytes = new Uint8Array(bin.length);
     for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-
     zip = await JSZip.loadAsync(bytes.buffer);
   }
   var files = [];
