@@ -455,24 +455,60 @@ async function fetchRemoteZip(endpoint) {
     throw new Error('HTTP ' + resp.status);
   }
 
-  // Worker may return raw binary ZIP or base64-encoded string.
-  // ZIP files always start with "PK" (0x504B). If not, assume base64.
+  // Worker may return: raw ZIP binary, JSON with data field, or base64 string.
+  // Robust handling of all known formats.
   var arrayBuffer = await resp.arrayBuffer();
   var firstBytes = new Uint8Array(arrayBuffer.slice(0, 2));
+
   if (firstBytes[0] !== 0x50 || firstBytes[1] !== 0x4B) {
-    // Not a raw ZIP — decode as base64 text
-    var b64Text = new TextDecoder().decode(arrayBuffer);
-    b64Text = b64Text.replace(/^["'\s]+|["'\s]+$/g, ''); // strip wrapper quotes/whitespace
-    // Handle URL-safe base64 (Firebase uses - and _ instead of + and /)
+    // Not a raw ZIP — try to extract base64 data
+    var rawText = new TextDecoder().decode(arrayBuffer);
+    var b64Text = '';
+
+    // 1) Try JSON parse — response may be {"meta":{...}, "data":"base64..."}
+    try {
+      var jsonResp = JSON.parse(rawText);
+      if (jsonResp && typeof jsonResp === 'object' && jsonResp.data) {
+        // JSON object with "data" field
+        b64Text = String(jsonResp.data);
+      } else if (typeof jsonResp === 'string') {
+        // JSON-wrapped string: "base64..."
+        b64Text = jsonResp;
+      } else {
+        // Unknown JSON structure — try raw text
+        b64Text = rawText;
+      }
+    } catch (_e) {
+      // Not JSON — treat as raw base64 text
+      b64Text = rawText;
+    }
+
+    // 2) Strip surrounding quotes, whitespace, BOM
+    b64Text = b64Text.replace(/^\uFEFF/, '');
+    b64Text = b64Text.replace(/^["'\s]+|["'\s]+$/g, '');
+
+    // 3) Remove line breaks, spaces, tabs (common in large base64 payloads)
+    b64Text = b64Text.replace(/[\r\n\t ]/g, '');
+
+    // 4) URL-safe base64: Firebase uses - and _ instead of + and /
     b64Text = b64Text.replace(/-/g, '+').replace(/_/g, '/');
-    // Add padding if needed
+
+    // 5) Fix padding
     while (b64Text.length % 4 !== 0) b64Text += '=';
+
+    // 6) Decode base64 to binary
     var binaryStr = atob(b64Text);
     var bytes = new Uint8Array(binaryStr.length);
     for (var bi = 0; bi < binaryStr.length; bi++) {
       bytes[bi] = binaryStr.charCodeAt(bi);
     }
     arrayBuffer = bytes.buffer;
+
+    // 7) Verify we now have a ZIP (PK header)
+    var check = new Uint8Array(arrayBuffer.slice(0, 2));
+    if (check[0] !== 0x50 || check[1] !== 0x4B) {
+      throw new Error('Kunde inte tolka dokumentdata — varken ZIP eller giltig base64');
+    }
   }
 
   // Unzip with JSZip
