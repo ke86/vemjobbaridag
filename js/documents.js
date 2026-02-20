@@ -178,13 +178,22 @@ function fetchRemoteDocMeta() {
     .then(function(data) {
       if (!data) return;
 
-      // Worker returns { files: [{category, uploadedAt, ...}] }
-      // Build lookup: category → meta
+      // Build lookup: category → {uploadedAt, ...}
+      // Handle both formats:
+      //   New: { files: [{category, uploadedAt, ...}] }
+      //   Old: { "TA_-_Danmark": {uploadedAt, ...} }
       var byCategory = {};
       if (data.files && Array.isArray(data.files)) {
         for (var i = 0; i < data.files.length; i++) {
           var f = data.files[i];
           if (f.category) byCategory[f.category] = f;
+        }
+      } else {
+        // Try old format: keys are category names directly
+        for (var key in data) {
+          if (data.hasOwnProperty(key) && data[key] && data[key].uploadedAt) {
+            byCategory[key] = data[key];
+          }
         }
       }
 
@@ -199,8 +208,8 @@ function fetchRemoteDocMeta() {
         var meta = byCategory[catKey];
         if (!meta || !meta.uploadedAt) continue;
 
-        // Format date
         var dateStr = formatUploadedAt(meta.uploadedAt);
+        if (!dateStr) continue;
 
         // Update the card
         var card = document.querySelector('.doc-card[data-remote="' + remoteId + '"]');
@@ -209,7 +218,6 @@ function fetchRemoteDocMeta() {
         if (!badge) {
           badge = document.createElement('span');
           badge.className = 'doc-card-date';
-          // Insert before the arrow
           var arrow = card.querySelector('.doc-card-arrow');
           if (arrow) {
             card.insertBefore(badge, arrow);
