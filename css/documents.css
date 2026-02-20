@@ -64,6 +64,13 @@
   color: var(--text-secondary);
   flex-shrink: 0;
 }
+.doc-card-date {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  margin-right: 4px;
+  opacity: 0.7;
+}
 
 /* ---- ZIP FILE LIST VIEW ---- */
 .doc-zip-view {
@@ -114,7 +121,6 @@
 .doc-zip-item-icon {
   font-size: 24px;
   flex-shrink: 0;
-  color: #ef4444;
 }
 .doc-zip-item-info {
   display: flex;
@@ -135,10 +141,25 @@
   color: var(--text-secondary);
   margin-top: 2px;
 }
+.doc-zip-item-badge {
+  font-size: 11px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  margin-right: 4px;
+  opacity: 0.7;
+}
 .doc-zip-item-arrow {
   font-size: 20px;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+.doc-zip-item-active {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.06);
+}
+.dark .doc-zip-item-active {
+  border-color: #16a34a;
+  background: rgba(34, 197, 94, 0.1);
 }
 .doc-zip-loading {
   text-align: center;

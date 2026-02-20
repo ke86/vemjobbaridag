@@ -161,6 +161,78 @@ function onDocumentsPageShow() {
   if (pdfView) pdfView.style.display = 'none';
   if (zipView) zipView.style.display = 'none';
   _docNavDepth = 'list';
+
+  // Fetch remote doc metadata (lightweight, no ZIP download)
+  fetchRemoteDocMeta();
+}
+
+/**
+ * Fetch metadata for remote documents via GET /docs.
+ * Updates the date badges on remote doc cards.
+ */
+function fetchRemoteDocMeta() {
+  var url = REMOTE_DOC_WORKER + '/docs';
+  fetch(url, { headers: { 'X-API-Key': REMOTE_DOC_API_KEY } })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+      if (!data) return;
+      // Map API keys to our remote IDs
+      var mapping = {
+        'Driftmeddelande': 'driftmeddelande',
+        'TA_-_Danmark': 'ta_danmark'
+      };
+      for (var apiKey in mapping) {
+        if (!mapping.hasOwnProperty(apiKey)) continue;
+        var remoteId = mapping[apiKey];
+        var meta = data[apiKey];
+        if (!meta || !meta.uploadedAt) continue;
+
+        // Format date
+        var dateStr = formatUploadedAt(meta.uploadedAt);
+
+        // Update the card
+        var card = document.querySelector('.doc-card[data-remote="' + remoteId + '"]');
+        if (!card) continue;
+        var badge = card.querySelector('.doc-card-date');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'doc-card-date';
+          // Insert before the arrow
+          var arrow = card.querySelector('.doc-card-arrow');
+          if (arrow) {
+            card.insertBefore(badge, arrow);
+          } else {
+            card.appendChild(badge);
+          }
+        }
+        badge.textContent = dateStr;
+      }
+    })
+    .catch(function() { /* fail silently */ });
+}
+
+/**
+ * Format an uploadedAt string to a short Swedish date.
+ * Handles ISO strings and Firestore timestamps.
+ */
+function formatUploadedAt(val) {
+  var d;
+  if (typeof val === 'string') {
+    d = new Date(val);
+  } else if (val && val.seconds) {
+    // Firestore timestamp
+    d = new Date(val.seconds * 1000);
+  } else if (val && val._seconds) {
+    d = new Date(val._seconds * 1000);
+  } else {
+    return '';
+  }
+  if (isNaN(d.getTime())) return '';
+
+  var day = d.getDate();
+  var months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+                'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  return day + ' ' + months[d.getMonth()];
 }
 
 // =============================================
@@ -371,7 +443,8 @@ function openRemoteZip(remoteId) {
 
 /**
  * Fetch a ZIP from the worker proxy and unzip it.
- * Returns array of { name, blob } sorted alphabetically.
+ * Parses ta_data.json if present for rich metadata.
+ * Returns array of { name, blob, size, meta } sorted by start date.
  */
 async function fetchRemoteZip(endpoint) {
   var url = REMOTE_DOC_WORKER + endpoint;
@@ -386,25 +459,67 @@ async function fetchRemoteZip(endpoint) {
   // Unzip with JSZip
   var zip = await JSZip.loadAsync(arrayBuffer);
   var files = [];
+  var metaJson = null;
 
+  // First pass: look for ta_data.json
   var promises = [];
   zip.forEach(function(relativePath, zipEntry) {
     if (zipEntry.dir) return;
-    // Only include PDF files
+    var fname = relativePath.split('/').pop().toLowerCase();
+    if (fname === 'ta_data.json') {
+      promises.push(
+        zipEntry.async('string').then(function(text) {
+          try { metaJson = JSON.parse(text); } catch (e) { /* ignore */ }
+        })
+      );
+    }
+  });
+  await Promise.all(promises);
+
+  // Build lookup from ta_data.json by filename
+  var metaByFile = {};
+  if (metaJson && Array.isArray(metaJson)) {
+    for (var m = 0; m < metaJson.length; m++) {
+      if (metaJson[m].filename) {
+        metaByFile[metaJson[m].filename] = metaJson[m];
+      }
+    }
+  }
+
+  // Second pass: extract PDF files
+  var pdfPromises = [];
+  zip.forEach(function(relativePath, zipEntry) {
+    if (zipEntry.dir) return;
     if (!relativePath.toLowerCase().endsWith('.pdf')) return;
-    promises.push(
+    pdfPromises.push(
       zipEntry.async('blob').then(function(blob) {
-        // Clean up filename: strip folder paths
         var name = relativePath.split('/').pop();
-        files.push({ name: name, blob: blob, size: blob.size });
+        var meta = metaByFile[name] || null;
+        var parsed = parseZipFileMeta(name, meta);
+        files.push({
+          name: name,
+          blob: blob,
+          size: blob.size,
+          meta: meta,
+          title: parsed.title,
+          dateFrom: parsed.dateFrom,
+          dateTo: parsed.dateTo,
+          period: parsed.period,
+          week: parsed.week,
+          taNumber: parsed.taNumber
+        });
       })
     );
   });
+  await Promise.all(pdfPromises);
 
-  await Promise.all(promises);
-
-  // Sort alphabetically
+  // Sort by start date (earliest first), then by name
   files.sort(function(a, b) {
+    if (a.dateFrom && b.dateFrom) {
+      if (a.dateFrom < b.dateFrom) return -1;
+      if (a.dateFrom > b.dateFrom) return 1;
+    } else if (a.dateFrom) return -1;
+    else if (b.dateFrom) return 1;
     return a.name.localeCompare(b.name, 'sv');
   });
 
@@ -412,7 +527,82 @@ async function fetchRemoteZip(endpoint) {
 }
 
 /**
+ * Parse metadata for a ZIP PDF file.
+ * Extracts title, date range from filename and/or ta_data.json entry.
+ */
+function parseZipFileMeta(filename, meta) {
+  var result = {
+    title: filename.replace(/\.pdf$/i, ''),
+    dateFrom: null,
+    dateTo: null,
+    period: null,
+    week: (meta && meta.week) || null,
+    taNumber: (meta && meta.taNumber) || null
+  };
+
+  // Try to extract date range from filename: "2026.02.03-2026.02.05 ..." or "V2608 TA 670.pdf"
+  var dateMatch = filename.match(/^(\d{4}\.\d{2}\.\d{2})\s*-\s*(\d{4}\.\d{2}\.\d{2})\s+(.+)\.pdf$/i);
+  if (dateMatch) {
+    result.dateFrom = dateMatch[1].replace(/\./g, '-');  // "2026-02-03"
+    result.dateTo = dateMatch[2].replace(/\./g, '-');
+    result.title = dateMatch[3].trim();
+  }
+
+  // If meta has period, use it (format: "16.02.2026 - 20.02.2026")
+  if (meta && meta.period) {
+    var periodMatch = meta.period.match(/(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+    if (periodMatch) {
+      result.dateFrom = periodMatch[3] + '-' + periodMatch[2] + '-' + periodMatch[1];
+      result.dateTo = periodMatch[6] + '-' + periodMatch[5] + '-' + periodMatch[4];
+    }
+    result.period = meta.period;
+  }
+
+  // For TA Danmark files like "V2608 TA 670.pdf" — build nicer title
+  if (!dateMatch && meta && meta.taNumber) {
+    result.title = 'TA ' + meta.taNumber;
+  }
+
+  return result;
+}
+
+/**
+ * Format a date range for display: "3 feb – 5 feb" or "3 – 5 feb" if same month.
+ */
+function formatDateRange(dateFrom, dateTo) {
+  if (!dateFrom || !dateTo) return '';
+  var months = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun',
+                'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  var f = new Date(dateFrom);
+  var t = new Date(dateTo);
+  if (isNaN(f.getTime()) || isNaN(t.getTime())) return '';
+
+  var fDay = f.getDate();
+  var tDay = t.getDate();
+  var fMon = months[f.getMonth()];
+  var tMon = months[t.getMonth()];
+
+  if (fMon === tMon) {
+    return fDay + ' – ' + tDay + ' ' + tMon;
+  }
+  return fDay + ' ' + fMon + ' – ' + tDay + ' ' + tMon;
+}
+
+/**
+ * Check if today falls within a date range.
+ */
+function isDateRangeActive(dateFrom, dateTo) {
+  if (!dateFrom || !dateTo) return false;
+  var now = new Date();
+  var today = now.getFullYear() + '-' +
+    String(now.getMonth() + 1).padStart(2, '0') + '-' +
+    String(now.getDate()).padStart(2, '0');
+  return today >= dateFrom && today <= dateTo;
+}
+
+/**
  * Render the list of PDF files extracted from a ZIP.
+ * Uses parsed metadata for rich display.
  */
 function renderZipFileList(files) {
   var zipList = document.getElementById('docZipList');
@@ -426,16 +616,27 @@ function renderZipFileList(files) {
   var html = '';
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
-    var displayName = f.name.replace(/\.pdf$/i, '');
-    var sizeKb = Math.round(f.size / 1024);
-    var sizeStr = sizeKb > 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb + ' KB';
+    var active = isDateRangeActive(f.dateFrom, f.dateTo);
+    var dateRange = formatDateRange(f.dateFrom, f.dateTo);
+
+    // Build subtitle line
+    var subtitle = '';
+    if (dateRange) subtitle = dateRange;
+    if (f.week) subtitle += (subtitle ? '  ·  ' : '') + f.week;
+
+    // Badge (right side): TA number or week
+    var badge = '';
+    if (f.week) badge = f.week;
+    else if (f.taNumber) badge = 'TA ' + f.taNumber;
+
     html +=
-      '<div class="doc-zip-item" data-zip-idx="' + i + '">' +
-        '<span class="doc-zip-item-icon">📄</span>' +
+      '<div class="doc-zip-item' + (active ? ' doc-zip-item-active' : '') + '" data-zip-idx="' + i + '">' +
+        '<span class="doc-zip-item-icon">' + (active ? '🟢' : '📄') + '</span>' +
         '<div class="doc-zip-item-info">' +
-          '<span class="doc-zip-item-name">' + displayName + '</span>' +
-          '<span class="doc-zip-item-size">' + sizeStr + '</span>' +
+          '<span class="doc-zip-item-name">' + f.title + '</span>' +
+          (subtitle ? '<span class="doc-zip-item-size">' + subtitle + '</span>' : '') +
         '</div>' +
+        (badge ? '<span class="doc-zip-item-badge">' + badge + '</span>' : '') +
         '<span class="doc-zip-item-arrow">›</span>' +
       '</div>';
   }
