@@ -499,43 +499,13 @@ async function fetchRemoteZipBlob(remoteId) {
   });
   if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
-  // Try raw ZIP first
+  // DEBUG: Read response as text to see what we're getting
   var arrayBuf = await resp.arrayBuffer();
-  var zip;
-  try {
-    zip = await JSZip.loadAsync(arrayBuf);
-  } catch (_e) {
-    // Not a raw ZIP — extract base64 from response
-    var text = new TextDecoder().decode(arrayBuf);
-
-    // If JSON object, extract .data field
-    try {
-      var parsed = JSON.parse(text);
-      if (parsed && typeof parsed === 'object' && typeof parsed.data === 'string') {
-        text = parsed.data;
-      } else if (typeof parsed === 'string') {
-        text = parsed;
-      }
-    } catch (_je) { /* not JSON */ }
-
-    // Clean: strip quotes, whitespace
-    text = text.replace(/^["'\s]+|["'\s]+$/g, '');
-
-    // URL-safe base64 → standard
-    text = text.replace(/-/g, '+').replace(/_/g, '/');
-
-    // Strip any non-base64 characters (robust)
-    text = text.replace(/[^A-Za-z0-9+/=]/g, '');
-
-    // Fix padding
-    while (text.length % 4 !== 0) text += '=';
-
-    // Decode via fetch data-URI (more robust than atob)
-    var dataUri = 'data:application/octet-stream;base64,' + text;
-    var b64Resp = await fetch(dataUri);
-    var zipBuf = await b64Resp.arrayBuffer();
-    zip = await JSZip.loadAsync(zipBuf);
-  }
+  var debugPreview = new TextDecoder().decode(arrayBuf.slice(0, 300));
+  var firstByte = new Uint8Array(arrayBuf)[0];
+  // Show debug info in error so user can screenshot it
+  var debugInfo = 'bytes:' + arrayBuf.byteLength + ' first:0x' + firstByte.toString(16) + ' preview:' + debugPreview.substring(0, 200);
+  throw new Error('DEBUG ZIP RESPONSE >>> ' + debugInfo);
 
   _remoteZipCache[remoteId] = { zip: zip, ts: Date.now() };
   return zip;
