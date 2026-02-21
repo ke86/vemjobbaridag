@@ -608,10 +608,11 @@ html.dark .pos-tag-insutb {
 }
 
 .pos-card.expanded .pos-card-trains {
-  max-height: 200px;
+  max-height: 800px;
   padding: 6px 0 2px 44px;
   margin-top: 6px;
   border-top: 1px solid var(--border-color);
+  overflow-y: auto;
 }
 
 .pos-train-badge {
@@ -624,6 +625,141 @@ html.dark .pos-tag-insutb {
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── Schedule button (inside expanded card) ── */
+.pos-schedule-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.pos-schedule-btn:active {
+  background: rgba(59, 130, 246, 0.16);
+}
+.pos-schedule-btn.active {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+
+html.dark .pos-schedule-btn {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.25);
+  color: #60a5fa;
+}
+html.dark .pos-schedule-btn:active {
+  background: rgba(96, 165, 250, 0.2);
+}
+html.dark .pos-schedule-btn.active {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+/* ── Schedule list (person multi-day view) ─── */
+.pos-schedule-list {
+  width: 100%;
+  margin-top: 8px;
+  padding: 0 0 4px 0;
+  font-size: 12px;
+  border-top: 1px solid var(--border-color);
+  animation: pos-sched-in 0.2s ease;
+}
+
+@keyframes pos-sched-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.pos-schedule-header {
+  display: grid;
+  grid-template-columns: 70px 1fr 80px 36px;
+  gap: 4px;
+  padding: 8px 4px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pos-schedule-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 80px 36px;
+  gap: 4px;
+  padding: 6px 4px;
+  align-items: center;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.07);
+  transition: background 0.1s;
+}
+
+.pos-schedule-row:last-child {
+  border-bottom: none;
+}
+
+/* Today highlight */
+.pos-schedule-today {
+  background: rgba(59, 130, 246, 0.06);
+  border-radius: 6px;
+}
+html.dark .pos-schedule-today {
+  background: rgba(96, 165, 250, 0.08);
+}
+
+/* Currently selected day */
+.pos-schedule-current .pos-schedule-date {
+  font-weight: 700;
+  color: var(--accent-blue);
+}
+
+/* "Ledig" row */
+.pos-schedule-ledig {
+  opacity: 0.45;
+}
+.pos-schedule-ledig .pos-schedule-tur {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.pos-schedule-date {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pos-schedule-tur {
+  font-weight: 600;
+  color: var(--accent-blue);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pos-schedule-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pos-schedule-tag {
+  display: flex;
+  justify-content: center;
 }
 
 /* ── Empty page placeholder ────────────────── */

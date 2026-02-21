@@ -487,8 +487,10 @@ function buildPosCard(p) {
   // Has trains?
   var hasTrains = p.tagnr && p.tagnr.length > 0;
 
+  var isExpandable = hasTrains || (_posAvailDates.length > 1 && p.namn);
+
   var html = '<div class="pos-card ' + rollClass + (flags.isNow ? ' pos-card-now' : '') + '"' +
-    (hasTrains ? ' data-expandable="1"' : '') + '>';
+    (isExpandable ? ' data-expandable="1"' : '') + '>';
 
   // Left: role badge
   html += '<span class="pos-card-icon">' + rollLabel + '</span>';
@@ -516,16 +518,93 @@ function buildPosCard(p) {
     html += '<span class="pos-card-tag ' + flags.tagClass + '">' + flags.tag + '</span>';
   }
   if (flags.isNow) html += '<span class="pos-card-now-dot" title="Jobbar nu">●</span>';
-  if (hasTrains) html += '<span class="pos-card-chevron">▾</span>';
+  if (isExpandable) html += '<span class="pos-card-chevron">▾</span>';
   html += '</div>';
 
-  // Hidden trains
-  if (hasTrains) {
+  // Hidden trains + schedule button
+  if (hasTrains || p.namn) {
     html += '<div class="pos-card-trains">';
-    for (var t = 0; t < p.tagnr.length; t++) {
-      html += '<span class="pos-train-badge">' + escPosHtml(p.tagnr[t]) + '</span>';
+    if (hasTrains) {
+      for (var t = 0; t < p.tagnr.length; t++) {
+        html += '<span class="pos-train-badge">' + escPosHtml(p.tagnr[t]) + '</span>';
+      }
+    }
+    // Schedule button
+    if (_posAvailDates.length > 1 && p.namn) {
+      var firstD = formatPosShortDate(_posAvailDates[0]);
+      var lastD = formatPosShortDate(_posAvailDates[_posAvailDates.length - 1]);
+      html += '<button class="pos-schedule-btn" data-person="' + escPosAttr(p.namn) + '">Visa ' + firstD + ' – ' + lastD + '</button>';
     }
     html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+// =============================================
+// PERSON SCHEDULE VIEW
+// =============================================
+
+/**
+ * Build a compact schedule list for a person across all available dates.
+ */
+function buildPersonSchedule(personName) {
+  if (!_posCache || !_posCache.data || !_posCache.data.dagar) return '';
+  var dagar = _posCache.data.dagar;
+  var today = getTodayStr();
+  var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+  var nameLower = personName.toLowerCase();
+
+  var html = '<div class="pos-schedule-list">';
+  html += '<div class="pos-schedule-header">';
+  html += '<span>Dag</span><span>Tur</span><span>Tid</span><span></span>';
+  html += '</div>';
+
+  for (var di = 0; di < _posAvailDates.length; di++) {
+    var dateStr = _posAvailDates[di];
+    var dayArr = dagar[dateStr] || [];
+    var dateObj = parsePosDate(dateStr);
+    var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
+    var isToday = dateStr === today;
+    var isCurrent = dateStr === _posCurrentDate;
+
+    // Find person in this day
+    var found = null;
+    for (var pi = 0; pi < dayArr.length; pi++) {
+      if ((dayArr[pi].namn || '').toLowerCase() === nameLower) {
+        found = dayArr[pi];
+        break;
+      }
+    }
+
+    var rowClass = 'pos-schedule-row';
+    if (isToday) rowClass += ' pos-schedule-today';
+    if (isCurrent) rowClass += ' pos-schedule-current';
+
+    if (found) {
+      var flags = classifyPosFlags(found);
+      var timeStr = '';
+      if (found.start && found.start !== '-') {
+        timeStr = found.start;
+        if (found.slut && found.slut !== '-') timeStr += '–' + found.slut;
+      }
+      var tagHtml = flags.tag ? '<span class="pos-card-tag ' + flags.tagClass + '">' + flags.tag + '</span>' : '';
+
+      html += '<div class="' + rowClass + '">';
+      html += '<span class="pos-schedule-date">' + dayLabel + '</span>';
+      html += '<span class="pos-schedule-tur">' + escPosHtml(found.turnr || '–') + '</span>';
+      html += '<span class="pos-schedule-time">' + (timeStr || '–') + '</span>';
+      html += '<span class="pos-schedule-tag">' + tagHtml + '</span>';
+      html += '</div>';
+    } else {
+      html += '<div class="' + rowClass + ' pos-schedule-ledig">';
+      html += '<span class="pos-schedule-date">' + dayLabel + '</span>';
+      html += '<span class="pos-schedule-tur">Ledig</span>';
+      html += '<span class="pos-schedule-time">–</span>';
+      html += '<span class="pos-schedule-tag"></span>';
+      html += '</div>';
+    }
   }
 
   html += '</div>';
@@ -568,8 +647,37 @@ function initPosListeners() {
   // Expandable cards
   var cards = document.querySelectorAll('.pos-card[data-expandable]');
   for (var ci = 0; ci < cards.length; ci++) {
-    cards[ci].addEventListener('click', function() {
+    cards[ci].addEventListener('click', function(e) {
+      // Don't toggle if clicking the schedule button or inside schedule list
+      if (e.target.closest('.pos-schedule-btn') || e.target.closest('.pos-schedule-list')) return;
       this.classList.toggle('expanded');
+    });
+  }
+
+  // Schedule buttons
+  var schedBtns = document.querySelectorAll('.pos-schedule-btn');
+  for (var si = 0; si < schedBtns.length; si++) {
+    schedBtns[si].addEventListener('click', function(e) {
+      e.stopPropagation();
+      var personName = this.getAttribute('data-person');
+      var card = this.closest('.pos-card');
+      if (!card) return;
+
+      // Toggle: remove existing schedule if present
+      var existing = card.querySelector('.pos-schedule-list');
+      if (existing) {
+        existing.remove();
+        this.classList.remove('active');
+        return;
+      }
+
+      // Build and insert schedule inside the trains/expand section
+      var schedHtml = buildPersonSchedule(personName);
+      var trainsDiv = card.querySelector('.pos-card-trains');
+      if (trainsDiv) {
+        trainsDiv.insertAdjacentHTML('beforeend', schedHtml);
+      }
+      this.classList.add('active');
     });
   }
 
@@ -681,6 +789,11 @@ function isTimeNow(startStr, endStr) {
     return nowMin >= startMin || nowMin <= endMin;
   }
   return nowMin >= startMin && nowMin <= endMin;
+}
+
+function formatPosShortDate(dateStr) {
+  var d = parsePosDate(dateStr);
+  return d.getDate() + '/' + (d.getMonth() + 1);
 }
 
 function escPosHtml(str) {
