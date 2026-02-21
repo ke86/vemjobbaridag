@@ -14,6 +14,7 @@ var _posCacheTTL = 10 * 60 * 1000; // 10 min
 var _posCurrentDate = null; // "2026-02-21"
 var _posAvailDates = [];    // sorted array of date strings
 var _posActiveFilter = 'alla';
+var _posActiveOrt = 'alla';
 var _posSearchQuery = '';
 
 // =============================================
@@ -107,26 +108,45 @@ function renderPositions() {
     html += '<div class="pos-meta">Uppdaterad: ' + updatedStr + '</div>';
   }
 
-  // Search bar
+  // Filter row: Roll | Ort | Sök
+  var uniqueOrts = getUniqueOrts(dayData);
+
+  html += '<div class="pos-filter-row">';
+
+  // Roll dropdown
+  html += '<div class="pos-filter-group">';
+  html += '<label class="pos-filter-label" for="posFilterRoll">Roll</label>';
+  html += '<select class="pos-filter-select" id="posFilterRoll">';
+  html += '<option value="alla"' + (_posActiveFilter === 'alla' ? ' selected' : '') + '>Alla</option>';
+  html += '<option value="lokforare"' + (_posActiveFilter === 'lokforare' ? ' selected' : '') + '>Lokförare</option>';
+  html += '<option value="tagvard"' + (_posActiveFilter === 'tagvard' ? ' selected' : '') + '>Tågvärd</option>';
+  html += '<option value="til"' + (_posActiveFilter === 'til' ? ' selected' : '') + '>TIL</option>';
+  html += '</select>';
+  html += '</div>';
+
+  // Ort dropdown
+  html += '<div class="pos-filter-group">';
+  html += '<label class="pos-filter-label" for="posFilterOrt">Ort</label>';
+  html += '<select class="pos-filter-select" id="posFilterOrt">';
+  html += '<option value="alla"' + (_posActiveOrt === 'alla' ? ' selected' : '') + '>Alla</option>';
+  for (var oi = 0; oi < uniqueOrts.length; oi++) {
+    var ort = uniqueOrts[oi];
+    html += '<option value="' + escPosAttr(ort) + '"' + (_posActiveOrt === ort ? ' selected' : '') + '>' + escPosHtml(ort) + '</option>';
+  }
+  html += '</select>';
+  html += '</div>';
+
+  // Search field
+  html += '<div class="pos-filter-group pos-filter-group-search">';
+  html += '<label class="pos-filter-label" for="posSearchInput">Sök</label>';
   html += '<div class="pos-search-bar">';
-  html += '<input type="text" class="pos-search-input" id="posSearchInput" placeholder="Sök namn, tåg eller tur…" value="' + escPosAttr(_posSearchQuery) + '">';
+  html += '<input type="text" class="pos-search-input" id="posSearchInput" placeholder="Namn, tåg, tur…" value="' + escPosAttr(_posSearchQuery) + '">';
   if (_posSearchQuery) {
     html += '<button class="pos-search-clear" id="posSearchClear">✕</button>';
   }
   html += '</div>';
+  html += '</div>';
 
-  // Filter chips
-  html += '<div class="pos-filters">';
-  var filters = [
-    { id: 'alla', label: 'Alla' },
-    { id: 'lokforare', label: '🚂 Lokförare' },
-    { id: 'tagvard', label: '🎫 Tågvärd' },
-    { id: 'til', label: '📡 TIL' }
-  ];
-  for (var i = 0; i < filters.length; i++) {
-    var f = filters[i];
-    html += '<button class="pos-filter-chip' + (f.id === _posActiveFilter ? ' active' : '') + '" data-filter="' + f.id + '">' + f.label + '</button>';
-  }
   html += '</div>';
 
   // Filter + search data
@@ -165,9 +185,16 @@ function buildPosDatePicker() {
   var isFirst = _posAvailDates.indexOf(_posCurrentDate) === 0;
   var isLast = _posAvailDates.indexOf(_posCurrentDate) === _posAvailDates.length - 1;
 
+  // Min/max for native date picker
+  var minDate = _posAvailDates.length > 0 ? _posAvailDates[0] : _posCurrentDate;
+  var maxDate = _posAvailDates.length > 0 ? _posAvailDates[_posAvailDates.length - 1] : _posCurrentDate;
+
   var html = '<div class="pos-date-picker">';
   html += '<button class="pos-date-nav" id="posPrevDay"' + (isFirst ? ' disabled' : '') + '>←</button>';
+  html += '<div class="pos-date-display" id="posDateDisplayBtn">';
   html += '<span class="pos-date-label">' + label + '</span>';
+  html += '<input type="date" class="pos-native-date" id="posNativeDatePicker" value="' + _posCurrentDate + '" min="' + minDate + '" max="' + maxDate + '">';
+  html += '</div>';
   html += '<button class="pos-date-nav" id="posNextDay"' + (isLast ? ' disabled' : '') + '>→</button>';
   html += '</div>';
   return html;
@@ -192,6 +219,15 @@ function posNextDay() {
 // =============================================
 // FILTER & SEARCH
 // =============================================
+function getUniqueOrts(dayData) {
+  var ortSet = {};
+  for (var i = 0; i < dayData.length; i++) {
+    var ort = (dayData[i].ort || '').trim();
+    if (ort) ortSet[ort] = true;
+  }
+  return Object.keys(ortSet).sort();
+}
+
 function filterPositions(dayData) {
   var result = [];
   var query = _posSearchQuery.toLowerCase().trim();
@@ -205,6 +241,11 @@ function filterPositions(dayData) {
       if (_posActiveFilter === 'lokforare' && roll.indexOf('lokförare') === -1) continue;
       if (_posActiveFilter === 'tagvard' && roll.indexOf('tågvärd') === -1) continue;
       if (_posActiveFilter === 'til' && roll.indexOf('trafik') === -1 && roll.indexOf('informationsledare') === -1) continue;
+    }
+
+    // Ort filter
+    if (_posActiveOrt !== 'alla') {
+      if ((p.ort || '').trim() !== _posActiveOrt) continue;
     }
 
     // Search filter
@@ -226,64 +267,146 @@ function filterPositions(dayData) {
 }
 
 // =============================================
+// TURN CLASSIFICATION
+// =============================================
+// TIL shift codes
+var POS_TIL_CODES = ['PL1','PL2','PL3','FL1','FL2','FL3','IL1','IL2','SL1','SL2','SL3','DK1','DK2','TDS1','TDS2','TDS3'];
+
+function classifyPosTurn(turnr, roll) {
+  var result = { tag: '', tagClass: '' };
+  if (!turnr) return result;
+
+  var t = turnr.toUpperCase().trim();
+
+  // TIL shifts — no SE/DK tag
+  for (var i = 0; i < POS_TIL_CODES.length; i++) {
+    if (t === POS_TIL_CODES[i]) return result;
+  }
+
+  // Reserve: starts with RESERV
+  if (t.indexOf('RESERV') === 0) {
+    result.tag = 'RES';
+    result.tagClass = 'pos-tag-res';
+    return result;
+  }
+
+  // Reserve: format NNNNNN-NNNNNN
+  if (/^\d{6}-\d{6}$/.test(t)) {
+    result.tag = 'RES';
+    result.tagClass = 'pos-tag-res';
+    return result;
+  }
+
+  // Reserve: role is "Reserv"
+  if (roll && roll.toLowerCase().indexOf('reserv') !== -1) {
+    result.tag = 'RES';
+    result.tagClass = 'pos-tag-res';
+    return result;
+  }
+
+  // Extract leading digits
+  var digits = t.match(/^(\d+)/);
+  if (!digits || digits[1].length < 4) return result;
+  var d = digits[1];
+
+  // 4th digit 8 or 9 → reserve
+  if (d[3] === '8' || d[3] === '9') {
+    result.tag = 'RES';
+    result.tagClass = 'pos-tag-res';
+    return result;
+  }
+
+  // 3rd digit odd → SE, even → DK (need at least 3 digits)
+  if (d.length >= 3) {
+    var third = parseInt(d[2], 10);
+    if (third % 2 === 1) {
+      result.tag = 'SE';
+      result.tagClass = 'pos-tag-se';
+    } else {
+      result.tag = 'DK';
+      result.tagClass = 'pos-tag-dk';
+    }
+  }
+
+  return result;
+}
+
+// =============================================
 // CARD BUILDER
 // =============================================
 function buildPosCard(p) {
   var roll = (p.roll || '').toLowerCase();
   var rollClass = 'pos-role-other';
-  var rollIcon = '👤';
+  var rollLabel = '–';
   if (roll.indexOf('lokförare') !== -1) {
     rollClass = 'pos-role-lok';
-    rollIcon = '🚂';
+    rollLabel = 'LF';
   } else if (roll.indexOf('tågvärd') !== -1) {
     rollClass = 'pos-role-tv';
-    rollIcon = '🎫';
+    rollLabel = 'TV';
   } else if (roll.indexOf('trafik') !== -1 || roll.indexOf('informationsledare') !== -1) {
     rollClass = 'pos-role-til';
-    rollIcon = '📡';
+    rollLabel = 'TIL';
   }
 
-  var isWorking = p.turnr && p.start !== '-';
   var timeStr = '';
   if (p.start && p.start !== '-') {
     timeStr = p.start;
-    if (p.slut && p.slut !== '-') timeStr += ' – ' + p.slut;
+    if (p.slut && p.slut !== '-') timeStr += '–' + p.slut;
   }
 
-  // Check if currently working (between start and end)
+  // Working now?
   var isNow = false;
-  if (isWorking && p.start !== '-' && p.slut !== '-') {
+  if (p.turnr && p.start && p.start !== '-' && p.slut && p.slut !== '-') {
     isNow = isTimeNow(p.start, p.slut);
   }
 
-  var html = '<div class="pos-card ' + rollClass + (isNow ? ' pos-card-now' : '') + '">';
+  // SE/DK/RES classification
+  var cls = classifyPosTurn(p.turnr, p.roll);
 
-  // Left: icon
-  html += '<span class="pos-card-icon">' + rollIcon + '</span>';
+  // Has trains? (for expandable indicator)
+  var hasTrains = p.tagnr && p.tagnr.length > 0;
 
-  // Middle: info
-  html += '<div class="pos-card-info">';
-  html += '<div class="pos-card-name">' + escPosHtml(p.namn || '?') + '</div>';
-  html += '<div class="pos-card-details">';
-  if (p.turnr) html += '<span class="pos-card-tur">' + escPosHtml(p.turnr) + '</span>';
-  if (timeStr) html += '<span class="pos-card-time">' + timeStr + '</span>';
+  var html = '<div class="pos-card ' + rollClass + (isNow ? ' pos-card-now' : '') + '"' +
+    (hasTrains ? ' data-expandable="1"' : '') + '>';
+
+  // Left: role badge
+  html += '<span class="pos-card-icon">' + rollLabel + '</span>';
+
+  // Middle: two rows
+  html += '<div class="pos-card-body">';
+
+  // Row 1: namn + ort
+  html += '<div class="pos-card-row">';
+  html += '<span class="pos-card-name">' + escPosHtml(p.namn || '?') + '</span>';
+  if (p.ort) html += '<span class="pos-card-ort">' + escPosHtml(p.ort) + '</span>';
   html += '</div>';
 
-  // Train numbers
-  if (p.tagnr && p.tagnr.length > 0) {
+  // Row 2: tid + tur
+  html += '<div class="pos-card-row">';
+  if (timeStr) html += '<span class="pos-card-time">' + timeStr + '</span>';
+  if (p.turnr) html += '<span class="pos-card-tur">' + escPosHtml(p.turnr) + '</span>';
+  html += '</div>';
+
+  html += '</div>';
+
+  // Right: SE/DK/RES tag + expand chevron
+  html += '<div class="pos-card-end">';
+  if (cls.tag) {
+    html += '<span class="pos-card-tag ' + cls.tagClass + '">' + cls.tag + '</span>';
+  }
+  if (isNow) html += '<span class="pos-card-now-dot" title="Jobbar nu">●</span>';
+  if (hasTrains) html += '<span class="pos-card-chevron">▾</span>';
+  html += '</div>';
+
+  // Hidden trains (for expandable, del 2)
+  if (hasTrains) {
     html += '<div class="pos-card-trains">';
     for (var t = 0; t < p.tagnr.length; t++) {
       html += '<span class="pos-train-badge">' + escPosHtml(p.tagnr[t]) + '</span>';
     }
     html += '</div>';
   }
-  html += '</div>';
-
-  // Right: ort + now indicator
-  html += '<div class="pos-card-right">';
-  if (p.ort) html += '<span class="pos-card-ort">' + escPosHtml(p.ort) + '</span>';
-  if (isNow) html += '<span class="pos-card-now-dot" title="Jobbar nu">●</span>';
-  html += '</div>';
 
   html += '</div>';
   return html;
@@ -299,11 +422,53 @@ function initPosListeners() {
   if (prevBtn) prevBtn.addEventListener('click', posPrevDay);
   if (nextBtn) nextBtn.addEventListener('click', posNextDay);
 
-  // Filter chips
-  var chips = document.querySelectorAll('.pos-filter-chip');
-  for (var i = 0; i < chips.length; i++) {
-    chips[i].addEventListener('click', function() {
-      _posActiveFilter = this.getAttribute('data-filter');
+  // Date display → open native calendar
+  var dateBtn = document.getElementById('posDateDisplayBtn');
+  var datePicker = document.getElementById('posNativeDatePicker');
+  if (dateBtn && datePicker) {
+    dateBtn.addEventListener('click', function() {
+      datePicker.showPicker ? datePicker.showPicker() : datePicker.focus();
+    });
+    datePicker.addEventListener('change', function() {
+      var val = this.value;
+      if (!val) return;
+      // Snap to closest available date
+      if (_posAvailDates.indexOf(val) !== -1) {
+        _posCurrentDate = val;
+      } else {
+        // Find closest available date
+        var closest = _posAvailDates[0];
+        for (var di = 0; di < _posAvailDates.length; di++) {
+          if (_posAvailDates[di] <= val) closest = _posAvailDates[di];
+        }
+        _posCurrentDate = closest;
+      }
+      renderPositions();
+    });
+  }
+
+  // Expandable cards (click to toggle trains)
+  var cards = document.querySelectorAll('.pos-card[data-expandable]');
+  for (var ci = 0; ci < cards.length; ci++) {
+    cards[ci].addEventListener('click', function() {
+      this.classList.toggle('expanded');
+    });
+  }
+
+  // Roll dropdown
+  var rollSelect = document.getElementById('posFilterRoll');
+  if (rollSelect) {
+    rollSelect.addEventListener('change', function() {
+      _posActiveFilter = this.value;
+      renderPositions();
+    });
+  }
+
+  // Ort dropdown
+  var ortSelect = document.getElementById('posFilterOrt');
+  if (ortSelect) {
+    ortSelect.addEventListener('change', function() {
+      _posActiveOrt = this.value;
       renderPositions();
     });
   }

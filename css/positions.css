@@ -110,6 +110,18 @@
   background: var(--bg-card);
 }
 
+.pos-date-display {
+  position: relative;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 6px 14px;
+  border-radius: 10px;
+  transition: background 0.15s;
+}
+.pos-date-display:active {
+  background: var(--bg-secondary);
+}
+
 .pos-date-label {
   font-size: 17px;
   font-weight: 700;
@@ -117,6 +129,23 @@
   min-width: 120px;
   text-align: center;
   letter-spacing: -0.2px;
+  pointer-events: none;
+}
+
+/* Hidden native date input overlaying the label */
+.pos-native-date {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: none;
+  font-size: 16px;
 }
 
 /* ── Meta info (updated timestamp) ─────────── */
@@ -131,13 +160,12 @@
 /* ── Search bar ────────────────────────────── */
 .pos-search-bar {
   position: relative;
-  margin-bottom: 12px;
 }
 
 .pos-search-input {
   width: 100%;
-  padding: 12px 16px;
-  padding-right: 40px;
+  padding: 10px 12px;
+  padding-right: 36px;
   font-size: 16px;
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--bg-card);
@@ -158,11 +186,11 @@
 
 .pos-search-clear {
   position: absolute;
-  right: 10px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: none;
   background: var(--bg-primary);
@@ -178,43 +206,57 @@
   opacity: 0.6;
 }
 
-/* ── Filter chips ──────────────────────────── */
-.pos-filters {
+/* ── Filter row (Roll | Ort | Sök) ─────────── */
+.pos-filter-row {
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  padding-bottom: 2px;
-}
-.pos-filters::-webkit-scrollbar {
-  display: none;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: flex-end;
 }
 
-.pos-filter-chip {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  font-size: 14px;
+.pos-filter-group {
+  flex: 1;
+  min-width: 0;
+}
+.pos-filter-group-search {
+  flex: 1.4;
+}
+
+.pos-filter-label {
+  display: block;
+  font-size: 11px;
   font-weight: 600;
-  font-family: 'Inter', -apple-system, sans-serif;
-  border-radius: 20px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-card);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
   color: var(--text-secondary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  white-space: nowrap;
+  margin-bottom: 5px;
+  padding-left: 2px;
 }
-.pos-filter-chip:active {
-  transform: scale(0.96);
+
+.pos-filter-select {
+  width: 100%;
+  padding: 10px 28px 10px 10px;
+  font-size: 16px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236e6e73' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
+  transition: border-color 0.2s;
 }
-.pos-filter-chip.active {
-  background: var(--accent-blue);
-  color: #fff;
+.pos-filter-select:focus {
   border-color: var(--accent-blue);
+}
+
+html.dark .pos-filter-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888aa' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
 }
 
 /* ── Count bar ─────────────────────────────── */
@@ -238,22 +280,26 @@
 .pos-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* ── Card ──────────────────────────────────── */
 .pos-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 14px;
+  gap: 10px;
+  padding: 8px 10px 8px 14px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 14px;
-  transition: transform 0.12s;
+  border-radius: 10px;
   -webkit-tap-highlight-color: transparent;
   position: relative;
   overflow: hidden;
+  flex-wrap: wrap;
+  cursor: default;
+}
+.pos-card[data-expandable] {
+  cursor: pointer;
 }
 
 /* Subtle left accent per role */
@@ -263,8 +309,8 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 4px;
-  border-radius: 14px 0 0 14px;
+  width: 3px;
+  border-radius: 10px 0 0 10px;
   background: var(--border-color);
 }
 .pos-role-lok::before {
@@ -283,91 +329,185 @@
 /* "Working now" card highlight */
 .pos-card-now {
   border-color: rgba(34, 197, 94, 0.4);
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.15);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.12);
 }
 
-/* ── Card: icon ────────────────────────────── */
+/* ── Card: role badge ─────────────────────── */
 .pos-card-icon {
-  font-size: 24px;
   flex-shrink: 0;
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--bg-primary);
-  border-radius: 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
 }
 
-/* Role-specific icon backgrounds */
+/* Role-specific badge colors */
 .pos-role-lok .pos-card-icon {
-  background: rgba(249, 115, 22, 0.1);
+  background: rgba(249, 115, 22, 0.12);
+  color: #ea580c;
 }
 .pos-role-tv .pos-card-icon {
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
 }
 .pos-role-til .pos-card-icon {
-  background: rgba(6, 182, 212, 0.1);
+  background: rgba(6, 182, 212, 0.12);
+  color: #0891b2;
 }
 
 html.dark .pos-role-lok .pos-card-icon {
-  background: rgba(249, 115, 22, 0.15);
+  background: rgba(249, 115, 22, 0.18);
+  color: #fb923c;
 }
 html.dark .pos-role-tv .pos-card-icon {
-  background: rgba(139, 92, 246, 0.15);
+  background: rgba(139, 92, 246, 0.18);
+  color: #a78bfa;
 }
 html.dark .pos-role-til .pos-card-icon {
-  background: rgba(6, 182, 212, 0.15);
+  background: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
 }
 
-/* ── Card: info section ────────────────────── */
-.pos-card-info {
+/* ── Card: body (2 rows) ─────────────────── */
+.pos-card-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pos-card-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pos-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   flex: 1;
   min-width: 0;
 }
 
-.pos-card-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.3;
+.pos-card-ort {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.pos-card-details {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 3px;
-  flex-wrap: wrap;
-}
-
-.pos-card-tur {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent-blue);
-  background: rgba(59, 130, 246, 0.1);
-  padding: 1px 8px;
-  border-radius: 6px;
-}
-html.dark .pos-card-tur {
-  background: rgba(59, 130, 246, 0.18);
+  flex-shrink: 0;
 }
 
 .pos-card-time {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* ── Card: train badges ────────────────────── */
-.pos-card-trains {
+.pos-card-tur {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  white-space: nowrap;
+}
+
+/* ── Card: right end (SE/DK/RES + now dot) ── */
+.pos-card-end {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  min-width: 28px;
+}
+
+.pos-card-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.pos-tag-se {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+.pos-tag-dk {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+.pos-tag-res {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+html.dark .pos-tag-se {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+html.dark .pos-tag-dk {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+html.dark .pos-tag-res {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.pos-card-now-dot {
+  color: var(--accent-green);
+  font-size: 12px;
+  line-height: 1;
+  animation: pos-pulse 1.8s ease-in-out infinite;
+}
+
+.pos-card-chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+  opacity: 0.5;
+  transition: transform 0.2s ease;
+  line-height: 1;
+}
+.pos-card.expanded .pos-card-chevron {
+  transform: rotate(180deg);
+}
+
+@keyframes pos-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Card: train badges (hidden by default) ── */
+.pos-card-trains {
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 5px;
+  width: 100%;
+  padding: 0 0 0 44px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease, margin 0.25s ease;
+  margin-top: 0;
+  display: flex;
+}
+
+.pos-card.expanded .pos-card-trains {
+  max-height: 200px;
+  padding: 6px 0 2px 44px;
+  margin-top: 6px;
+  border-top: 1px solid var(--border-color);
 }
 
 .pos-train-badge {
@@ -380,33 +520,6 @@ html.dark .pos-card-tur {
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
   font-variant-numeric: tabular-nums;
-}
-
-/* ── Card: right section ───────────────────── */
-.pos-card-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.pos-card-ort {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.pos-card-now-dot {
-  color: var(--accent-green);
-  font-size: 14px;
-  animation: pos-pulse 1.8s ease-in-out infinite;
-}
-@keyframes pos-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
 }
 
 /* ── Empty page placeholder ────────────────── */
