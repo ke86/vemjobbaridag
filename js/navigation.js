@@ -108,6 +108,9 @@ function showPage(pageId) {
   if (pageId !== 'la') {
     if (typeof onLaPageHide === 'function') onLaPageHide();
   }
+  if (pageId !== 'positions') {
+    if (typeof onPositionsPageHide === 'function') onPositionsPageHide();
+  }
 
   // Activate page + set header title
   if (pageId === 'schedule') {
@@ -116,6 +119,10 @@ function showPage(pageId) {
   } else if (pageId === 'upload') {
     uploadPage.classList.add('active');
     headerTitle.textContent = 'Ladda upp schema';
+  } else if (pageId === 'positions') {
+    document.getElementById('positionsPage').classList.add('active');
+    headerTitle.textContent = 'Positionslista';
+    if (typeof onPositionsPageShow === 'function') onPositionsPageShow();
   } else if (pageId === 'monthly') {
     monthlyPage.classList.add('active');
     headerTitle.textContent = 'Schema';

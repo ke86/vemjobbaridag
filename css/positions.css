@@ -1,0 +1,431 @@
+/* ============================================
+   Positions Page — Positionslista
+   v5.20
+   ============================================ */
+
+.positions-page {
+  padding: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.positions-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+/* ── Loading state ─────────────────────────── */
+.pos-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.pos-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: pos-spin 0.7s linear infinite;
+}
+@keyframes pos-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error state ───────────────────────────── */
+.pos-error {
+  color: var(--text-secondary);
+}
+
+.pos-error-icon {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.pos-error-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.pos-retry-btn {
+  margin-top: 16px;
+  padding: 10px 28px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent-blue);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s;
+}
+.pos-retry-btn:active {
+  opacity: 0.7;
+}
+
+/* ── Date picker ───────────────────────────── */
+.pos-date-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 0 14px;
+}
+
+.pos-date-nav {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, opacity 0.15s;
+}
+.pos-date-nav:active {
+  background: var(--bg-primary);
+}
+.pos-date-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.pos-date-nav:disabled:active {
+  background: var(--bg-card);
+}
+
+.pos-date-label {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 120px;
+  text-align: center;
+  letter-spacing: -0.2px;
+}
+
+/* ── Meta info (updated timestamp) ─────────── */
+.pos-meta {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-bottom: 14px;
+}
+
+/* ── Search bar ────────────────────────────── */
+.pos-search-bar {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.pos-search-input {
+  width: 100%;
+  padding: 12px 16px;
+  padding-right: 40px;
+  font-size: 16px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.pos-search-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+.pos-search-input:focus {
+  border-color: var(--accent-blue);
+}
+
+.pos-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.pos-search-clear:active {
+  opacity: 0.6;
+}
+
+/* ── Filter chips ──────────────────────────── */
+.pos-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+.pos-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.pos-filter-chip {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, sans-serif;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.pos-filter-chip:active {
+  transform: scale(0.96);
+}
+.pos-filter-chip.active {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+}
+
+/* ── Count bar ─────────────────────────────── */
+.pos-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+
+/* ── Empty list ────────────────────────────── */
+.pos-empty-list {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+/* ── Card list ─────────────────────────────── */
+.pos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Card ──────────────────────────────────── */
+.pos-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  transition: transform 0.12s;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle left accent per role */
+.pos-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 14px 0 0 14px;
+  background: var(--border-color);
+}
+.pos-role-lok::before {
+  background: #f97316;
+}
+.pos-role-tv::before {
+  background: #8b5cf6;
+}
+.pos-role-til::before {
+  background: #06b6d4;
+}
+.pos-role-other::before {
+  background: var(--border-color);
+}
+
+/* "Working now" card highlight */
+.pos-card-now {
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.15);
+}
+
+/* ── Card: icon ────────────────────────────── */
+.pos-card-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  border-radius: 10px;
+}
+
+/* Role-specific icon backgrounds */
+.pos-role-lok .pos-card-icon {
+  background: rgba(249, 115, 22, 0.1);
+}
+.pos-role-tv .pos-card-icon {
+  background: rgba(139, 92, 246, 0.1);
+}
+.pos-role-til .pos-card-icon {
+  background: rgba(6, 182, 212, 0.1);
+}
+
+html.dark .pos-role-lok .pos-card-icon {
+  background: rgba(249, 115, 22, 0.15);
+}
+html.dark .pos-role-tv .pos-card-icon {
+  background: rgba(139, 92, 246, 0.15);
+}
+html.dark .pos-role-til .pos-card-icon {
+  background: rgba(6, 182, 212, 0.15);
+}
+
+/* ── Card: info section ────────────────────── */
+.pos-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pos-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pos-card-details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.pos-card-tur {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 1px 8px;
+  border-radius: 6px;
+}
+html.dark .pos-card-tur {
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.pos-card-time {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Card: train badges ────────────────────── */
+.pos-card-trains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.pos-train-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Card: right section ───────────────────── */
+.pos-card-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pos-card-ort {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pos-card-now-dot {
+  color: var(--accent-green);
+  font-size: 14px;
+  animation: pos-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pos-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Empty page placeholder ────────────────── */
+.positions-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.positions-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.positions-empty p {
+  font-size: 16px;
+  margin: 0;
+}
