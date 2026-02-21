@@ -16,16 +16,16 @@ var _posAvailDates = [];    // sorted array of date strings
 var _posActiveFilter = 'alla';
 var _posActiveOrt = 'alla';
 var _posSearchQuery = '';
+var _posActiveChips = {};   // { now:true, res:true, ... }
+var _posFilterOpen = false;
 
 // =============================================
 // PAGE SHOW / HIDE
 // =============================================
 function onPositionsPageShow() {
-  // If no data cached or cache expired, fetch
   if (!_posCache || (Date.now() - _posCache.ts) > _posCacheTTL) {
     fetchPositions();
   } else {
-    // Re-render with cached data (date might have changed)
     if (!_posCurrentDate) {
       _posCurrentDate = getTodayStr();
     }
@@ -63,7 +63,6 @@ function fetchPositions() {
       _posCache = { data: data, ts: Date.now() };
       _posAvailDates = Object.keys(data.dagar).sort();
 
-      // Pick today if available, otherwise first date
       var today = getTodayStr();
       if (_posAvailDates.indexOf(today) !== -1) {
         _posCurrentDate = today;
@@ -96,7 +95,6 @@ function renderPositions() {
   var data = _posCache.data;
   var dayData = data.dagar[_posCurrentDate] || [];
 
-  // Build HTML
   var html = '';
 
   // Date picker
@@ -108,8 +106,17 @@ function renderPositions() {
     html += '<div class="pos-meta">Uppdaterad: ' + updatedStr + '</div>';
   }
 
-  // Filter row: Roll | Ort | Sök
+  // ── Search bar (full width, above filters) ──
+  html += '<div class="pos-search-bar">';
+  html += '<input type="text" class="pos-search-input" id="posSearchInput" placeholder="Sök namn, tåg, tur…" value="' + escPosAttr(_posSearchQuery) + '">';
+  if (_posSearchQuery) {
+    html += '<button class="pos-search-clear" id="posSearchClear">✕</button>';
+  }
+  html += '</div>';
+
+  // ── Filter row: Roll | Ort | Filter ──
   var uniqueOrts = getUniqueOrts(dayData);
+  var chipCount = countActiveChips();
 
   html += '<div class="pos-filter-row">';
 
@@ -136,17 +143,34 @@ function renderPositions() {
   html += '</select>';
   html += '</div>';
 
-  // Search field
-  html += '<div class="pos-filter-group pos-filter-group-search">';
-  html += '<label class="pos-filter-label" for="posSearchInput">Sök</label>';
-  html += '<div class="pos-search-bar">';
-  html += '<input type="text" class="pos-search-input" id="posSearchInput" placeholder="Namn, tåg, tur…" value="' + escPosAttr(_posSearchQuery) + '">';
-  if (_posSearchQuery) {
-    html += '<button class="pos-search-clear" id="posSearchClear">✕</button>';
-  }
-  html += '</div>';
+  // Filter button (looks like a select)
+  html += '<div class="pos-filter-group">';
+  html += '<label class="pos-filter-label">Filter</label>';
+  html += '<button class="pos-filter-btn" id="posFilterBtn">';
+  html += chipCount > 0 ? 'Filter (' + chipCount + ')' : 'Alla';
+  html += '<span class="pos-filter-btn-arrow">▾</span>';
+  html += '</button>';
   html += '</div>';
 
+  html += '</div>';
+
+  // ── Filter chip panel (collapsible) ──
+  html += '<div class="pos-chip-panel' + (_posFilterOpen ? ' open' : '') + '" id="posChipPanel">';
+  var chips = [
+    { id: 'now',    label: 'Jobbar nu' },
+    { id: 'res',    label: 'Reserv' },
+    { id: 'se',     label: 'Sverige' },
+    { id: 'dk',     label: 'Danmark' },
+    { id: 'tp',     label: 'Ändrad' },
+    { id: 'adm',    label: 'ADM' },
+    { id: 'utb',    label: 'Utbildning' },
+    { id: 'insutb', label: 'Instruktör' }
+  ];
+  for (var ci = 0; ci < chips.length; ci++) {
+    var c = chips[ci];
+    var isActive = _posActiveChips[c.id] ? ' active' : '';
+    html += '<button class="pos-chip' + isActive + '" data-chip="' + c.id + '">' + c.label + '</button>';
+  }
   html += '</div>';
 
   // Filter + search data
@@ -185,7 +209,6 @@ function buildPosDatePicker() {
   var isFirst = _posAvailDates.indexOf(_posCurrentDate) === 0;
   var isLast = _posAvailDates.indexOf(_posCurrentDate) === _posAvailDates.length - 1;
 
-  // Min/max for native date picker
   var minDate = _posAvailDates.length > 0 ? _posAvailDates[0] : _posCurrentDate;
   var maxDate = _posAvailDates.length > 0 ? _posAvailDates[_posAvailDates.length - 1] : _posCurrentDate;
 
@@ -228,14 +251,23 @@ function getUniqueOrts(dayData) {
   return Object.keys(ortSet).sort();
 }
 
+function countActiveChips() {
+  var n = 0;
+  for (var k in _posActiveChips) {
+    if (_posActiveChips[k]) n++;
+  }
+  return n;
+}
+
 function filterPositions(dayData) {
   var result = [];
   var query = _posSearchQuery.toLowerCase().trim();
+  var hasChips = countActiveChips() > 0;
 
   for (var i = 0; i < dayData.length; i++) {
     var p = dayData[i];
 
-    // Role filter
+    // Role filter (dropdown)
     if (_posActiveFilter !== 'alla') {
       var roll = (p.roll || '').toLowerCase();
       if (_posActiveFilter === 'lokforare' && roll.indexOf('lokförare') === -1) continue;
@@ -243,9 +275,24 @@ function filterPositions(dayData) {
       if (_posActiveFilter === 'til' && roll.indexOf('trafik') === -1 && roll.indexOf('informationsledare') === -1) continue;
     }
 
-    // Ort filter
+    // Ort filter (dropdown)
     if (_posActiveOrt !== 'alla') {
       if ((p.ort || '').trim() !== _posActiveOrt) continue;
+    }
+
+    // Chip filters (OR logic — match at least one active chip)
+    if (hasChips) {
+      var flags = classifyPosFlags(p);
+      var chipMatch = false;
+      if (_posActiveChips.now && flags.isNow) chipMatch = true;
+      if (_posActiveChips.res && flags.isRes) chipMatch = true;
+      if (_posActiveChips.se && flags.isSE) chipMatch = true;
+      if (_posActiveChips.dk && flags.isDK) chipMatch = true;
+      if (_posActiveChips.tp && flags.isTP) chipMatch = true;
+      if (_posActiveChips.adm && flags.isAdm) chipMatch = true;
+      if (_posActiveChips.utb && flags.isUtb) chipMatch = true;
+      if (_posActiveChips.insutb && flags.isInsutb) chipMatch = true;
+      if (!chipMatch) continue;
     }
 
     // Search filter
@@ -269,66 +316,145 @@ function filterPositions(dayData) {
 // =============================================
 // TURN CLASSIFICATION
 // =============================================
-// TIL shift codes
 var POS_TIL_CODES = ['PL1','PL2','PL3','FL1','FL2','FL3','IL1','IL2','SL1','SL2','SL3','DK1','DK2','TDS1','TDS2','TDS3'];
 
-function classifyPosTurn(turnr, roll) {
-  var result = { tag: '', tagClass: '' };
-  if (!turnr) return result;
-
+/**
+ * Full classification of a person entry.
+ * Returns all boolean flags used by card display AND chip filtering.
+ */
+function classifyPosFlags(p) {
+  var flags = { isRes: false, isSE: false, isDK: false, isAdm: false, isUtb: false, isInsutb: false, isTP: false, isNow: false, isTil: false, tag: '', tagClass: '' };
+  var turnr = p.turnr || '';
   var t = turnr.toUpperCase().trim();
+  var rollStr = (p.roll || '').toLowerCase();
 
-  // TIL shifts — no SE/DK tag
+  // Working now?
+  if (turnr && p.start && p.start !== '-' && p.slut && p.slut !== '-') {
+    flags.isNow = isTimeNow(p.start, p.slut);
+  }
+
+  if (!turnr) return flags;
+
+  // TIL shifts
   for (var i = 0; i < POS_TIL_CODES.length; i++) {
-    if (t === POS_TIL_CODES[i]) return result;
+    if (t === POS_TIL_CODES[i]) {
+      flags.isTil = true;
+      return flags;
+    }
+  }
+
+  // ADM — turn contains ADM
+  if (t.indexOf('ADM') !== -1) {
+    flags.isAdm = true;
+    flags.tag = 'ADM';
+    flags.tagClass = 'pos-tag-adm';
+    return flags;
+  }
+
+  // INSUTB — turn contains INSUTB (check before UTB!)
+  if (t.indexOf('INSUTB') !== -1) {
+    flags.isInsutb = true;
+    flags.tag = 'INST';
+    flags.tagClass = 'pos-tag-insutb';
+    return flags;
+  }
+
+  // UTB — turn contains UTB (but not INSUTB, already caught above)
+  if (t.indexOf('UTB') !== -1) {
+    flags.isUtb = true;
+    flags.tag = 'UTB';
+    flags.tagClass = 'pos-tag-utb';
+    return flags;
+  }
+
+  // TP — ends with TP or format NNNNNN-NNNNNN
+  if (/TP$/i.test(turnr)) {
+    flags.isTP = true;
+  }
+  if (/^\d{6}-\d{6}$/.test(t)) {
+    flags.isTP = true;
+    flags.isRes = true;
+    flags.tag = 'RES';
+    flags.tagClass = 'pos-tag-res';
+    return flags;
   }
 
   // Reserve: starts with RESERV
   if (t.indexOf('RESERV') === 0) {
-    result.tag = 'RES';
-    result.tagClass = 'pos-tag-res';
-    return result;
-  }
-
-  // Reserve: format NNNNNN-NNNNNN
-  if (/^\d{6}-\d{6}$/.test(t)) {
-    result.tag = 'RES';
-    result.tagClass = 'pos-tag-res';
-    return result;
+    flags.isRes = true;
+    flags.tag = 'RES';
+    flags.tagClass = 'pos-tag-res';
+    return flags;
   }
 
   // Reserve: role is "Reserv"
-  if (roll && roll.toLowerCase().indexOf('reserv') !== -1) {
-    result.tag = 'RES';
-    result.tagClass = 'pos-tag-res';
-    return result;
+  if (rollStr.indexOf('reserv') !== -1) {
+    flags.isRes = true;
+    flags.tag = 'RES';
+    flags.tagClass = 'pos-tag-res';
+    return flags;
   }
 
+  // Strip TP suffix for digit analysis
+  var clean = t.replace(/TP$/i, '');
+
   // Extract leading digits
-  var digits = t.match(/^(\d+)/);
-  if (!digits || digits[1].length < 4) return result;
+  var digits = clean.match(/^(\d+)/);
+  if (!digits || digits[1].length < 4) {
+    // If TP was detected but we can't parse digits, still show TP tag
+    if (flags.isTP) {
+      flags.tag = 'TP';
+      flags.tagClass = 'pos-tag-tp';
+    }
+    return flags;
+  }
   var d = digits[1];
 
   // 4th digit 8 or 9 → reserve
   if (d[3] === '8' || d[3] === '9') {
-    result.tag = 'RES';
-    result.tagClass = 'pos-tag-res';
-    return result;
+    flags.isRes = true;
+    // TP takes priority in tag display if both
+    if (flags.isTP) {
+      flags.tag = 'TP';
+      flags.tagClass = 'pos-tag-tp';
+    } else {
+      flags.tag = 'RES';
+      flags.tagClass = 'pos-tag-res';
+    }
+    return flags;
   }
 
-  // 3rd digit odd → SE, even → DK (need at least 3 digits)
+  // 3rd digit odd → SE, even → DK
   if (d.length >= 3) {
     var third = parseInt(d[2], 10);
     if (third % 2 === 1) {
-      result.tag = 'SE';
-      result.tagClass = 'pos-tag-se';
+      flags.isSE = true;
     } else {
-      result.tag = 'DK';
-      result.tagClass = 'pos-tag-dk';
+      flags.isDK = true;
     }
   }
 
-  return result;
+  // Determine tag: TP overrides SE/DK
+  if (flags.isTP) {
+    flags.tag = 'TP';
+    flags.tagClass = 'pos-tag-tp';
+  } else if (flags.isSE) {
+    flags.tag = 'SE';
+    flags.tagClass = 'pos-tag-se';
+  } else if (flags.isDK) {
+    flags.tag = 'DK';
+    flags.tagClass = 'pos-tag-dk';
+  }
+
+  return flags;
+}
+
+/**
+ * Legacy wrapper for card tag display — now delegates to classifyPosFlags.
+ */
+function classifyPosTurn(turnr, roll) {
+  var flags = classifyPosFlags({ turnr: turnr, roll: roll, start: null, slut: null });
+  return { tag: flags.tag, tagClass: flags.tagClass };
 }
 
 // =============================================
@@ -355,19 +481,13 @@ function buildPosCard(p) {
     if (p.slut && p.slut !== '-') timeStr += '–' + p.slut;
   }
 
-  // Working now?
-  var isNow = false;
-  if (p.turnr && p.start && p.start !== '-' && p.slut && p.slut !== '-') {
-    isNow = isTimeNow(p.start, p.slut);
-  }
+  // Full classification
+  var flags = classifyPosFlags(p);
 
-  // SE/DK/RES classification
-  var cls = classifyPosTurn(p.turnr, p.roll);
-
-  // Has trains? (for expandable indicator)
+  // Has trains?
   var hasTrains = p.tagnr && p.tagnr.length > 0;
 
-  var html = '<div class="pos-card ' + rollClass + (isNow ? ' pos-card-now' : '') + '"' +
+  var html = '<div class="pos-card ' + rollClass + (flags.isNow ? ' pos-card-now' : '') + '"' +
     (hasTrains ? ' data-expandable="1"' : '') + '>';
 
   // Left: role badge
@@ -390,16 +510,16 @@ function buildPosCard(p) {
 
   html += '</div>';
 
-  // Right: SE/DK/RES tag + expand chevron
+  // Right: tag + now dot + chevron
   html += '<div class="pos-card-end">';
-  if (cls.tag) {
-    html += '<span class="pos-card-tag ' + cls.tagClass + '">' + cls.tag + '</span>';
+  if (flags.tag) {
+    html += '<span class="pos-card-tag ' + flags.tagClass + '">' + flags.tag + '</span>';
   }
-  if (isNow) html += '<span class="pos-card-now-dot" title="Jobbar nu">●</span>';
+  if (flags.isNow) html += '<span class="pos-card-now-dot" title="Jobbar nu">●</span>';
   if (hasTrains) html += '<span class="pos-card-chevron">▾</span>';
   html += '</div>';
 
-  // Hidden trains (for expandable, del 2)
+  // Hidden trains
   if (hasTrains) {
     html += '<div class="pos-card-trains">';
     for (var t = 0; t < p.tagnr.length; t++) {
@@ -432,11 +552,9 @@ function initPosListeners() {
     datePicker.addEventListener('change', function() {
       var val = this.value;
       if (!val) return;
-      // Snap to closest available date
       if (_posAvailDates.indexOf(val) !== -1) {
         _posCurrentDate = val;
       } else {
-        // Find closest available date
         var closest = _posAvailDates[0];
         for (var di = 0; di < _posAvailDates.length; di++) {
           if (_posAvailDates[di] <= val) closest = _posAvailDates[di];
@@ -447,11 +565,33 @@ function initPosListeners() {
     });
   }
 
-  // Expandable cards (click to toggle trains)
+  // Expandable cards
   var cards = document.querySelectorAll('.pos-card[data-expandable]');
   for (var ci = 0; ci < cards.length; ci++) {
     cards[ci].addEventListener('click', function() {
       this.classList.toggle('expanded');
+    });
+  }
+
+  // Filter button (toggle chip panel)
+  var filterBtn = document.getElementById('posFilterBtn');
+  if (filterBtn) {
+    filterBtn.addEventListener('click', function() {
+      _posFilterOpen = !_posFilterOpen;
+      var panel = document.getElementById('posChipPanel');
+      if (panel) panel.classList.toggle('open', _posFilterOpen);
+      this.classList.toggle('active', _posFilterOpen);
+    });
+  }
+
+  // Chip toggles
+  var chipBtns = document.querySelectorAll('.pos-chip');
+  for (var chi = 0; chi < chipBtns.length; chi++) {
+    chipBtns[chi].addEventListener('click', function() {
+      var chipId = this.getAttribute('data-chip');
+      _posActiveChips[chipId] = !_posActiveChips[chipId];
+      if (!_posActiveChips[chipId]) delete _posActiveChips[chipId];
+      renderPositions();
     });
   }
 
@@ -483,7 +623,6 @@ function initPosListeners() {
       debounceTimer = setTimeout(function() {
         _posSearchQuery = val;
         renderPositions();
-        // Re-focus input after re-render
         var inp = document.getElementById('posSearchInput');
         if (inp) {
           inp.focus();
@@ -538,7 +677,6 @@ function isTimeNow(startStr, endStr) {
   var startMin = parseInt(sp[0], 10) * 60 + parseInt(sp[1], 10);
   var endMin = parseInt(ep[0], 10) * 60 + parseInt(ep[1], 10);
 
-  // Handle overnight shifts (e.g., 22:00 - 06:00)
   if (endMin <= startMin) {
     return nowMin >= startMin || nowMin <= endMin;
   }

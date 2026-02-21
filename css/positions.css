@@ -157,9 +157,10 @@
   margin-bottom: 14px;
 }
 
-/* ── Search bar ────────────────────────────── */
+/* ── Search bar (full width above filters) ─── */
 .pos-search-bar {
   position: relative;
+  margin-bottom: 12px;
 }
 
 .pos-search-input {
@@ -206,20 +207,17 @@
   opacity: 0.6;
 }
 
-/* ── Filter row (Roll | Ort | Sök) ─────────── */
+/* ── Filter row (Roll | Ort | Filter) ──────── */
 .pos-filter-row {
   display: flex;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
   align-items: flex-end;
 }
 
 .pos-filter-group {
   flex: 1;
   min-width: 0;
-}
-.pos-filter-group-search {
-  flex: 1.4;
 }
 
 .pos-filter-label {
@@ -257,6 +255,79 @@
 
 html.dark .pos-filter-select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888aa' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+}
+
+/* ── Filter button (looks like a select) ───── */
+.pos-filter-btn {
+  width: 100%;
+  padding: 10px 28px 10px 10px;
+  font-size: 16px;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.pos-filter-btn:active,
+.pos-filter-btn.active {
+  border-color: var(--accent-blue);
+}
+.pos-filter-btn-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+.pos-filter-btn.active .pos-filter-btn-arrow {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+/* ── Chip panel (collapsible) ──────────────── */
+.pos-chip-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease, padding 0.25s ease;
+  padding: 0 2px;
+}
+.pos-chip-panel.open {
+  max-height: 120px;
+  padding: 12px 2px;
+}
+
+.pos-chip {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, sans-serif;
+  border-radius: 18px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.pos-chip:active {
+  transform: scale(0.96);
+}
+.pos-chip.active {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
 }
 
 /* ── Count bar ─────────────────────────────── */
@@ -454,6 +525,23 @@ html.dark .pos-role-til .pos-card-icon {
   color: #d97706;
 }
 
+.pos-tag-tp {
+  background: rgba(168, 85, 247, 0.12);
+  color: #7c3aed;
+}
+.pos-tag-adm {
+  background: rgba(107, 114, 128, 0.12);
+  color: #4b5563;
+}
+.pos-tag-utb {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.pos-tag-insutb {
+  background: rgba(6, 182, 212, 0.12);
+  color: #0891b2;
+}
+
 html.dark .pos-tag-se {
   background: rgba(59, 130, 246, 0.2);
   color: #60a5fa;
@@ -465,6 +553,22 @@ html.dark .pos-tag-dk {
 html.dark .pos-tag-res {
   background: rgba(245, 158, 11, 0.2);
   color: #fbbf24;
+}
+html.dark .pos-tag-tp {
+  background: rgba(168, 85, 247, 0.2);
+  color: #a78bfa;
+}
+html.dark .pos-tag-adm {
+  background: rgba(107, 114, 128, 0.2);
+  color: #9ca3af;
+}
+html.dark .pos-tag-utb {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+html.dark .pos-tag-insutb {
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
 }
 
 .pos-card-now-dot {
