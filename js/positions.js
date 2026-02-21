@@ -267,17 +267,18 @@ function filterPositions(dayData) {
   for (var i = 0; i < dayData.length; i++) {
     var p = dayData[i];
 
-    // Role filter (dropdown)
+    // Role filter (dropdown) — TIL code overrides role for TIL filter
     if (_posActiveFilter !== 'alla') {
       var roll = (p.roll || '').toLowerCase();
+      var hasTilCode = !!isTilCode(p.turnr);
       if (_posActiveFilter === 'lokforare' && roll.indexOf('lokförare') === -1) continue;
       if (_posActiveFilter === 'tagvard' && roll.indexOf('tågvärd') === -1) continue;
-      if (_posActiveFilter === 'til' && roll.indexOf('trafik') === -1 && roll.indexOf('informationsledare') === -1) continue;
+      if (_posActiveFilter === 'til' && !hasTilCode && roll.indexOf('trafik') === -1 && roll.indexOf('informationsledare') === -1) continue;
     }
 
-    // Ort filter (dropdown)
+    // Ort filter (dropdown) — TIL bypass: TIL persons shown on all orts
     if (_posActiveOrt !== 'alla') {
-      if ((p.ort || '').trim() !== _posActiveOrt) continue;
+      if (!isTilCode(p.turnr) && (p.ort || '').trim() !== _posActiveOrt) continue;
     }
 
     // Chip filters (OR logic — match at least one active chip)
@@ -319,6 +320,85 @@ function filterPositions(dayData) {
 var POS_TIL_CODES = ['PL1','PL2','PL3','FL1','FL2','FL3','IL1','IL2','SL1','SL2','SL3','DK1','DK2','TDS1','TDS2','TDS3'];
 
 /**
+ * TIL shift times — fallback when API omits start/slut.
+ */
+var TIL_SHIFT_TIMES = {
+  'PL1':  ['06:00','14:15'], 'PL2':  ['14:00','22:30'], 'PL3':  ['22:15','06:15'],
+  'FL1':  ['06:00','14:15'], 'FL2':  ['14:00','22:30'], 'FL3':  ['22:15','06:15'],
+  'IL1':  ['05:45','13:45'], 'IL2':  ['13:30','22:00'],
+  'SL1':  ['06:00','14:15'], 'SL2':  ['14:00','22:30'], 'SL3':  ['22:15','06:15'],
+  'DK1':  ['05:00','13:00'], 'DK2':  ['11:00','21:00'],
+  'TDS1': ['06:30','14:45'], 'TDS2': ['14:30','23:00'], 'TDS3': ['22:45','06:45']
+};
+
+/**
+ * TIL prefix → readable label.
+ */
+var TIL_LABELS = {
+  'PL': 'Personal', 'FL': 'Fordon', 'IL': 'Info',
+  'SL': 'Drift SE', 'DK': 'Drift DK', 'TDS': 'Driftstöd'
+};
+
+/**
+ * Check if a turn code is a TIL code. Returns the uppercase code or false.
+ */
+function isTilCode(turnr) {
+  if (!turnr) return false;
+  var t = turnr.toUpperCase().trim();
+  for (var i = 0; i < POS_TIL_CODES.length; i++) {
+    if (t === POS_TIL_CODES[i]) return t;
+  }
+  return false;
+}
+
+/**
+ * Get the TIL label for a TIL code, e.g. "PL1" → "Personal"
+ */
+function getTilLabel(code) {
+  var prefix = code.replace(/\d+$/, '');
+  return TIL_LABELS[prefix] || '';
+}
+
+/**
+ * Hardcoded 5-digit TIL turn times — API sometimes omits start/slut for these.
+ * Key: turn number, Value: [start, slut]
+ */
+var TIL_TURN_TIMES = {
+  '11291': ['04:15','11:30'], '11292': ['11:30','18:00'], '11293': ['18:00','00:00'],
+  '11281': ['05:00','12:00'], '11282': ['12:00','19:00'],
+  '12291': ['03:45','11:30'], '12292': ['11:30','18:00'], '12293': ['18:00','00:00'],
+  '12281': ['05:00','12:00'], '12282': ['12:00','19:00'],
+  '15291': ['03:45','11:30'], '15292': ['11:30','18:00'], '15293': ['18:00','00:00'],
+  '15281': ['05:00','12:00'], '15282': ['12:00','19:00'],
+  '16291': ['03:45','11:30'], '16292': ['11:30','18:00'], '16293': ['18:00','00:00'],
+  '16281': ['09:00','19:00'],
+  '17291': ['03:45','11:30'], '17292': ['11:30','18:00'], '17293': ['18:00','00:00'],
+  '17281': ['09:00','19:00']
+};
+
+/**
+ * Get start/slut for a person entry — falls back to TIL_TURN_TIMES lookup.
+ */
+function getPosTime(p) {
+  var start = p.start;
+  var slut = p.slut;
+  if ((!start || start === '-') && p.turnr) {
+    var key = p.turnr.trim();
+    var keyUpper = key.toUpperCase();
+    // Check TIL shift codes first (PL1, DK2, etc.)
+    if (TIL_SHIFT_TIMES[keyUpper]) {
+      start = TIL_SHIFT_TIMES[keyUpper][0];
+      slut = TIL_SHIFT_TIMES[keyUpper][1];
+    // Then 5-digit TIL turn numbers (11291, etc.)
+    } else if (TIL_TURN_TIMES[key]) {
+      start = TIL_TURN_TIMES[key][0];
+      slut = TIL_TURN_TIMES[key][1];
+    }
+  }
+  return { start: start, slut: slut };
+}
+
+/**
  * Full classification of a person entry.
  * Returns all boolean flags used by card display AND chip filtering.
  */
@@ -328,9 +408,10 @@ function classifyPosFlags(p) {
   var t = turnr.toUpperCase().trim();
   var rollStr = (p.roll || '').toLowerCase();
 
-  // Working now?
-  if (turnr && p.start && p.start !== '-' && p.slut && p.slut !== '-') {
-    flags.isNow = isTimeNow(p.start, p.slut);
+  // Working now? (use getPosTime for TIL fallback)
+  var pTime = getPosTime(p);
+  if (turnr && pTime.start && pTime.start !== '-' && pTime.slut && pTime.slut !== '-') {
+    flags.isNow = isTimeNow(pTime.start, pTime.slut);
   }
 
   if (!turnr) return flags;
@@ -475,10 +556,18 @@ function buildPosCard(p) {
     rollLabel = 'TIL';
   }
 
+  // Badge-override: TIL turn code forces TIL badge regardless of roll
+  var tilCode = isTilCode(p.turnr);
+  if (tilCode) {
+    rollClass = 'pos-role-til';
+    rollLabel = 'TIL';
+  }
+
+  var pTime = getPosTime(p);
   var timeStr = '';
-  if (p.start && p.start !== '-') {
-    timeStr = p.start;
-    if (p.slut && p.slut !== '-') timeStr += '–' + p.slut;
+  if (pTime.start && pTime.start !== '-') {
+    timeStr = pTime.start;
+    if (pTime.slut && pTime.slut !== '-') timeStr += '–' + pTime.slut;
   }
 
   // Full classification
@@ -486,11 +575,13 @@ function buildPosCard(p) {
 
   // Has trains?
   var hasTrains = p.tagnr && p.tagnr.length > 0;
+  var hasSchedule = _posAvailDates.length > 1 && p.namn;
 
-  var isExpandable = hasTrains || (_posAvailDates.length > 1 && p.namn);
+  var isExpandable = hasTrains || hasSchedule;
 
   var html = '<div class="pos-card ' + rollClass + (flags.isNow ? ' pos-card-now' : '') + '"' +
-    (isExpandable ? ' data-expandable="1"' : '') + '>';
+    (isExpandable ? ' data-expandable="1"' : '') +
+    (p.namn ? ' data-person="' + escPosAttr(p.namn) + '"' : '') + '>';
 
   // Left: role badge
   html += '<span class="pos-card-icon">' + rollLabel + '</span>';
@@ -504,10 +595,17 @@ function buildPosCard(p) {
   if (p.ort) html += '<span class="pos-card-ort">' + escPosHtml(p.ort) + '</span>';
   html += '</div>';
 
-  // Row 2: tid + tur
+  // Row 2: tid + tur (TIL codes show label e.g. "PL1 · Personal")
   html += '<div class="pos-card-row">';
   if (timeStr) html += '<span class="pos-card-time">' + timeStr + '</span>';
-  if (p.turnr) html += '<span class="pos-card-tur">' + escPosHtml(p.turnr) + '</span>';
+  if (p.turnr) {
+    var turDisplay = escPosHtml(p.turnr);
+    if (tilCode) {
+      var tilLabel = getTilLabel(tilCode);
+      if (tilLabel) turDisplay += ' · ' + escPosHtml(tilLabel);
+    }
+    html += '<span class="pos-card-tur">' + turDisplay + '</span>';
+  }
   html += '</div>';
 
   html += '</div>';
@@ -521,19 +619,13 @@ function buildPosCard(p) {
   if (isExpandable) html += '<span class="pos-card-chevron">▾</span>';
   html += '</div>';
 
-  // Hidden trains + schedule button
-  if (hasTrains || p.namn) {
+  // Hidden trains section (schedule injected on-demand via click handler)
+  if (isExpandable) {
     html += '<div class="pos-card-trains">';
     if (hasTrains) {
       for (var t = 0; t < p.tagnr.length; t++) {
         html += '<span class="pos-train-badge">' + escPosHtml(p.tagnr[t]) + '</span>';
       }
-    }
-    // Schedule button
-    if (_posAvailDates.length > 1 && p.namn) {
-      var firstD = formatPosShortDate(_posAvailDates[0]);
-      var lastD = formatPosShortDate(_posAvailDates[_posAvailDates.length - 1]);
-      html += '<button class="pos-schedule-btn" data-person="' + escPosAttr(p.namn) + '">Visa ' + firstD + ' – ' + lastD + '</button>';
     }
     html += '</div>';
   }
@@ -584,16 +676,23 @@ function buildPersonSchedule(personName) {
 
     if (found) {
       var flags = classifyPosFlags(found);
+      var fTime = getPosTime(found);
       var timeStr = '';
-      if (found.start && found.start !== '-') {
-        timeStr = found.start;
-        if (found.slut && found.slut !== '-') timeStr += '–' + found.slut;
+      if (fTime.start && fTime.start !== '-') {
+        timeStr = fTime.start;
+        if (fTime.slut && fTime.slut !== '-') timeStr += '–' + fTime.slut;
       }
       var tagHtml = flags.tag ? '<span class="pos-card-tag ' + flags.tagClass + '">' + flags.tag + '</span>' : '';
 
       html += '<div class="' + rowClass + '">';
       html += '<span class="pos-schedule-date">' + dayLabel + '</span>';
-      html += '<span class="pos-schedule-tur">' + escPosHtml(found.turnr || '–') + '</span>';
+      var schedTurDisplay = escPosHtml(found.turnr || '–');
+      var schedTilCode = isTilCode(found.turnr);
+      if (schedTilCode) {
+        var schedTilLabel = getTilLabel(schedTilCode);
+        if (schedTilLabel) schedTurDisplay += ' · ' + escPosHtml(schedTilLabel);
+      }
+      html += '<span class="pos-schedule-tur">' + schedTurDisplay + '</span>';
       html += '<span class="pos-schedule-time">' + (timeStr || '–') + '</span>';
       html += '<span class="pos-schedule-tag">' + tagHtml + '</span>';
       html += '</div>';
@@ -644,40 +743,37 @@ function initPosListeners() {
     });
   }
 
-  // Expandable cards
+  // Expandable cards — one open at a time, schedule injected on expand
   var cards = document.querySelectorAll('.pos-card[data-expandable]');
   for (var ci = 0; ci < cards.length; ci++) {
     cards[ci].addEventListener('click', function(e) {
-      // Don't toggle if clicking the schedule button or inside schedule list
-      if (e.target.closest('.pos-schedule-btn') || e.target.closest('.pos-schedule-list')) return;
-      this.classList.toggle('expanded');
-    });
-  }
+      // Don't toggle if clicking inside the schedule list (allow scrolling etc.)
+      if (e.target.closest('.pos-schedule-list')) return;
 
-  // Schedule buttons
-  var schedBtns = document.querySelectorAll('.pos-schedule-btn');
-  for (var si = 0; si < schedBtns.length; si++) {
-    schedBtns[si].addEventListener('click', function(e) {
-      e.stopPropagation();
+      var wasExpanded = this.classList.contains('expanded');
+
+      // Close all other expanded cards + remove their injected schedules
+      var allExpanded = document.querySelectorAll('.pos-card.expanded');
+      for (var ei = 0; ei < allExpanded.length; ei++) {
+        allExpanded[ei].classList.remove('expanded');
+        var oldSched = allExpanded[ei].querySelector('.pos-schedule-list');
+        if (oldSched) oldSched.remove();
+      }
+
+      // If this card was already open, we just closed it — done
+      if (wasExpanded) return;
+
+      // Expand this card
+      this.classList.add('expanded');
+
+      // Build and inject schedule on-demand
       var personName = this.getAttribute('data-person');
-      var card = this.closest('.pos-card');
-      if (!card) return;
-
-      // Toggle: remove existing schedule if present
-      var existing = card.querySelector('.pos-schedule-list');
-      if (existing) {
-        existing.remove();
-        this.classList.remove('active');
-        return;
+      if (personName && _posAvailDates.length > 1) {
+        var trainsDiv = this.querySelector('.pos-card-trains');
+        if (trainsDiv) {
+          trainsDiv.insertAdjacentHTML('beforeend', buildPersonSchedule(personName));
+        }
       }
-
-      // Build and insert schedule inside the trains/expand section
-      var schedHtml = buildPersonSchedule(personName);
-      var trainsDiv = card.querySelector('.pos-card-trains');
-      if (trainsDiv) {
-        trainsDiv.insertAdjacentHTML('beforeend', schedHtml);
-      }
-      this.classList.add('active');
     });
   }
 
