@@ -296,20 +296,32 @@ function filterPositions(dayData) {
       if (!chipMatch) continue;
     }
 
-    // Search filter
+    // Search filter (includes TIL labels like Driftstöd, Fordon, Info etc.)
     if (query) {
+      var tilSearchCode = isTilCode(p.turnr);
+      var tilSearchLabel = tilSearchCode ? getTilLabel(tilSearchCode) : '';
       var searchStr = (
         (p.namn || '') + ' ' +
         (p.turnr || '') + ' ' +
         (p.roll || '') + ' ' +
         (p.ort || '') + ' ' +
-        (p.tagnr || []).join(' ')
+        (p.tagnr || []).join(' ') + ' ' +
+        tilSearchLabel
       ).toLowerCase();
       if (searchStr.indexOf(query) === -1) continue;
     }
 
     result.push(p);
   }
+
+  // Sort by start time (earliest first, no time last)
+  result.sort(function(a, b) {
+    var ta = getPosTime(a);
+    var tb = getPosTime(b);
+    var sa = (ta.start && ta.start !== '-') ? ta.start : '99:99';
+    var sb = (tb.start && tb.start !== '-') ? tb.start : '99:99';
+    return sa.localeCompare(sb);
+  });
 
   return result;
 }
@@ -428,7 +440,10 @@ var TIL_TURN_TIMES = {
   '47191': ['06:10','13:15'], '47391': ['06:10','13:15'],
   '57191': ['07:00','15:20'], '57391': ['07:00','15:20'],
   '67191': ['05:35','13:15'], '67192': ['12:00','19:00'],
-  '67391': ['05:35','13:15'], '67392': ['12:00','19:00']
+  '67391': ['05:35','13:15'], '67392': ['12:00','19:00'],
+  // ── Reservskift ──
+  'RESERV1': ['05:00','13:00'], 'RESERV2': ['07:00','15:00'],
+  'RESERV3': ['13:00','19:00'], 'RESERV4': ['14:00','22:00']
 };
 
 /**
@@ -444,10 +459,11 @@ function getPosTime(p) {
     if (TIL_SHIFT_TIMES[keyUpper]) {
       start = TIL_SHIFT_TIMES[keyUpper][0];
       slut = TIL_SHIFT_TIMES[keyUpper][1];
-    // Then 5-digit TIL turn numbers (11291, etc.)
-    } else if (TIL_TURN_TIMES[key]) {
-      start = TIL_TURN_TIMES[key][0];
-      slut = TIL_TURN_TIMES[key][1];
+    // Then reserve/5-digit turn numbers (11291, Reserv1, etc.)
+    } else if (TIL_TURN_TIMES[key] || TIL_TURN_TIMES[keyUpper]) {
+      var match = TIL_TURN_TIMES[key] || TIL_TURN_TIMES[keyUpper];
+      start = match[0];
+      slut = match[1];
     }
   }
   return { start: start, slut: slut };
@@ -463,9 +479,9 @@ function classifyPosFlags(p) {
   var t = turnr.toUpperCase().trim();
   var rollStr = (p.roll || '').toLowerCase();
 
-  // Working now? (use getPosTime for TIL fallback)
+  // Working now? Only on today's date (use getPosTime for TIL fallback)
   var pTime = getPosTime(p);
-  if (turnr && pTime.start && pTime.start !== '-' && pTime.slut && pTime.slut !== '-') {
+  if (_posCurrentDate === getTodayStr() && turnr && pTime.start && pTime.start !== '-' && pTime.slut && pTime.slut !== '-') {
     flags.isNow = isTimeNow(pTime.start, pTime.slut);
   }
 
