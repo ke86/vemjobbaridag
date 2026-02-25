@@ -194,7 +194,7 @@ async function fetchDisruptStationMap() {
   // Fetch ALL stations WITHOUT INCLUDE (return all fields — discover what's available)
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainStation" schemaversion="1.5" limit="3" />'
+    + '<QUERY objecttype="TrainStation" schemaversion="1" limit="3" />'
     + '</REQUEST>';
 
   console.log('[DISRUPT] Fetching station sample (discovery)...');
@@ -252,7 +252,7 @@ async function fetchDisruptStationMap() {
   var workingUrl = urls[response ? 0 : 1]; // not great, use the same as above
   var fullXml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
+    + '<QUERY objecttype="TrainStation" schemaversion="1">'
     + '<INCLUDE>LocationSignature</INCLUDE>'
     + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
     + '<INCLUDE>CountyNo</INCLUDE>'
@@ -277,7 +277,7 @@ async function fetchDisruptStationMap() {
     console.warn('[DISRUPT] CountyNo INCLUDE failed, trying without...');
     var noCountyXml = '<REQUEST>'
       + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-      + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
+      + '<QUERY objecttype="TrainStation" schemaversion="1">'
       + '<INCLUDE>LocationSignature</INCLUDE>'
       + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
       + '</QUERY>'
