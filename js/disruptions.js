@@ -178,25 +178,33 @@ function getDisruptTimeFilter() {
  * Build the XML request for Trafikverket TrainMessage API.
  * Fetches messages for our county numbers within the selected time range.
  */
-function buildDisruptXml() {
-  // TrainMessage is GONE from Open Data API.
-  // Test both RailwayEvent (1.8) and TrainStationMessage (1.3) in one request.
-  var xml = '<REQUEST>'
+// Objecttypes to try — test each separately to find which ones work
+var DISRUPT_OBJECTTYPE_TESTS = [
+  { name: 'TrainStationMessage', schema: '1.0' },
+  { name: 'TrainStationMessage', schema: '1.3' },
+  { name: 'RailwayEvent',       schema: '1.0' },
+  { name: 'OperativeEvent',     schema: '1.0' },
+  { name: 'TrainMessage',       schema: '1.0' },
+  { name: 'TrainMessage',       schema: '1.7' }
+];
+
+function buildTestXml(objectType, schemaVersion) {
+  return '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="RailwayEvent" schemaversion="1.8" limit="5">'
+    + '<QUERY objecttype="' + objectType + '" schemaversion="' + schemaVersion + '" limit="3">'
     + '<FILTER>'
-    + '<GT name="StartTime" value="$dateadd(-1.00:00:00)" />'
-    + '</FILTER>'
-    + '</QUERY>'
-    + '<QUERY objecttype="TrainStationMessage" schemaversion="1.3" limit="5">'
-    + '<FILTER>'
-    + '<GT name="StartTime" value="$dateadd(-1.00:00:00)" />'
+    + '<GT name="StartDateTime" value="$dateadd(-1.00:00:00)" />'
     + '</FILTER>'
     + '</QUERY>'
     + '</REQUEST>';
+}
 
-  console.log('[DISRUPT] Testing RailwayEvent 1.8 + TrainStationMessage 1.3');
-  return xml;
+// Also try without filter (some objecttypes may use different date field names)
+function buildTestXmlNoFilter(objectType, schemaVersion) {
+  return '<REQUEST>'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+    + '<QUERY objecttype="' + objectType + '" schemaversion="' + schemaVersion + '" limit="3" />'
+    + '</REQUEST>';
 }
 
 /**
@@ -318,78 +326,78 @@ async function fetchDisruptions() {
       await fetchDepStationNames();
     }
 
-    var xml = buildDisruptXml();
-
-    // Use direct Trafikverket API (proxy may not support TrainMessage)
     var DISRUPT_API_URL = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
-    console.log('[DISRUPT] Sending to: ' + DISRUPT_API_URL);
 
-    var response = await fetch(DISRUPT_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/xml' },
-      body: xml
-    });
+    // DISCOVERY: Test each objecttype separately to find which ones this API key can access
+    console.log('[DISRUPT] === SCANNING AVAILABLE OBJECTTYPES ===');
+    var foundData = null;
 
-    if (!response.ok) {
-      var errorText = '';
-      try { errorText = await response.text(); } catch (e) { /* ignore */ }
-      console.warn('[DISRUPT] HTTP ' + response.status + ': ' + errorText.substring(0, 200));
-      throw new Error('HTTP ' + response.status + (errorText ? ' — ' + errorText.substring(0, 100) : ''));
-    }
+    for (var ti = 0; ti < DISRUPT_OBJECTTYPE_TESTS.length; ti++) {
+      var test = DISRUPT_OBJECTTYPE_TESTS[ti];
+      var label = test.name + ' v' + test.schema;
 
-    var rawText = await response.text();
-    var data;
-    try {
-      data = JSON.parse(rawText);
-    } catch (parseErr) {
-      throw new Error('Svar var inte JSON: ' + rawText.substring(0, 100));
-    }
+      // First try with filter, then without if filter field name is wrong
+      var xmlBodies = [
+        buildTestXml(test.name, test.schema),
+        buildTestXmlNoFilter(test.name, test.schema)
+      ];
+      var xmlLabels = [label + ' (med filter)', label + ' (utan filter)'];
 
-    // Two queries in one request → RESULT array may have 2 entries
-    var results = (data && data.RESPONSE && data.RESPONSE.RESULT) || [];
+      for (var xi = 0; xi < xmlBodies.length; xi++) {
+        try {
+          var testResp = await fetch(DISRUPT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/xml' },
+            body: xmlBodies[xi]
+          });
+          var testText = await testResp.text();
 
-    // Log each result to discover what came back
-    for (var ri = 0; ri < results.length; ri++) {
-      var resultKeys = Object.keys(results[ri]);
-      console.log('[DISRUPT] RESULT[' + ri + '] keys: ' + resultKeys.join(', '));
+          if (!testResp.ok) {
+            // Extract short error
+            var errMatch = testText.match(/"MESSAGE":"([^"]+)"/);
+            var shortErr = errMatch ? errMatch[1] : testText.substring(0, 80);
+            console.log('[DISRUPT] ❌ ' + xmlLabels[xi] + ' → ' + shortErr);
 
-      // Check for errors in individual results
-      if (results[ri].ERROR) {
-        console.warn('[DISRUPT] RESULT[' + ri + '] ERROR: ' + JSON.stringify(results[ri].ERROR));
-        continue;
-      }
+            // If "does not exists" skip to next objecttype entirely
+            if (testText.indexOf('does not exists') !== -1) break;
+            // If filter field error, try next variant (without filter)
+            continue;
+          }
 
-      // Log data from each objecttype
-      for (var rk = 0; rk < resultKeys.length; rk++) {
-        var key = resultKeys[rk];
-        if (key === 'INFO') continue;
-        var arr = results[ri][key];
-        if (Array.isArray(arr) && arr.length > 0) {
-          console.log('[DISRUPT] ' + key + ': ' + arr.length + ' objekt');
-          console.log('[DISRUPT] ' + key + ' fält: ' + Object.keys(arr[0]).join(', '));
-          console.log('[DISRUPT] ' + key + ' exempel: ' + JSON.stringify(arr[0]).substring(0, 1000));
-        } else if (Array.isArray(arr)) {
-          console.log('[DISRUPT] ' + key + ': 0 objekt');
+          var testData = JSON.parse(testText);
+          var testResults = (testData.RESPONSE && testData.RESPONSE.RESULT) || [];
+
+          if (testResults.length > 0 && !testResults[0].ERROR) {
+            var dataKeys = Object.keys(testResults[0]).filter(function(k) { return k !== 'INFO'; });
+            for (var dk = 0; dk < dataKeys.length; dk++) {
+              var arr = testResults[0][dataKeys[dk]];
+              if (Array.isArray(arr)) {
+                console.log('[DISRUPT] ✅ ' + xmlLabels[xi] + ' → ' + arr.length + ' objekt!');
+                if (arr.length > 0) {
+                  console.log('[DISRUPT] ✅ Fält: ' + Object.keys(arr[0]).join(', '));
+                  console.log('[DISRUPT] ✅ Exempel: ' + JSON.stringify(arr[0]).substring(0, 1000));
+                  if (!foundData) {
+                    foundData = { source: test.name, messages: arr };
+                  }
+                }
+              }
+            }
+          } else if (testResults.length > 0 && testResults[0].ERROR) {
+            console.log('[DISRUPT] ❌ ' + xmlLabels[xi] + ' → ' + JSON.stringify(testResults[0].ERROR));
+            continue;
+          }
+          break; // Got a valid response for this objecttype, move to next
+        } catch (fetchErr) {
+          console.log('[DISRUPT] ❌ ' + xmlLabels[xi] + ' → fetch error: ' + fetchErr.message);
         }
       }
     }
 
-    // For now, try to get RailwayEvent data first, then TrainStationMessage
-    var rawMessages = [];
-    var dataSource = 'unknown';
-    for (var di = 0; di < results.length; di++) {
-      if (results[di].RailwayEvent && results[di].RailwayEvent.length > 0) {
-        rawMessages = results[di].RailwayEvent;
-        dataSource = 'RailwayEvent';
-        break;
-      }
-      if (results[di].TrainStationMessage && results[di].TrainStationMessage.length > 0) {
-        rawMessages = results[di].TrainStationMessage;
-        dataSource = 'TrainStationMessage';
-        break;
-      }
-    }
-    console.log('[DISRUPT] Källa: ' + dataSource + ', ' + rawMessages.length + ' meddelanden');
+    console.log('[DISRUPT] === SCAN COMPLETE ===');
+
+    var rawMessages = foundData ? foundData.messages : [];
+    var dataSource = foundData ? foundData.source : 'none';
+    console.log('[DISRUPT] Bästa källa: ' + dataSource + ', ' + rawMessages.length + ' meddelanden');
 
     // Parse into our internal format
     disruptAllMessages = parseDisruptMessages(rawMessages);
