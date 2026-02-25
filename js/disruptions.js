@@ -191,19 +191,16 @@ function escDisruptHtml(str) {
 async function fetchDisruptStationMap() {
   if (disruptStationCountyMap) return; // already loaded
 
-  // Fetch ALL stations (no CountyNo filter — it may not be a valid filter field)
-  // We'll filter client-side by matching CountyNo to our 6 counties
+  // Fetch ALL stations WITHOUT INCLUDE (return all fields — discover what's available)
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
-    + '<INCLUDE>LocationSignature</INCLUDE>'
-    + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
-    + '<INCLUDE>CountyNo</INCLUDE>'
-    + '</QUERY>'
+    + '<QUERY objecttype="TrainStation" schemaversion="1.5" limit="3" />'
     + '</REQUEST>';
 
-  // Try direct API first, fall back to proxy
-  var urls = [DISRUPT_API_URL, TRAFIKVERKET_PROXY_URL];
+  console.log('[DISRUPT] Fetching station sample (discovery)...');
+
+  // Try proxy first (we know departure.js uses it successfully)
+  var urls = [TRAFIKVERKET_PROXY_URL, DISRUPT_API_URL];
   var response = null;
 
   for (var u = 0; u < urls.length; u++) {
@@ -214,64 +211,153 @@ async function fetchDisruptStationMap() {
         body: xml
       });
       if (response.ok) {
-        console.log('[DISRUPT] Station map fetched via: ' + (u === 0 ? 'direkt API' : 'proxy'));
+        console.log('[DISRUPT] Station sample via: ' + (u === 0 ? 'proxy' : 'direkt API'));
         break;
       }
       var errTxt = '';
       try { errTxt = await response.text(); } catch (e) { /* ignore */ }
-      console.warn('[DISRUPT] Station map ' + (u === 0 ? 'direkt' : 'proxy') + ' HTTP ' + response.status + ': ' + errTxt.substring(0, 150));
+      console.warn('[DISRUPT] Station ' + (u === 0 ? 'proxy' : 'direkt') + ' HTTP ' + response.status + ': ' + errTxt.substring(0, 200));
       response = null;
     } catch (fetchErr) {
-      console.warn('[DISRUPT] Station map ' + (u === 0 ? 'direkt' : 'proxy') + ' fetch error: ' + fetchErr.message);
+      console.warn('[DISRUPT] Station ' + (u === 0 ? 'proxy' : 'direkt') + ' error: ' + fetchErr.message);
       response = null;
     }
   }
 
   if (!response || !response.ok) {
-    console.warn('[DISRUPT] Station map could not be loaded from any source');
+    console.warn('[DISRUPT] Station sample failed — no county mapping available');
     disruptStationCountyMap = {};
     disruptStationNameMap = {};
     return;
   }
 
-  var data = JSON.parse(await response.text());
+  var sampleData = JSON.parse(await response.text());
+  var sampleStations = [];
+  if (sampleData.RESPONSE && sampleData.RESPONSE.RESULT && sampleData.RESPONSE.RESULT[0]) {
+    sampleStations = sampleData.RESPONSE.RESULT[0].TrainStation || [];
+  }
+
+  // Log sample station to discover available fields
+  if (sampleStations.length > 0) {
+    console.log('[DISRUPT] Station fält: ' + Object.keys(sampleStations[0]).join(', '));
+    console.log('[DISRUPT] Station exempel: ' + JSON.stringify(sampleStations[0]).substring(0, 500));
+  } else {
+    console.warn('[DISRUPT] 0 stations returned in sample');
+    disruptStationCountyMap = {};
+    disruptStationNameMap = {};
+    return;
+  }
+
+  // Now fetch ALL stations (without limit) using the URL that worked
+  var workingUrl = urls[response ? 0 : 1]; // not great, use the same as above
+  var fullXml = '<REQUEST>'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+    + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
+    + '<INCLUDE>LocationSignature</INCLUDE>'
+    + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
+    + '<INCLUDE>CountyNo</INCLUDE>'
+    + '</QUERY>'
+    + '</REQUEST>';
+
+  // Detect which URL succeeded from the sample
+  var fullUrl = TRAFIKVERKET_PROXY_URL; // proxy worked for departure.js
+  var fullResponse;
+  try {
+    fullResponse = await fetch(fullUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml' },
+      body: fullXml
+    });
+  } catch (e) {
+    fullResponse = null;
+  }
+
+  // If CountyNo INCLUDE failed, try without it
+  if (!fullResponse || !fullResponse.ok) {
+    console.warn('[DISRUPT] CountyNo INCLUDE failed, trying without...');
+    var noCountyXml = '<REQUEST>'
+      + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+      + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
+      + '<INCLUDE>LocationSignature</INCLUDE>'
+      + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
+      + '</QUERY>'
+      + '</REQUEST>';
+
+    try {
+      fullResponse = await fetch(fullUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml' },
+        body: noCountyXml
+      });
+    } catch (e) {
+      fullResponse = null;
+    }
+  }
+
+  if (!fullResponse || !fullResponse.ok) {
+    console.warn('[DISRUPT] Could not fetch full station list');
+    disruptStationCountyMap = {};
+    disruptStationNameMap = {};
+    return;
+  }
+
+  var data = JSON.parse(await fullResponse.text());
   var stations = [];
   if (data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
     stations = data.RESPONSE.RESULT[0].TrainStation || [];
   }
 
+  console.log('[DISRUPT] Hämtade ' + stations.length + ' stationer totalt');
+
+  // Check if CountyNo exists in the data
+  var hasCountyNo = stations.length > 0 && stations[0].CountyNo !== undefined;
+  console.log('[DISRUPT] CountyNo finns i data: ' + hasCountyNo);
+
   disruptStationCountyMap = {};
   disruptStationNameMap = {};
 
-  // Build mapping, only include stations in our 6 counties
-  var ourCountySet = {};
-  for (var c = 0; c < DISRUPT_COUNTY_NOS.length; c++) {
-    ourCountySet[String(DISRUPT_COUNTY_NOS[c])] = true;
-  }
+  if (hasCountyNo) {
+    // Build mapping using CountyNo from API
+    var ourCountySet = {};
+    for (var c = 0; c < DISRUPT_COUNTY_NOS.length; c++) {
+      ourCountySet[String(DISRUPT_COUNTY_NOS[c])] = true;
+    }
 
-  for (var s = 0; s < stations.length; s++) {
-    var sig = stations[s].LocationSignature;
-    var county = stations[s].CountyNo;
-    var name = stations[s].AdvertisedLocationName;
-    if (!sig) continue;
+    for (var s = 0; s < stations.length; s++) {
+      var sig = stations[s].LocationSignature;
+      var county = stations[s].CountyNo;
+      var name = stations[s].AdvertisedLocationName;
+      if (!sig) continue;
 
-    // CountyNo can be a single number or an array
-    var countyArr = Array.isArray(county) ? county : (county ? [county] : []);
-    var matchesOurCounty = false;
-    for (var ci = 0; ci < countyArr.length; ci++) {
-      if (ourCountySet[String(countyArr[ci])]) {
-        matchesOurCounty = true;
-        break;
+      var countyArr = Array.isArray(county) ? county : (county ? [county] : []);
+      var matchesOurCounty = false;
+      for (var ci = 0; ci < countyArr.length; ci++) {
+        if (ourCountySet[String(countyArr[ci])]) {
+          matchesOurCounty = true;
+          break;
+        }
+      }
+
+      if (matchesOurCounty) {
+        disruptStationCountyMap[sig] = countyArr;
+        if (name) disruptStationNameMap[sig] = name;
       }
     }
-
-    if (matchesOurCounty) {
-      disruptStationCountyMap[sig] = countyArr;
-      if (name) disruptStationNameMap[sig] = name;
+  } else {
+    // CountyNo not available — include ALL stations so no messages are filtered out
+    // Region filter chips won't work but at least messages show
+    console.warn('[DISRUPT] CountyNo saknas — visar alla meddelanden utan regionfilter');
+    for (var s2 = 0; s2 < stations.length; s2++) {
+      var sig2 = stations[s2].LocationSignature;
+      var name2 = stations[s2].AdvertisedLocationName;
+      if (!sig2) continue;
+      // Assign all counties so every message passes the filter
+      disruptStationCountyMap[sig2] = DISRUPT_COUNTY_NOS.slice();
+      if (name2) disruptStationNameMap[sig2] = name2;
     }
   }
 
-  console.log('[DISRUPT] Station map: ' + Object.keys(disruptStationCountyMap).length + ' stationer i våra län (av ' + stations.length + ' totalt)');
+  console.log('[DISRUPT] Station map: ' + Object.keys(disruptStationCountyMap).length + ' stationer mappade');
 }
 
 // ==========================================
