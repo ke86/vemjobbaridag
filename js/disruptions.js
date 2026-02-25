@@ -191,29 +191,44 @@ function escDisruptHtml(str) {
 async function fetchDisruptStationMap() {
   if (disruptStationCountyMap) return; // already loaded
 
-  var countyFilters = '';
-  for (var i = 0; i < DISRUPT_COUNTY_NOS.length; i++) {
-    countyFilters += '<EQ name="CountyNo" value="' + DISRUPT_COUNTY_NOS[i] + '" />';
-  }
-
+  // Fetch ALL stations (no CountyNo filter — it may not be a valid filter field)
+  // We'll filter client-side by matching CountyNo to our 6 counties
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
-    + '<FILTER><OR>' + countyFilters + '</OR></FILTER>'
     + '<INCLUDE>LocationSignature</INCLUDE>'
     + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
     + '<INCLUDE>CountyNo</INCLUDE>'
     + '</QUERY>'
     + '</REQUEST>';
 
-  var response = await fetch(DISRUPT_API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/xml' },
-    body: xml
-  });
+  // Try direct API first, fall back to proxy
+  var urls = [DISRUPT_API_URL, TRAFIKVERKET_PROXY_URL];
+  var response = null;
 
-  if (!response.ok) {
-    console.warn('[DISRUPT] Could not fetch station map, status: ' + response.status);
+  for (var u = 0; u < urls.length; u++) {
+    try {
+      response = await fetch(urls[u], {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/xml' },
+        body: xml
+      });
+      if (response.ok) {
+        console.log('[DISRUPT] Station map fetched via: ' + (u === 0 ? 'direkt API' : 'proxy'));
+        break;
+      }
+      var errTxt = '';
+      try { errTxt = await response.text(); } catch (e) { /* ignore */ }
+      console.warn('[DISRUPT] Station map ' + (u === 0 ? 'direkt' : 'proxy') + ' HTTP ' + response.status + ': ' + errTxt.substring(0, 150));
+      response = null;
+    } catch (fetchErr) {
+      console.warn('[DISRUPT] Station map ' + (u === 0 ? 'direkt' : 'proxy') + ' fetch error: ' + fetchErr.message);
+      response = null;
+    }
+  }
+
+  if (!response || !response.ok) {
+    console.warn('[DISRUPT] Station map could not be loaded from any source');
     disruptStationCountyMap = {};
     disruptStationNameMap = {};
     return;
@@ -228,25 +243,35 @@ async function fetchDisruptStationMap() {
   disruptStationCountyMap = {};
   disruptStationNameMap = {};
 
+  // Build mapping, only include stations in our 6 counties
+  var ourCountySet = {};
+  for (var c = 0; c < DISRUPT_COUNTY_NOS.length; c++) {
+    ourCountySet[String(DISRUPT_COUNTY_NOS[c])] = true;
+  }
+
   for (var s = 0; s < stations.length; s++) {
     var sig = stations[s].LocationSignature;
     var county = stations[s].CountyNo;
     var name = stations[s].AdvertisedLocationName;
-    if (sig) {
-      if (!disruptStationCountyMap[sig]) disruptStationCountyMap[sig] = [];
-      if (county) {
-        var countyArr = Array.isArray(county) ? county : [county];
-        for (var ci = 0; ci < countyArr.length; ci++) {
-          if (disruptStationCountyMap[sig].indexOf(countyArr[ci]) === -1) {
-            disruptStationCountyMap[sig].push(countyArr[ci]);
-          }
-        }
+    if (!sig) continue;
+
+    // CountyNo can be a single number or an array
+    var countyArr = Array.isArray(county) ? county : (county ? [county] : []);
+    var matchesOurCounty = false;
+    for (var ci = 0; ci < countyArr.length; ci++) {
+      if (ourCountySet[String(countyArr[ci])]) {
+        matchesOurCounty = true;
+        break;
       }
+    }
+
+    if (matchesOurCounty) {
+      disruptStationCountyMap[sig] = countyArr;
       if (name) disruptStationNameMap[sig] = name;
     }
   }
 
-  console.log('[DISRUPT] Station map: ' + Object.keys(disruptStationCountyMap).length + ' stationer i 6 län');
+  console.log('[DISRUPT] Station map: ' + Object.keys(disruptStationCountyMap).length + ' stationer i våra län (av ' + stations.length + ' totalt)');
 }
 
 // ==========================================
