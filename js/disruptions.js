@@ -179,19 +179,23 @@ function getDisruptTimeFilter() {
  * Fetches messages for our county numbers within the selected time range.
  */
 function buildDisruptXml() {
-  // MINIMAL TEST: exact query from Trafikverket docs
-  // No CountyNo filter, no INCLUDE — just CreatedTime last 24h
+  // TrainMessage is GONE from Open Data API.
+  // Test both RailwayEvent (1.8) and TrainStationMessage (1.3) in one request.
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.7">'
+    + '<QUERY objecttype="RailwayEvent" schemaversion="1.8" limit="5">'
     + '<FILTER>'
-    + '<GT name="CreatedTime" value="$dateadd(-1.00:00:00)" />'
+    + '<GT name="StartTime" value="$dateadd(-1.00:00:00)" />'
+    + '</FILTER>'
+    + '</QUERY>'
+    + '<QUERY objecttype="TrainStationMessage" schemaversion="1.3" limit="5">'
+    + '<FILTER>'
+    + '<GT name="StartTime" value="$dateadd(-1.00:00:00)" />'
     + '</FILTER>'
     + '</QUERY>'
     + '</REQUEST>';
 
-  console.log('[DISRUPT] MINIMAL TEST — schema 1.7, direct API');
-  console.log('[DISRUPT] XML: ' + xml);
+  console.log('[DISRUPT] Testing RailwayEvent 1.8 + TrainStationMessage 1.3');
   return xml;
 }
 
@@ -341,21 +345,51 @@ async function fetchDisruptions() {
       throw new Error('Svar var inte JSON: ' + rawText.substring(0, 100));
     }
 
+    // Two queries in one request → RESULT array may have 2 entries
+    var results = (data && data.RESPONSE && data.RESPONSE.RESULT) || [];
+
+    // Log each result to discover what came back
+    for (var ri = 0; ri < results.length; ri++) {
+      var resultKeys = Object.keys(results[ri]);
+      console.log('[DISRUPT] RESULT[' + ri + '] keys: ' + resultKeys.join(', '));
+
+      // Check for errors in individual results
+      if (results[ri].ERROR) {
+        console.warn('[DISRUPT] RESULT[' + ri + '] ERROR: ' + JSON.stringify(results[ri].ERROR));
+        continue;
+      }
+
+      // Log data from each objecttype
+      for (var rk = 0; rk < resultKeys.length; rk++) {
+        var key = resultKeys[rk];
+        if (key === 'INFO') continue;
+        var arr = results[ri][key];
+        if (Array.isArray(arr) && arr.length > 0) {
+          console.log('[DISRUPT] ' + key + ': ' + arr.length + ' objekt');
+          console.log('[DISRUPT] ' + key + ' fält: ' + Object.keys(arr[0]).join(', '));
+          console.log('[DISRUPT] ' + key + ' exempel: ' + JSON.stringify(arr[0]).substring(0, 1000));
+        } else if (Array.isArray(arr)) {
+          console.log('[DISRUPT] ' + key + ': 0 objekt');
+        }
+      }
+    }
+
+    // For now, try to get RailwayEvent data first, then TrainStationMessage
     var rawMessages = [];
-
-    if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
-      rawMessages = data.RESPONSE.RESULT[0].TrainMessage || [];
+    var dataSource = 'unknown';
+    for (var di = 0; di < results.length; di++) {
+      if (results[di].RailwayEvent && results[di].RailwayEvent.length > 0) {
+        rawMessages = results[di].RailwayEvent;
+        dataSource = 'RailwayEvent';
+        break;
+      }
+      if (results[di].TrainStationMessage && results[di].TrainStationMessage.length > 0) {
+        rawMessages = results[di].TrainStationMessage;
+        dataSource = 'TrainStationMessage';
+        break;
+      }
     }
-
-    console.log('[DISRUPT] ' + rawMessages.length + ' meddelanden hämtade (' + disruptTimeRange + ')');
-
-    // Discovery: log available field names + first full message
-    if (rawMessages.length > 0) {
-      console.log('[DISRUPT] Fält: ' + Object.keys(rawMessages[0]).join(', '));
-      console.log('[DISRUPT] Exempel: ' + JSON.stringify(rawMessages[0]).substring(0, 800));
-    } else {
-      console.log('[DISRUPT] Tomt svar. Full response: ' + JSON.stringify(data).substring(0, 500));
-    }
+    console.log('[DISRUPT] Källa: ' + dataSource + ', ' + rawMessages.length + ' meddelanden');
 
     // Parse into our internal format
     disruptAllMessages = parseDisruptMessages(rawMessages);
