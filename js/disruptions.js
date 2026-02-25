@@ -200,17 +200,26 @@ function buildDisruptXml() {
     filterBlock = '<OR>' + countyFilters + '</OR>';
   }
 
-  // No INCLUDE fields = return ALL fields (discovery mode, then we'll optimize)
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.6" limit="5">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.7">'
     + '<FILTER>'
     + filterBlock
     + '</FILTER>'
+    + '<INCLUDE>Header</INCLUDE>'
+    + '<INCLUDE>ExternalDescription</INCLUDE>'
+    + '<INCLUDE>ReasonCodeText</INCLUDE>'
+    + '<INCLUDE>CreatedTime</INCLUDE>'
+    + '<INCLUDE>StartDateTime</INCLUDE>'
+    + '<INCLUDE>EndDateTime</INCLUDE>'
+    + '<INCLUDE>LastUpdateDateTime</INCLUDE>'
+    + '<INCLUDE>CountyNo</INCLUDE>'
+    + '<INCLUDE>AffectedLocation</INCLUDE>'
+    + '<INCLUDE>TrafficImpact</INCLUDE>'
     + '</QUERY>'
     + '</REQUEST>';
 
-  console.log('[DISRUPT] XML request built, range=' + disruptTimeRange);
+  console.log('[DISRUPT] Query built, range=' + disruptTimeRange);
   return xml;
 }
 
@@ -266,20 +275,25 @@ function parseDisruptMessages(rawMessages) {
     var countyNos = msg.CountyNo || [];
     var regionNames = getDisruptRegionNames(countyNos);
 
-    // Severity
-    var severity = classifyDisruptSeverity(header, desc);
+    // Reason code text (e.g. "Signalfel", "Växelfel")
+    var reasonCode = msg.ReasonCodeText || '';
 
-    // Generate unique ID from header + start time (no EventId in API)
-    var msgId = 'msg-' + i + '-' + (msg.StartDateTime || '').replace(/\D/g, '').substring(0, 12);
+    // Severity — also consider reason code text for classification
+    var severity = classifyDisruptSeverity(header, desc + ' ' + reasonCode);
+
+    // Generate unique ID from index + CreatedTime (stable within a fetch)
+    var msgId = 'msg-' + i + '-' + (msg.CreatedTime || msg.StartDateTime || '').replace(/\D/g, '').substring(0, 12);
 
     parsed.push({
       id: msgId,
       header: header,
       description: desc,
+      reasonCode: reasonCode,
       severity: severity,
       startTime: msg.StartDateTime || null,
       endTime: msg.EndDateTime || null,
       lastUpdated: msg.LastUpdateDateTime || null,
+      createdTime: msg.CreatedTime || null,
       countyNos: countyNos,
       regionNames: regionNames,
       stations: stationNames
@@ -301,11 +315,8 @@ function parseDisruptMessages(rawMessages) {
   return parsed;
 }
 
-// Direct Trafikverket API URL (proxy doesn't support TrainMessage)
-var TRAFIKVERKET_DIRECT_URL = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
-
 /**
- * Fetch disruption messages from Trafikverket API (direct, no proxy)
+ * Fetch disruption messages from Trafikverket API (via same proxy as departure page)
  */
 async function fetchDisruptions() {
   var statusEl = document.getElementById('disruptStatus');
@@ -332,32 +343,25 @@ async function fetchDisruptions() {
     }
 
     var xml = buildDisruptXml();
-    console.log('[DISRUPT] Sending request to: ' + TRAFIKVERKET_DIRECT_URL);
-    console.log('[DISRUPT] XML body: ' + xml.substring(0, 300) + '...');
 
-    var response = await fetch(TRAFIKVERKET_DIRECT_URL, {
+    var response = await fetch(TRAFIKVERKET_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml' },
       body: xml
     });
 
-    console.log('[DISRUPT] Response status: ' + response.status);
-
     if (!response.ok) {
       var errorText = '';
       try { errorText = await response.text(); } catch (e) { /* ignore */ }
-      console.log('[DISRUPT] Error response body: ' + errorText.substring(0, 500));
+      console.warn('[DISRUPT] HTTP ' + response.status + ': ' + errorText.substring(0, 200));
       throw new Error('HTTP ' + response.status + (errorText ? ' — ' + errorText.substring(0, 100) : ''));
     }
 
     var rawText = await response.text();
-    console.log('[DISRUPT] Raw response (first 500 chars): ' + rawText.substring(0, 500));
-
     var data;
     try {
       data = JSON.parse(rawText);
     } catch (parseErr) {
-      console.log('[DISRUPT] JSON parse error — response is not JSON');
       throw new Error('Svar var inte JSON: ' + rawText.substring(0, 100));
     }
 
@@ -365,20 +369,9 @@ async function fetchDisruptions() {
 
     if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
       rawMessages = data.RESPONSE.RESULT[0].TrainMessage || [];
-      console.log('[DISRUPT] Got ' + rawMessages.length + ' TrainMessage(s)');
-    } else {
-      console.log('[DISRUPT] Unexpected response structure: ' + JSON.stringify(data).substring(0, 500));
     }
 
-    // If we got 0 results, log the full response for debugging
-    if (rawMessages.length === 0) {
-      console.log('[DISRUPT] 0 messages returned. Full response: ' + JSON.stringify(data).substring(0, 1000));
-    } else {
-      // Log ALL field names from first message so we know what's available
-      console.log('[DISRUPT] Available fields: ' + Object.keys(rawMessages[0]).join(', '));
-      // Log first message fully
-      console.log('[DISRUPT] Full sample message: ' + JSON.stringify(rawMessages[0]));
-    }
+    console.log('[DISRUPT] ' + rawMessages.length + ' meddelanden hämtade (' + disruptTimeRange + ')');
 
     // Parse into our internal format
     disruptAllMessages = parseDisruptMessages(rawMessages);
