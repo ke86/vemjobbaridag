@@ -183,7 +183,7 @@ function buildDisruptXml() {
   // No CountyNo filter, no INCLUDE — just CreatedTime last 24h
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.7">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.6">'
     + '<FILTER>'
     + '<GT name="CreatedTime" value="$dateadd(-1.00:00:00)" />'
     + '</FILTER>'
@@ -315,7 +315,11 @@ async function fetchDisruptions() {
 
     var xml = buildDisruptXml();
 
-    var response = await fetch(TRAFIKVERKET_PROXY_URL, {
+    // Use direct Trafikverket API (proxy may not support TrainMessage)
+    var DISRUPT_API_URL = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
+    console.log('[DISRUPT] Sending to: ' + DISRUPT_API_URL);
+
+    var response = await fetch(DISRUPT_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml' },
       body: xml
