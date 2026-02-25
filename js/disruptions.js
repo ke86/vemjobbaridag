@@ -17,6 +17,9 @@ var disruptStationCountyMap = null;  // { 'Cst': [12], 'Hld': [13], ... } — si
 var disruptStationNameMap = null;    // { 'Cst': 'Malmö C', ... } — sig → name
 var disruptReasonCodeMap = null;    // { 'IBK3': 'Signalfel', ... } — code → description
 var disruptTrainDeviations = [];   // parsed train deviations from TrainAnnouncement
+var disruptActiveTrainTypes = {};  // { 'Öresundståg': true, ... }
+var disruptTrainTypeExpanded = false; // train type filter collapsed by default
+var disruptAllTrainTypes = [];     // unique train type names from API data
 
 // Refresh interval in seconds
 var DISRUPT_REFRESH_SEC = 60;
@@ -561,22 +564,9 @@ async function fetchTrainDeviations() {
       severity = classifyDisruptSeverity(devText, devText);
     }
 
-    // Lookup ReasonCode descriptions for deviation codes
-    var reasonTexts = [];
-    if (grp.deviationCodes && disruptReasonCodeMap) {
-      for (var rci = 0; rci < grp.deviationCodes.length; rci++) {
-        var rcDesc = disruptReasonCodeMap[grp.deviationCodes[rci]];
-        if (rcDesc && reasonTexts.indexOf(rcDesc) === -1) {
-          reasonTexts.push(rcDesc);
-        }
-      }
-    }
-    var reasonStr = reasonTexts.join(', ');
-
     // Build description
     var descParts = [];
     if (devText) descParts.push(devText);
-    if (reasonStr) descParts.push('Orsak: ' + reasonStr);
     if (productStr) descParts.push('Typ: ' + productStr);
     if (grp.advertisedTime) descParts.push('Planerad avg: ' + formatDisruptDateTime(grp.advertisedTime));
     if (grp.estimatedTime) descParts.push('Beräknad avg: ' + formatDisruptDateTime(grp.estimatedTime));
@@ -590,7 +580,7 @@ async function fetchTrainDeviations() {
       id: 'ta-' + grp.trainId + '-' + g,
       header: header,
       description: descParts.join('\n'),
-      reasonCode: reasonStr,
+      reasonCode: '',
       severity: severity,
       startTime: grp.advertisedTime,
       endTime: null,
@@ -624,6 +614,29 @@ async function fetchTrainDeviations() {
   });
 
   disruptTrainDeviations = parsed;
+
+  // Collect unique train types for filter
+  var typeSet = {};
+  for (var tt = 0; tt < parsed.length; tt++) {
+    if (parsed[tt].productInfo) {
+      // productInfo can be "Öresundståg, 1234" — split by comma, use first part
+      var parts = parsed[tt].productInfo.split(', ');
+      for (var tp = 0; tp < parts.length; tp++) {
+        var typeName = parts[tp].trim();
+        // Skip numeric-only entries (train numbers like "1234")
+        if (typeName && !/^\d+$/.test(typeName)) {
+          typeSet[typeName] = (typeSet[typeName] || 0) + 1;
+        }
+      }
+    }
+  }
+
+  // Sort by count (most common first)
+  disruptAllTrainTypes = Object.keys(typeSet).sort(function(a, b) {
+    return typeSet[b] - typeSet[a];
+  });
+
+  console.log('[DISRUPT] TA tågtyper: ' + disruptAllTrainTypes.join(', '));
   console.log('[DISRUPT] TA klart: ' + parsed.length + ' avvikelser att visa');
 }
 
@@ -902,6 +915,7 @@ async function fetchDisruptions() {
     if (loadingEl) loadingEl.style.display = 'none';
 
     // 8. Update UI
+    initDisruptTrainTypeFilter();
     updateDisruptChipCounts();
     renderDisruptList();
     updateDisruptSummary();
@@ -956,19 +970,39 @@ function startDisruptCountdown() {
  * Get filtered messages based on active region chips
  */
 function getFilteredDisruptions() {
-  var allActive = disruptActiveRegions['all'] === true;
+  var allRegionsActive = disruptActiveRegions['all'] === true;
+  var allTrainTypesActive = disruptActiveTrainTypes['all'] === true;
 
   return disruptAllMessages.filter(function(msg) {
-    if (allActive) return true;
-
-    // Check if any of the message's counties match an active filter
-    if (!msg.countyNos || msg.countyNos.length === 0) return false;
-    for (var i = 0; i < msg.countyNos.length; i++) {
-      if (disruptActiveRegions[String(msg.countyNos[i])] === true) {
-        return true;
+    // Region filter
+    if (!allRegionsActive) {
+      if (!msg.countyNos || msg.countyNos.length === 0) return false;
+      var regionMatch = false;
+      for (var i = 0; i < msg.countyNos.length; i++) {
+        if (disruptActiveRegions[String(msg.countyNos[i])] === true) {
+          regionMatch = true;
+          break;
+        }
       }
+      if (!regionMatch) return false;
     }
-    return false;
+
+    // Train type filter (only applies to train deviations, not station messages)
+    if (msg.isTrain && !allTrainTypesActive) {
+      if (!msg.productInfo) return false;
+      var msgTypes = msg.productInfo.split(', ');
+      var typeMatch = false;
+      for (var t = 0; t < msgTypes.length; t++) {
+        var typeName = msgTypes[t].trim();
+        if (typeName && disruptActiveTrainTypes[typeName] === true) {
+          typeMatch = true;
+          break;
+        }
+      }
+      if (!typeMatch) return false;
+    }
+
+    return true;
   });
 }
 
@@ -1118,9 +1152,6 @@ function buildDisruptCard(msg) {
   if (isTrain) {
     // Train deviation: show deviation text prominently
     descHtml = '<div class="disrupt-deviation-text">' + escDisruptHtml(msg.deviationText) + '</div>';
-    if (msg.reasonCode) {
-      descHtml += '<div class="disrupt-reason-code">Orsak: ' + escDisruptHtml(msg.reasonCode) + '</div>';
-    }
     if (msg.productInfo) {
       descHtml += '<div class="disrupt-product-info">' + escDisruptHtml(msg.productInfo) + '</div>';
     }
@@ -1381,6 +1412,134 @@ function handleDisruptChipClick() {
   updateDisruptFilterToggleLabel();
   renderDisruptList();
   updateDisruptSummary();
+}
+
+// ==========================================
+// Train type filter
+// ==========================================
+
+/**
+ * Initialize train type filter after data has been fetched.
+ * Builds dynamic chips from discovered train types.
+ * Default: only Öresundståg active.
+ */
+function initDisruptTrainTypeFilter() {
+  var container = document.getElementById('disruptTrainTypeChips');
+  if (!container) return;
+
+  // Build chips dynamically from discovered types
+  var html = '<button class="disrupt-chip" data-traintype="all">Alla</button>';
+  for (var i = 0; i < disruptAllTrainTypes.length; i++) {
+    var typeName = disruptAllTrainTypes[i];
+    var isDefault = (typeName.toLowerCase().indexOf('öresundståg') !== -1);
+    html += '<button class="disrupt-chip' + (isDefault ? ' active' : '') + '" data-traintype="' + escDisruptHtml(typeName) + '">' + escDisruptHtml(typeName) + '</button>';
+  }
+  container.innerHTML = html;
+
+  // Set active state: default to Öresundståg, fallback to all if not found
+  disruptActiveTrainTypes = {};
+  var hasDefault = false;
+  for (var j = 0; j < disruptAllTrainTypes.length; j++) {
+    var tn = disruptAllTrainTypes[j];
+    var isOresund = (tn.toLowerCase().indexOf('öresundståg') !== -1);
+    disruptActiveTrainTypes[tn] = isOresund;
+    if (isOresund) hasDefault = true;
+  }
+
+  // If no Öresundståg found, activate all
+  if (!hasDefault) {
+    disruptActiveTrainTypes['all'] = true;
+    for (var k = 0; k < disruptAllTrainTypes.length; k++) {
+      disruptActiveTrainTypes[disruptAllTrainTypes[k]] = true;
+    }
+    var allChips = container.querySelectorAll('.disrupt-chip');
+    for (var ac = 0; ac < allChips.length; ac++) {
+      allChips[ac].classList.add('active');
+    }
+  }
+
+  // Attach click handlers
+  var chips = container.querySelectorAll('.disrupt-chip');
+  for (var c = 0; c < chips.length; c++) {
+    chips[c].addEventListener('click', handleDisruptTrainTypeClick);
+  }
+
+  // Setup toggle
+  var toggleBtn = document.getElementById('disruptTrainTypeToggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', handleDisruptTrainTypeToggle);
+  }
+  updateDisruptTrainTypeToggleLabel();
+}
+
+function handleDisruptTrainTypeToggle() {
+  disruptTrainTypeExpanded = !disruptTrainTypeExpanded;
+  var chipsEl = document.getElementById('disruptTrainTypeChips');
+  var toggleBtn = document.getElementById('disruptTrainTypeToggle');
+  if (chipsEl) chipsEl.classList.toggle('expanded', disruptTrainTypeExpanded);
+  if (toggleBtn) toggleBtn.classList.toggle('expanded', disruptTrainTypeExpanded);
+}
+
+function handleDisruptTrainTypeClick() {
+  var typeName = this.getAttribute('data-traintype');
+
+  if (typeName === 'all') {
+    var allActive = disruptActiveTrainTypes['all'] === true;
+    var newState = !allActive;
+    disruptActiveTrainTypes['all'] = newState;
+    for (var i = 0; i < disruptAllTrainTypes.length; i++) {
+      disruptActiveTrainTypes[disruptAllTrainTypes[i]] = newState;
+    }
+  } else {
+    disruptActiveTrainTypes[typeName] = !disruptActiveTrainTypes[typeName];
+
+    // Check if all individual types are now active
+    var checkAll = true;
+    for (var j = 0; j < disruptAllTrainTypes.length; j++) {
+      if (!disruptActiveTrainTypes[disruptAllTrainTypes[j]]) {
+        checkAll = false;
+        break;
+      }
+    }
+    disruptActiveTrainTypes['all'] = checkAll;
+  }
+
+  // Update chip visual state
+  var chips = document.querySelectorAll('#disruptTrainTypeChips .disrupt-chip');
+  for (var c = 0; c < chips.length; c++) {
+    var tt = chips[c].getAttribute('data-traintype');
+    chips[c].classList.toggle('active', disruptActiveTrainTypes[tt] === true);
+  }
+
+  updateDisruptTrainTypeToggleLabel();
+  renderDisruptList();
+  updateDisruptSummary();
+}
+
+function updateDisruptTrainTypeToggleLabel() {
+  var labelEl = document.getElementById('disruptTrainTypeToggleLabel');
+  if (!labelEl) return;
+
+  var allActive = disruptActiveTrainTypes['all'] === true;
+  if (allActive) {
+    labelEl.textContent = 'Alla tågtyper';
+    return;
+  }
+
+  var activeNames = [];
+  for (var i = 0; i < disruptAllTrainTypes.length; i++) {
+    if (disruptActiveTrainTypes[disruptAllTrainTypes[i]]) {
+      activeNames.push(disruptAllTrainTypes[i]);
+    }
+  }
+
+  if (activeNames.length === 0) {
+    labelEl.textContent = 'Inga tågtyper valda';
+  } else if (activeNames.length <= 2) {
+    labelEl.textContent = activeNames.join(', ');
+  } else {
+    labelEl.textContent = activeNames.length + ' tågtyper';
+  }
 }
 
 // ==========================================

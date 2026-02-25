@@ -388,6 +388,17 @@
           <button class="disrupt-chip" data-region="10">Blekinge</button>
         </div>
       </div>
+
+      <!-- Train type filter (collapsible, populated dynamically) -->
+      <div class="disrupt-filter-bar" id="disruptTrainTypeBar">
+        <button class="disrupt-filter-toggle" id="disruptTrainTypeToggle">
+          <span class="disrupt-filter-toggle-text">Tågtyp: <span id="disruptTrainTypeToggleLabel">Öresundståg</span></span>
+          <span class="disrupt-filter-toggle-arrow">▾</span>
+        </button>
+        <div class="disrupt-filter-chips" id="disruptTrainTypeChips">
+          <!-- Chips populated by JS from API data -->
+        </div>
+      </div>
     </div>
 
     <!-- Scrollable card list -->
@@ -781,7 +792,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.55</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v5.56</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
