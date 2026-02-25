@@ -183,14 +183,15 @@ function buildDisruptXml() {
   // No CountyNo filter, no INCLUDE — just CreatedTime last 24h
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.6">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.7">'
     + '<FILTER>'
     + '<GT name="CreatedTime" value="$dateadd(-1.00:00:00)" />'
     + '</FILTER>'
     + '</QUERY>'
     + '</REQUEST>';
 
-  console.log('[DISRUPT] MINIMAL TEST query sent');
+  console.log('[DISRUPT] MINIMAL TEST — schema 1.7, direct API');
+  console.log('[DISRUPT] XML: ' + xml);
   return xml;
 }
 
