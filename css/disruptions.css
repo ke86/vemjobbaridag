@@ -751,6 +751,13 @@
   color: var(--text-primary, #1a1a1a);
 }
 
+.disrupt-reason-code {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-red, #e63946);
+  margin-bottom: 4px;
+}
+
 .disrupt-product-info {
   font-size: 12px;
   opacity: 0.65;

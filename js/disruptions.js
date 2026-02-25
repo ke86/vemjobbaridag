@@ -443,14 +443,28 @@ async function fetchTrainDeviations() {
   for (var j = 0; j < inRegion.length; j++) {
     var a = inRegion[j];
     var trainId = a.AdvertisedTrainIdent || 'unknown';
-    var devTexts = a.Deviation || [];
-    if (!Array.isArray(devTexts)) devTexts = [devTexts];
-    var devKey = trainId + '|' + devTexts.join(';');
+    var rawDevs = a.Deviation || [];
+    if (!Array.isArray(rawDevs)) rawDevs = [rawDevs];
+
+    // Extract Description strings + Code for ReasonCode lookup
+    var devDescriptions = [];
+    var devCodes = [];
+    for (var di = 0; di < rawDevs.length; di++) {
+      var dv = rawDevs[di];
+      if (typeof dv === 'object' && dv !== null) {
+        devDescriptions.push(dv.Description || dv.Code || '');
+        if (dv.Code) devCodes.push(dv.Code);
+      } else {
+        devDescriptions.push(String(dv));
+      }
+    }
+    var devKey = trainId + '|' + devDescriptions.join(';');
 
     if (!trainGroups[devKey]) {
       trainGroups[devKey] = {
         trainId: trainId,
-        deviation: devTexts,
+        deviation: devDescriptions,
+        deviationCodes: devCodes,
         canceled: a.Canceled || false,
         advertisedTime: a.AdvertisedTimeAtLocation || null,
         estimatedTime: a.EstimatedTimeAtLocation || null,
@@ -547,9 +561,22 @@ async function fetchTrainDeviations() {
       severity = classifyDisruptSeverity(devText, devText);
     }
 
+    // Lookup ReasonCode descriptions for deviation codes
+    var reasonTexts = [];
+    if (grp.deviationCodes && disruptReasonCodeMap) {
+      for (var rci = 0; rci < grp.deviationCodes.length; rci++) {
+        var rcDesc = disruptReasonCodeMap[grp.deviationCodes[rci]];
+        if (rcDesc && reasonTexts.indexOf(rcDesc) === -1) {
+          reasonTexts.push(rcDesc);
+        }
+      }
+    }
+    var reasonStr = reasonTexts.join(', ');
+
     // Build description
     var descParts = [];
     if (devText) descParts.push(devText);
+    if (reasonStr) descParts.push('Orsak: ' + reasonStr);
     if (productStr) descParts.push('Typ: ' + productStr);
     if (grp.advertisedTime) descParts.push('Planerad avg: ' + formatDisruptDateTime(grp.advertisedTime));
     if (grp.estimatedTime) descParts.push('Beräknad avg: ' + formatDisruptDateTime(grp.estimatedTime));
@@ -563,7 +590,7 @@ async function fetchTrainDeviations() {
       id: 'ta-' + grp.trainId + '-' + g,
       header: header,
       description: descParts.join('\n'),
-      reasonCode: '',
+      reasonCode: reasonStr,
       severity: severity,
       startTime: grp.advertisedTime,
       endTime: null,
@@ -801,27 +828,26 @@ async function fetchDisruptions() {
       await fetchDepStationNames();
     }
 
-    // 2. Fetch all data sources in parallel:
-    //    - TrainStationMessage (station messages)
-    //    - TrainAnnouncement with Deviation (train-specific deviations)
-    //    - ReasonCode (lookup table)
+    // 2. Fetch ReasonCode + TrainStationMessage in parallel
+    //    (ReasonCode must finish before TrainDeviations which uses it)
     var tsmPromise = fetch(DISRUPT_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml' },
       body: buildDisruptXml()
     });
 
-    var taPromise = fetchTrainDeviations().catch(function(e) {
-      console.warn('[DISRUPT] TA-fetch misslyckades: ' + e.message);
-    });
-
     var rcPromise = fetchReasonCodes().catch(function(e) {
       console.warn('[DISRUPT] ReasonCode-fetch misslyckades: ' + e.message);
     });
 
-    // Wait for all three
-    var results = await Promise.all([tsmPromise, taPromise, rcPromise]);
+    // Wait for ReasonCode + TSM network request
+    var results = await Promise.all([tsmPromise, rcPromise]);
     var response = results[0];
+
+    // 3. Now fetch TrainDeviations (needs ReasonCode map + station map)
+    await fetchTrainDeviations().catch(function(e) {
+      console.warn('[DISRUPT] TA-fetch misslyckades: ' + e.message);
+    });
 
     if (!response.ok) {
       var errorText = '';
@@ -1092,6 +1118,9 @@ function buildDisruptCard(msg) {
   if (isTrain) {
     // Train deviation: show deviation text prominently
     descHtml = '<div class="disrupt-deviation-text">' + escDisruptHtml(msg.deviationText) + '</div>';
+    if (msg.reasonCode) {
+      descHtml += '<div class="disrupt-reason-code">Orsak: ' + escDisruptHtml(msg.reasonCode) + '</div>';
+    }
     if (msg.productInfo) {
       descHtml += '<div class="disrupt-product-info">' + escDisruptHtml(msg.productInfo) + '</div>';
     }
