@@ -200,20 +200,13 @@ function buildDisruptXml() {
     filterBlock = '<OR>' + countyFilters + '</OR>';
   }
 
+  // No INCLUDE fields = return ALL fields (discovery mode, then we'll optimize)
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.6" orderby="LastUpdateDateTime desc">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.6" limit="5">'
     + '<FILTER>'
     + filterBlock
     + '</FILTER>'
-    + '<INCLUDE>Header</INCLUDE>'
-    + '<INCLUDE>ExternalDescription</INCLUDE>'
-    + '<INCLUDE>StartDateTime</INCLUDE>'
-    + '<INCLUDE>EndDateTime</INCLUDE>'
-    + '<INCLUDE>LastUpdateDateTime</INCLUDE>'
-    + '<INCLUDE>CountyNo</INCLUDE>'
-    + '<INCLUDE>AffectedLocation</INCLUDE>'
-    + '<INCLUDE>TrafficImpact</INCLUDE>'
     + '</QUERY>'
     + '</REQUEST>';
 
@@ -381,8 +374,10 @@ async function fetchDisruptions() {
     if (rawMessages.length === 0) {
       console.log('[DISRUPT] 0 messages returned. Full response: ' + JSON.stringify(data).substring(0, 1000));
     } else {
-      // Log first message as sample
-      console.log('[DISRUPT] Sample message: ' + JSON.stringify(rawMessages[0]).substring(0, 500));
+      // Log ALL field names from first message so we know what's available
+      console.log('[DISRUPT] Available fields: ' + Object.keys(rawMessages[0]).join(', '));
+      // Log first message fully
+      console.log('[DISRUPT] Full sample message: ' + JSON.stringify(rawMessages[0]));
     }
 
     // Parse into our internal format
