@@ -628,3 +628,72 @@
     font-size: 12px;
   }
 }
+
+/* ==========================================
+   TRAIN DEVIATION CARDS (TrainAnnouncement)
+   ========================================== */
+
+/* Train card left-border accent */
+.disrupt-card-train {
+  border-left-width: 4px;
+}
+
+.disrupt-card-train .disrupt-card-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.disrupt-train-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.disrupt-train-id {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.disrupt-train-route {
+  font-weight: 400;
+  opacity: 0.75;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.disrupt-deviation-text {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--text-primary, #1a1a1a);
+}
+
+.disrupt-product-info {
+  font-size: 12px;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
+
+/* Dark mode train card */
+.dark .disrupt-deviation-text {
+  color: var(--text-primary, #e5e5e5);
+}
+
+.dark .disrupt-train-route {
+  opacity: 0.6;
+}
+
+/* Responsive train route */
+@media (max-width: 400px) {
+  .disrupt-train-route {
+    max-width: 140px;
+    font-size: 11px;
+  }
+  .disrupt-train-icon {
+    font-size: 13px;
+  }
+}
