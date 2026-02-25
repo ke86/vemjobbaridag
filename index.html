@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="css/animations.css">
   <link rel="stylesheet" href="css/la.css">
   <link rel="stylesheet" href="css/documents.css">
+  <link rel="stylesheet" href="css/disruptions.css">
   <link rel="stylesheet" href="css/positions.css">
 </head>
 <body>
@@ -92,6 +93,7 @@
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
       <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
       <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
+      <li><a href="#" data-page="disruptions"><span class="icon">⚠️</span> Trafikstörningar</a></li>
       <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema (Test)</a></li>
       <li><a href="#" data-page="documents"><span class="icon">📄</span> Dokument</a></li>
       <li><a href="https://bromsax31.se/" target="_blank" rel="noopener" data-external="true"><span class="icon">🔗</span> BromaX31</a></li>
@@ -344,6 +346,61 @@
     <!-- STICKY BOTTOM: Status -->
     <div class="dep-sticky-bottom" id="departureStatus">
       <span class="dep-loading-spinner"></span> Väntar...
+    </div>
+  </main>
+
+  <!-- Disruptions Page -->
+  <main class="disruptions-page page" id="disruptionsPage">
+    <!-- STICKY TOP: Summary + Filters -->
+    <div class="disrupt-sticky-top">
+      <!-- Summary bar -->
+      <div class="disrupt-summary" id="disruptSummary">
+        <div class="disrupt-summary-left">
+          <span class="disrupt-summary-icon">⚠️</span>
+          <span class="disrupt-summary-text" id="disruptSummaryText">Laddar...</span>
+        </div>
+        <div class="disrupt-summary-right">
+          <span class="disrupt-countdown" id="disruptCountdown"></span>
+        </div>
+      </div>
+
+      <!-- Region filter chips -->
+      <div class="disrupt-filter-bar" id="disruptFilterBar">
+        <div class="disrupt-filter-chips" id="disruptFilterChips">
+          <button class="disrupt-chip active" data-region="all">Alla</button>
+          <button class="disrupt-chip active" data-region="12">Skåne</button>
+          <button class="disrupt-chip active" data-region="13">Halland</button>
+          <button class="disrupt-chip active" data-region="14">Göteborg</button>
+          <button class="disrupt-chip active" data-region="7">Kronoberg</button>
+          <button class="disrupt-chip active" data-region="8">Kalmar</button>
+          <button class="disrupt-chip active" data-region="10">Blekinge</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrollable card list -->
+    <div class="disrupt-scroll-area" id="disruptScrollArea">
+      <div class="disrupt-list" id="disruptList">
+        <!-- Cards rendered by JS -->
+      </div>
+
+      <!-- Empty state (shown when no disruptions) -->
+      <div class="disrupt-empty" id="disruptEmpty" style="display:none;">
+        <span class="disrupt-empty-icon">🎉</span>
+        <h2 class="disrupt-empty-title">Inga kända störningar</h2>
+        <p class="disrupt-empty-text">Just nu ser trafiken bra ut i ditt område.</p>
+      </div>
+
+      <!-- Loading state -->
+      <div class="disrupt-loading" id="disruptLoading">
+        <div class="disrupt-loading-spinner"></div>
+        <p class="disrupt-loading-text">Hämtar trafikmeddelanden...</p>
+      </div>
+    </div>
+
+    <!-- STICKY BOTTOM: Status -->
+    <div class="disrupt-sticky-bottom" id="disruptStatus">
+      <span class="disrupt-status-spinner"></span> Väntar...
     </div>
   </main>
 
@@ -712,7 +769,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.31</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v5.33</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -882,6 +939,7 @@
   <script src="js/train-follow.js"></script>
   <script src="js/la.js"></script>
   <script src="js/documents.js"></script>
+  <script src="js/disruptions.js"></script>
   <script src="js/positions.js"></script>
   <script src="js/app.js"></script>
 

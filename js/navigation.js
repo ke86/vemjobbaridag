@@ -111,6 +111,9 @@ function showPage(pageId) {
   if (pageId !== 'positions') {
     if (typeof onPositionsPageHide === 'function') onPositionsPageHide();
   }
+  if (pageId !== 'disruptions') {
+    if (typeof onDisruptionsPageHide === 'function') onDisruptionsPageHide();
+  }
 
   // Activate page + set header title
   if (pageId === 'schedule') {
@@ -148,6 +151,10 @@ function showPage(pageId) {
     document.getElementById('laPage').classList.add('active');
     headerTitle.textContent = 'Dagens LA';
     if (typeof onLaPageShow === 'function') onLaPageShow();
+  } else if (pageId === 'disruptions') {
+    document.getElementById('disruptionsPage').classList.add('active');
+    headerTitle.textContent = 'Trafikstörningar';
+    if (typeof onDisruptionsPageShow === 'function') onDisruptionsPageShow();
   } else if (pageId === 'documents') {
     document.getElementById('documentsPage').classList.add('active');
     headerTitle.textContent = 'Dokument';
