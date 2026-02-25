@@ -10,6 +10,7 @@ var disruptCountdownTimer = null;
 var disruptAllMessages = [];       // raw parsed messages from API
 var disruptActiveRegions = {};     // { '12': true, '13': true, ... }
 var disruptExpandedId = null;      // currently expanded card ID (one at a time)
+var disruptTimeRange = 'active';   // 'active', '24h', '3d', '7d'
 
 // Refresh interval in seconds
 var DISRUPT_REFRESH_SEC = 60;
@@ -160,8 +161,22 @@ function resolveDisruptStationName(sig) {
 }
 
 /**
+ * Get the $dateadd filter string for the selected time range.
+ * Returns empty string for 'active' (no time filter = only active messages).
+ * Trafikverket $dateadd format: -D.HH:MM:SS (negative = past)
+ */
+function getDisruptTimeFilter() {
+  switch (disruptTimeRange) {
+    case '24h': return '$dateadd(-1.00:00:00)';
+    case '3d':  return '$dateadd(-3.00:00:00)';
+    case '7d':  return '$dateadd(-7.00:00:00)';
+    default:    return ''; // 'active' — no time filter
+  }
+}
+
+/**
  * Build the XML request for Trafikverket TrainMessage API.
- * Fetches active messages for our county numbers.
+ * Fetches messages for our county numbers within the selected time range.
  */
 function buildDisruptXml() {
   // Build OR-clause for county numbers
@@ -170,11 +185,21 @@ function buildDisruptXml() {
     countyFilters += '<EQ name="CountyNo" value="' + DISRUPT_COUNTY_NOS[i] + '" />';
   }
 
+  // Time filter — only added for historical views (24h / 3d / 7d)
+  var timeFilter = getDisruptTimeFilter();
+  var timeXml = '';
+  if (timeFilter) {
+    timeXml = '<GT name="LastUpdateDateTime" value="' + timeFilter + '" />';
+  }
+
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainMessage" schemaversion="1.7" orderby="LastUpdateDateTime desc">'
     + '<FILTER>'
+    + '<AND>'
     + '<OR>' + countyFilters + '</OR>'
+    + timeXml
+    + '</AND>'
     + '</FILTER>'
     + '<INCLUDE>EventId</INCLUDE>'
     + '<INCLUDE>Header</INCLUDE>'
@@ -454,7 +479,9 @@ function updateDisruptSummary() {
   if (!summaryTextEl) return;
 
   if (filtered.length === 0) {
-    summaryTextEl.textContent = 'Inga aktiva störningar';
+    var rangeLabels = { 'active': 'aktiva', '24h': 'senaste 24h', '3d': 'senaste 3 dagarna', '7d': 'senaste 7 dagarna' };
+    var rangeLabel = rangeLabels[disruptTimeRange] || 'aktiva';
+    summaryTextEl.textContent = 'Inga störningar (' + rangeLabel + ')';
     if (summaryIconEl) summaryIconEl.textContent = '✅';
   } else {
     // Count severities
@@ -586,7 +613,20 @@ function renderDisruptList() {
 
   if (filtered.length === 0) {
     listEl.innerHTML = '';
-    if (emptyEl) emptyEl.style.display = '';
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      // Update empty state text based on time range
+      var emptyTitle = emptyEl.querySelector('.disrupt-empty-title');
+      var emptyText = emptyEl.querySelector('.disrupt-empty-text');
+      if (disruptTimeRange === 'active') {
+        if (emptyTitle) emptyTitle.textContent = 'Inga kända störningar';
+        if (emptyText) emptyText.textContent = 'Just nu ser trafiken bra ut i ditt område.';
+      } else {
+        var labels = { '24h': 'senaste 24 timmarna', '3d': 'senaste 3 dagarna', '7d': 'senaste 7 dagarna' };
+        if (emptyTitle) emptyTitle.textContent = 'Inga störningar hittades';
+        if (emptyText) emptyText.textContent = 'Inga meddelanden under ' + (labels[disruptTimeRange] || '') + ' för valda regioner.';
+      }
+    }
     return;
   }
 
@@ -691,6 +731,39 @@ function handleDisruptChipClick() {
 }
 
 /**
+ * Initialize time range toggle buttons
+ */
+function initDisruptTimeToggle() {
+  var btns = document.querySelectorAll('#disruptTimeToggle .disrupt-time-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', handleDisruptTimeClick);
+  }
+}
+
+/**
+ * Handle time range button click
+ */
+function handleDisruptTimeClick() {
+  var range = this.getAttribute('data-range');
+  if (range === disruptTimeRange) return; // already selected
+
+  disruptTimeRange = range;
+
+  // Update button visual state
+  var btns = document.querySelectorAll('#disruptTimeToggle .disrupt-time-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('active', btns[i].getAttribute('data-range') === range);
+  }
+
+  // Clear existing data so loading spinner shows
+  disruptAllMessages = [];
+  disruptExpandedId = null;
+
+  // Re-fetch with new time range
+  fetchDisruptions();
+}
+
+/**
  * Called when the disruptions page is shown
  */
 function onDisruptionsPageShow() {
@@ -706,6 +779,9 @@ function onDisruptionsPageShow() {
   if (Object.keys(disruptActiveRegions).length === 0) {
     initDisruptFilters();
   }
+
+  // Initialize time toggle on first show
+  initDisruptTimeToggle();
 
   // Fetch data immediately
   fetchDisruptions();

@@ -65,6 +65,65 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* --- TIME RANGE TOGGLE --- */
+.disrupt-time-toggle {
+  display: flex;
+  gap: 0;
+  margin: 0 14px 10px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.disrupt-time-btn {
+  flex: 1;
+  padding: 8px 6px;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.disrupt-time-btn:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20%;
+  height: 60%;
+  width: 1px;
+  background: var(--border-color);
+}
+
+.disrupt-time-btn:active {
+  transform: scale(0.97);
+}
+
+.disrupt-time-btn.active {
+  background: var(--accent-red);
+  color: #fff;
+}
+
+.disrupt-time-btn.active::after {
+  display: none;
+}
+
+/* Hide divider on the button just before the active one */
+.disrupt-time-btn:has(+ .disrupt-time-btn.active)::after {
+  display: none;
+}
+
+.dark .disrupt-time-toggle {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
 /* --- REGION FILTER CHIPS (wrap grid, phone-optimized) --- */
 .disrupt-filter-bar {
   padding: 0 14px 10px;
@@ -527,6 +586,16 @@
 @media (max-width: 400px) {
   .disrupt-summary {
     padding: 10px 10px;
+  }
+
+  .disrupt-time-toggle {
+    margin: 0 10px 8px;
+  }
+
+  .disrupt-time-btn {
+    font-size: 12px;
+    padding: 7px 4px;
+    min-height: 32px;
   }
 
   .disrupt-filter-bar {
