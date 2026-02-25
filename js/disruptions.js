@@ -179,38 +179,18 @@ function getDisruptTimeFilter() {
  * Fetches messages for our county numbers within the selected time range.
  */
 function buildDisruptXml() {
-  // Build OR-clause for county numbers
-  var countyFilters = '';
-  for (var i = 0; i < DISRUPT_COUNTY_NOS.length; i++) {
-    countyFilters += '<EQ name="CountyNo" value="' + DISRUPT_COUNTY_NOS[i] + '" />';
-  }
-
-  // Time filter — only added for historical views (24h / 3d / 7d)
-  var timeFilter = getDisruptTimeFilter();
-
-  // Build filter block: wrap in AND only if we have both county + time filters
-  var filterBlock;
-  if (timeFilter) {
-    filterBlock = '<AND>'
-      + '<OR>' + countyFilters + '</OR>'
-      + '<GT name="LastUpdateDateTime" value="' + timeFilter + '" />'
-      + '</AND>';
-  } else {
-    // Active only — just county filter, no AND wrapper needed
-    filterBlock = '<OR>' + countyFilters + '</OR>';
-  }
-
-  // Discovery mode: no INCLUDE = return ALL fields so we can see what exists
+  // MINIMAL TEST: exact query from Trafikverket docs
+  // No CountyNo filter, no INCLUDE — just CreatedTime last 24h
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.7" limit="3">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.7">'
     + '<FILTER>'
-    + filterBlock
+    + '<GT name="CreatedTime" value="$dateadd(-1.00:00:00)" />'
     + '</FILTER>'
     + '</QUERY>'
     + '</REQUEST>';
 
-  console.log('[DISRUPT] Query built (discovery mode), range=' + disruptTimeRange);
+  console.log('[DISRUPT] MINIMAL TEST query sent');
   return xml;
 }
 
