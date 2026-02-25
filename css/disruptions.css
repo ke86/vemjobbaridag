@@ -65,66 +65,76 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* --- REGION FILTER CHIPS --- */
+/* --- REGION FILTER CHIPS (wrap grid, phone-optimized) --- */
 .disrupt-filter-bar {
   padding: 0 14px 10px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.disrupt-filter-bar::-webkit-scrollbar {
-  display: none;
 }
 
 .disrupt-filter-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  white-space: nowrap;
 }
 
 .disrupt-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  font-size: 12px;
+  gap: 5px;
+  padding: 8px 14px;
+  min-height: 38px;
+  font-size: 13px;
   font-weight: 600;
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  background: transparent;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
-  opacity: 0.5;
-  text-decoration: line-through;
-  flex-shrink: 0;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .disrupt-chip:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
+/* Colored dot indicator */
+.disrupt-chip::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-color);
+  flex-shrink: 0;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+/* Active state */
 .disrupt-chip.active {
-  background: rgba(255, 68, 102, 0.1);
+  background: var(--bg-card);
   border-color: var(--accent-red);
-  color: var(--accent-red);
-  text-decoration: none;
-  opacity: 1;
+  color: var(--text-primary);
 }
 
+.disrupt-chip.active::before {
+  background: var(--accent-red);
+  box-shadow: 0 0 6px rgba(255, 68, 102, 0.5);
+}
+
+/* Count badge */
 .disrupt-chip .disrupt-chip-count {
   font-size: 10px;
   font-weight: 700;
-  background: rgba(136, 136, 136, 0.15);
+  background: rgba(136, 136, 136, 0.12);
+  color: var(--text-secondary);
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: 6px;
   min-width: 18px;
   text-align: center;
+  line-height: 1.4;
 }
 
 .disrupt-chip.active .disrupt-chip-count {
-  background: rgba(255, 68, 102, 0.18);
+  background: rgba(255, 68, 102, 0.12);
   color: var(--accent-red);
 }
 
@@ -489,6 +499,16 @@
   border-color: var(--border-color);
 }
 
+.dark .disrupt-chip {
+  background: var(--bg-secondary);
+  border-color: var(--border-color);
+}
+
+.dark .disrupt-chip.active {
+  background: var(--bg-secondary);
+  border-color: var(--accent-red);
+}
+
 .dark .disrupt-card-expand {
   background: var(--bg-secondary);
 }
@@ -518,8 +538,9 @@
   }
 
   .disrupt-chip {
-    padding: 5px 10px;
-    font-size: 11px;
+    padding: 7px 11px;
+    font-size: 12px;
+    min-height: 34px;
   }
 
   .disrupt-card-header {
