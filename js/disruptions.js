@@ -394,9 +394,11 @@ function buildDisruptXml() {
  *   ActiveDays, PlatformSignAttributes, Deleted, ModifiedTime
  */
 function parseDisruptMessages(rawMessages) {
-  var parsed = [];
   var now = new Date();
   var skippedOutsideRegion = 0;
+
+  // Step 1: Group messages by FreeText (same disruption sent to multiple stations)
+  var groups = {};  // FreeText → { msgs: [...], stations: [...], countyNos: [...] }
 
   for (var i = 0; i < rawMessages.length; i++) {
     var msg = rawMessages[i];
@@ -418,59 +420,99 @@ function parseDisruptMessages(rawMessages) {
     }
     if (countyNos.length === 0) {
       skippedOutsideRegion++;
-      continue; // Station not in our 6 counties
+      continue;
     }
 
-    var regionNames = getDisruptRegionNames(countyNos);
-
-    // Station name
-    var stationName = resolveDisruptStationName(locationCode);
-
-    // Extract a short header from FreeText
-    // Remove common prefixes like "Kommande:", "Pågående:" etc.
-    var cleanText = freeText.replace(/\n/g, ' ').trim();
-    var header = cleanText;
-    // Truncate to reasonable header length
-    if (header.length > 90) {
-      header = header.substring(0, 87) + '...';
+    // Use FreeText as grouping key
+    if (!groups[freeText]) {
+      groups[freeText] = {
+        raw: msg,
+        stations: [],
+        countyNos: [],
+        latestModified: msg.ModifiedTime || null
+      };
     }
 
-    // Full description (preserve newlines for expanded view)
-    var description = freeText;
+    var group = groups[freeText];
 
-    // Severity classification from text
-    var severity = classifyDisruptSeverity(header, description);
+    // Add station if not already present
+    if (locationCode) {
+      var stationName = resolveDisruptStationName(locationCode);
+      var alreadyAdded = false;
+      for (var si = 0; si < group.stations.length; si++) {
+        if (group.stations[si].sig === locationCode) { alreadyAdded = true; break; }
+      }
+      if (!alreadyAdded) {
+        group.stations.push({ sig: locationCode, name: stationName });
+      }
+    }
 
-    // Dates
-    var startDt = msg.StartDateTime ? new Date(msg.StartDateTime) : null;
-    var endDt = msg.EndDateTime ? new Date(msg.EndDateTime) : null;
+    // Merge county numbers
+    for (var ci = 0; ci < countyNos.length; ci++) {
+      if (group.countyNos.indexOf(countyNos[ci]) === -1) {
+        group.countyNos.push(countyNos[ci]);
+      }
+    }
 
-    // Is this message currently active? (EndDateTime in the future or null)
-    var isActive = !endDt || endDt.getTime() > now.getTime();
-
-    // Unique ID from API
-    var msgId = msg.Id || ('tsm-' + i);
-
-    parsed.push({
-      id: msgId,
-      header: header,
-      description: description,
-      reasonCode: '',
-      severity: severity,
-      startTime: msg.StartDateTime || null,
-      endTime: msg.EndDateTime || null,
-      lastUpdated: msg.ModifiedTime || null,
-      countyNos: countyNos,
-      regionNames: regionNames,
-      stations: locationCode ? [{ sig: locationCode, name: stationName }] : [],
-      isActive: isActive,
-      mediaType: msg.MediaType || '',
-      status: msg.Status || ''
-    });
+    // Track latest ModifiedTime
+    if (msg.ModifiedTime && (!group.latestModified || msg.ModifiedTime > group.latestModified)) {
+      group.latestModified = msg.ModifiedTime;
+    }
   }
 
   if (skippedOutsideRegion > 0) {
     console.log('[DISRUPT] Filtrerade bort ' + skippedOutsideRegion + ' meddelanden utanför våra län');
+  }
+
+  // Step 2: Convert groups to parsed messages
+  var parsed = [];
+  var groupKeys = Object.keys(groups);
+  console.log('[DISRUPT] Grupperade till ' + groupKeys.length + ' unika meddelanden (från ' + (rawMessages.length - skippedOutsideRegion) + ')');
+
+  for (var g = 0; g < groupKeys.length; g++) {
+    var grp = groups[groupKeys[g]];
+    var raw = grp.raw;
+    var text = groupKeys[g];
+
+    // Extract a short header from FreeText
+    var cleanText = text.replace(/\n/g, ' ').trim();
+    var header = cleanText;
+    if (header.length > 90) {
+      header = header.substring(0, 87) + '...';
+    }
+
+    // Severity classification
+    var severity = classifyDisruptSeverity(header, text);
+
+    // Region names from merged counties
+    var regionNames = getDisruptRegionNames(grp.countyNos);
+
+    // Active check
+    var endDt = raw.EndDateTime ? new Date(raw.EndDateTime) : null;
+    var isActive = !endDt || endDt.getTime() > now.getTime();
+
+    // Sort stations alphabetically by name
+    grp.stations.sort(function(a, b) {
+      return (a.name || '').localeCompare(b.name || '', 'sv');
+    });
+
+    parsed.push({
+      id: raw.Id || ('tsm-' + g),
+      header: header,
+      description: text,
+      reasonCode: '',
+      severity: severity,
+      startTime: raw.StartDateTime || null,
+      endTime: raw.EndDateTime || null,
+      lastUpdated: grp.latestModified,
+      countyNos: grp.countyNos,
+      regionNames: regionNames,
+      stations: grp.stations,
+      isActive: isActive,
+      mediaType: raw.MediaType || '',
+      status: raw.Status || '',
+      stationCount: grp.stations.length
+    });
   }
 
   // Sort: high severity first, then medium, low, info; within same severity, newest first
@@ -479,7 +521,6 @@ function parseDisruptMessages(rawMessages) {
     var sa = severityOrder[a.severity] !== undefined ? severityOrder[a.severity] : 3;
     var sb = severityOrder[b.severity] !== undefined ? severityOrder[b.severity] : 3;
     if (sa !== sb) return sa - sb;
-    // Within same severity, newest updated first
     var ta = a.lastUpdated ? new Date(a.lastUpdated).getTime() : 0;
     var tb = b.lastUpdated ? new Date(b.lastUpdated).getTime() : 0;
     return tb - ta;
@@ -754,15 +795,21 @@ function buildDisruptCard(msg) {
   // Description for expanded body (preserve line breaks)
   var descHtml = escDisruptHtml(msg.description).replace(/\n/g, '<br>');
 
-  // Stations list
+  // Stations list (grouped — may have many stations per message)
   var stationsHtml = '';
   if (msg.stations.length > 0) {
     var stationTags = '';
-    for (var s = 0; s < msg.stations.length; s++) {
+    var maxShow = 8; // Show first 8 stations, then "+N more"
+    var showCount = Math.min(msg.stations.length, maxShow);
+    for (var s = 0; s < showCount; s++) {
       stationTags += '<span class="disrupt-station-tag">' + escDisruptHtml(msg.stations[s].name) + '</span>';
     }
+    if (msg.stations.length > maxShow) {
+      stationTags += '<span class="disrupt-station-tag disrupt-station-more">+' + (msg.stations.length - maxShow) + ' till</span>';
+    }
+    var stLabel = msg.stations.length === 1 ? 'Station' : 'Berörda stationer (' + msg.stations.length + ')';
     stationsHtml = '<div class="disrupt-stations">'
-      + '<div class="disrupt-stations-label">Station</div>'
+      + '<div class="disrupt-stations-label">' + stLabel + '</div>'
       + '<div class="disrupt-stations-list">' + stationTags + '</div>'
       + '</div>';
   }
