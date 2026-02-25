@@ -12,6 +12,7 @@ var disruptAllMessages = [];       // parsed messages after client-side filterin
 var disruptActiveRegions = {};     // { '12': true, '13': true, ... }
 var disruptExpandedId = null;      // currently expanded card ID (one at a time)
 var disruptTimeRange = 'active';   // 'active', '24h', '3d', '7d'
+var disruptFiltersExpanded = false; // region filter bar collapsed by default
 var disruptStationCountyMap = null;  // { 'Cst': [12], 'Hld': [13], ... } — sig → countyNo[]
 var disruptStationNameMap = null;    // { 'Cst': 'Malmö C', ... } — sig → name
 var disruptReasonCodeMap = null;    // { 'IBK3': 'Signalfel', ... } — code → description
@@ -1250,16 +1251,68 @@ function handleDisruptCardClick() {
 // ==========================================
 
 function initDisruptFilters() {
-  // Default: all regions active
-  disruptActiveRegions = { 'all': true };
-  var keys = Object.keys(DISRUPT_COUNTY_NAMES);
-  for (var i = 0; i < keys.length; i++) {
-    disruptActiveRegions[keys[i]] = true;
-  }
+  // Default: only Skåne active
+  disruptActiveRegions = { 'all': false, '12': true };
 
+  // Set initial chip visual state (only Skåne active)
   var chips = document.querySelectorAll('#disruptFilterChips .disrupt-chip');
   for (var c = 0; c < chips.length; c++) {
+    var r = chips[c].getAttribute('data-region');
+    var isActive = (r === '12');
+    chips[c].classList.toggle('active', isActive);
     chips[c].addEventListener('click', handleDisruptChipClick);
+  }
+
+  // Setup collapsible filter toggle
+  var toggleBtn = document.getElementById('disruptFilterToggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', handleDisruptFilterToggle);
+  }
+  updateDisruptFilterToggleLabel();
+}
+
+/**
+ * Toggle the region filter bar open/closed
+ */
+function handleDisruptFilterToggle() {
+  disruptFiltersExpanded = !disruptFiltersExpanded;
+  var chipsEl = document.getElementById('disruptFilterChips');
+  var toggleBtn = document.getElementById('disruptFilterToggle');
+  if (chipsEl) {
+    chipsEl.classList.toggle('expanded', disruptFiltersExpanded);
+  }
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('expanded', disruptFiltersExpanded);
+  }
+}
+
+/**
+ * Update the filter toggle label to show selected regions
+ */
+function updateDisruptFilterToggleLabel() {
+  var labelEl = document.getElementById('disruptFilterToggleLabel');
+  if (!labelEl) return;
+
+  var allActive = disruptActiveRegions['all'] === true;
+  if (allActive) {
+    labelEl.textContent = 'Alla regioner';
+    return;
+  }
+
+  var activeNames = [];
+  var keys = Object.keys(DISRUPT_COUNTY_NAMES);
+  for (var i = 0; i < keys.length; i++) {
+    if (disruptActiveRegions[keys[i]]) {
+      activeNames.push(DISRUPT_COUNTY_NAMES[keys[i]]);
+    }
+  }
+
+  if (activeNames.length === 0) {
+    labelEl.textContent = 'Inga regioner valda';
+  } else if (activeNames.length <= 3) {
+    labelEl.textContent = activeNames.join(', ');
+  } else {
+    labelEl.textContent = activeNames.length + ' regioner';
   }
 }
 
@@ -1296,6 +1349,7 @@ function handleDisruptChipClick() {
     chips[c].classList.toggle('active', disruptActiveRegions[r] === true);
   }
 
+  updateDisruptFilterToggleLabel();
   renderDisruptList();
   updateDisruptSummary();
 }

@@ -124,15 +124,74 @@
   border-color: var(--border-color);
 }
 
-/* --- REGION FILTER CHIPS (wrap grid, phone-optimized) --- */
+/* --- REGION FILTER (collapsible) --- */
 .disrupt-filter-bar {
   padding: 0 14px 10px;
 }
 
+.disrupt-filter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  min-height: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+  margin-bottom: 0;
+}
+
+.disrupt-filter-toggle:active {
+  transform: scale(0.98);
+}
+
+.disrupt-filter-toggle-text {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#disruptFilterToggleLabel {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.disrupt-filter-toggle-arrow {
+  font-size: 12px;
+  transition: transform 0.25s ease;
+}
+
+.disrupt-filter-toggle.expanded .disrupt-filter-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+.disrupt-filter-toggle.expanded {
+  border-color: var(--accent-red);
+  margin-bottom: 8px;
+}
+
+/* Chips container: collapsed by default */
 .disrupt-filter-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+  margin-top: 0;
+}
+
+.disrupt-filter-chips.expanded {
+  max-height: 200px;
+  opacity: 1;
 }
 
 .disrupt-chip {
@@ -558,6 +617,20 @@
   border-color: var(--border-color);
 }
 
+.dark .disrupt-filter-toggle {
+  background: var(--bg-card);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.dark .disrupt-filter-toggle.expanded {
+  border-color: var(--accent-red);
+}
+
+.dark #disruptFilterToggleLabel {
+  color: var(--text-primary);
+}
+
 .dark .disrupt-chip {
   background: var(--bg-secondary);
   border-color: var(--border-color);
@@ -600,6 +673,12 @@
 
   .disrupt-filter-bar {
     padding: 0 10px 8px;
+  }
+
+  .disrupt-filter-toggle {
+    padding: 7px 10px;
+    font-size: 12px;
+    min-height: 32px;
   }
 
   .disrupt-scroll-area {
