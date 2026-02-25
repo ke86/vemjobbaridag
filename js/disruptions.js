@@ -309,8 +309,11 @@ function parseDisruptMessages(rawMessages) {
   return parsed;
 }
 
+// Direct Trafikverket API URL (proxy doesn't support TrainMessage)
+var TRAFIKVERKET_DIRECT_URL = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
+
 /**
- * Fetch disruption messages from Trafikverket API
+ * Fetch disruption messages from Trafikverket API (direct, no proxy)
  */
 async function fetchDisruptions() {
   var statusEl = document.getElementById('disruptStatus');
@@ -337,10 +340,10 @@ async function fetchDisruptions() {
     }
 
     var xml = buildDisruptXml();
-    console.log('[DISRUPT] Sending request to: ' + TRAFIKVERKET_PROXY_URL);
+    console.log('[DISRUPT] Sending request to: ' + TRAFIKVERKET_DIRECT_URL);
     console.log('[DISRUPT] XML body: ' + xml.substring(0, 300) + '...');
 
-    var response = await fetch(TRAFIKVERKET_PROXY_URL, {
+    var response = await fetch(TRAFIKVERKET_DIRECT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml' },
       body: xml
