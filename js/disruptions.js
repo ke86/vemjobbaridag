@@ -200,26 +200,17 @@ function buildDisruptXml() {
     filterBlock = '<OR>' + countyFilters + '</OR>';
   }
 
+  // Discovery mode: no INCLUDE = return ALL fields so we can see what exists
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.7">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.7" limit="3">'
     + '<FILTER>'
     + filterBlock
     + '</FILTER>'
-    + '<INCLUDE>Header</INCLUDE>'
-    + '<INCLUDE>ExternalDescription</INCLUDE>'
-    + '<INCLUDE>ReasonCodeText</INCLUDE>'
-    + '<INCLUDE>CreatedTime</INCLUDE>'
-    + '<INCLUDE>StartDateTime</INCLUDE>'
-    + '<INCLUDE>EndDateTime</INCLUDE>'
-    + '<INCLUDE>LastUpdateDateTime</INCLUDE>'
-    + '<INCLUDE>CountyNo</INCLUDE>'
-    + '<INCLUDE>AffectedLocation</INCLUDE>'
-    + '<INCLUDE>TrafficImpact</INCLUDE>'
     + '</QUERY>'
     + '</REQUEST>';
 
-  console.log('[DISRUPT] Query built, range=' + disruptTimeRange);
+  console.log('[DISRUPT] Query built (discovery mode), range=' + disruptTimeRange);
   return xml;
 }
 
@@ -372,6 +363,14 @@ async function fetchDisruptions() {
     }
 
     console.log('[DISRUPT] ' + rawMessages.length + ' meddelanden hämtade (' + disruptTimeRange + ')');
+
+    // Discovery: log available field names + first full message
+    if (rawMessages.length > 0) {
+      console.log('[DISRUPT] Fält: ' + Object.keys(rawMessages[0]).join(', '));
+      console.log('[DISRUPT] Exempel: ' + JSON.stringify(rawMessages[0]).substring(0, 800));
+    } else {
+      console.log('[DISRUPT] Tomt svar. Full response: ' + JSON.stringify(data).substring(0, 500));
+    }
 
     // Parse into our internal format
     disruptAllMessages = parseDisruptMessages(rawMessages);
