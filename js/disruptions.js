@@ -187,19 +187,24 @@ function buildDisruptXml() {
 
   // Time filter — only added for historical views (24h / 3d / 7d)
   var timeFilter = getDisruptTimeFilter();
-  var timeXml = '';
+
+  // Build filter block: wrap in AND only if we have both county + time filters
+  var filterBlock;
   if (timeFilter) {
-    timeXml = '<GT name="LastUpdateDateTime" value="' + timeFilter + '" />';
+    filterBlock = '<AND>'
+      + '<OR>' + countyFilters + '</OR>'
+      + '<GT name="LastUpdateDateTime" value="' + timeFilter + '" />'
+      + '</AND>';
+  } else {
+    // Active only — just county filter, no AND wrapper needed
+    filterBlock = '<OR>' + countyFilters + '</OR>';
   }
 
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
     + '<QUERY objecttype="TrainMessage" schemaversion="1.7" orderby="LastUpdateDateTime desc">'
     + '<FILTER>'
-    + '<AND>'
-    + '<OR>' + countyFilters + '</OR>'
-    + timeXml
-    + '</AND>'
+    + filterBlock
     + '</FILTER>'
     + '<INCLUDE>EventId</INCLUDE>'
     + '<INCLUDE>Header</INCLUDE>'
@@ -214,6 +219,7 @@ function buildDisruptXml() {
     + '</QUERY>'
     + '</REQUEST>';
 
+  console.log('[DISRUPT] XML request built, range=' + disruptTimeRange);
   return xml;
 }
 
@@ -331,21 +337,50 @@ async function fetchDisruptions() {
     }
 
     var xml = buildDisruptXml();
+    console.log('[DISRUPT] Sending request to: ' + TRAFIKVERKET_PROXY_URL);
+    console.log('[DISRUPT] XML body: ' + xml.substring(0, 300) + '...');
+
     var response = await fetch(TRAFIKVERKET_PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/xml' },
       body: xml
     });
 
+    console.log('[DISRUPT] Response status: ' + response.status);
+
     if (!response.ok) {
-      throw new Error('HTTP ' + response.status);
+      var errorText = '';
+      try { errorText = await response.text(); } catch (e) { /* ignore */ }
+      console.log('[DISRUPT] Error response body: ' + errorText.substring(0, 500));
+      throw new Error('HTTP ' + response.status + (errorText ? ' — ' + errorText.substring(0, 100) : ''));
     }
 
-    var data = await response.json();
+    var rawText = await response.text();
+    console.log('[DISRUPT] Raw response (first 500 chars): ' + rawText.substring(0, 500));
+
+    var data;
+    try {
+      data = JSON.parse(rawText);
+    } catch (parseErr) {
+      console.log('[DISRUPT] JSON parse error — response is not JSON');
+      throw new Error('Svar var inte JSON: ' + rawText.substring(0, 100));
+    }
+
     var rawMessages = [];
 
     if (data && data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
       rawMessages = data.RESPONSE.RESULT[0].TrainMessage || [];
+      console.log('[DISRUPT] Got ' + rawMessages.length + ' TrainMessage(s)');
+    } else {
+      console.log('[DISRUPT] Unexpected response structure: ' + JSON.stringify(data).substring(0, 500));
+    }
+
+    // If we got 0 results, log the full response for debugging
+    if (rawMessages.length === 0) {
+      console.log('[DISRUPT] 0 messages returned. Full response: ' + JSON.stringify(data).substring(0, 1000));
+    } else {
+      // Log first message as sample
+      console.log('[DISRUPT] Sample message: ' + JSON.stringify(rawMessages[0]).substring(0, 500));
     }
 
     // Parse into our internal format
