@@ -1,19 +1,24 @@
 // ==========================================
 // TRAFIKSTÖRNINGAR (Disruptions)
-// Fetches TrainMessage from Trafikverket API
+// Fetches TrainStationMessage v1.0 from Trafikverket API
 // ==========================================
 
 // --- State ---
 var disruptPageActive = false;
 var disruptRefreshTimer = null;
 var disruptCountdownTimer = null;
-var disruptAllMessages = [];       // raw parsed messages from API
+var disruptAllMessages = [];       // parsed messages after client-side filtering
 var disruptActiveRegions = {};     // { '12': true, '13': true, ... }
 var disruptExpandedId = null;      // currently expanded card ID (one at a time)
 var disruptTimeRange = 'active';   // 'active', '24h', '3d', '7d'
+var disruptStationCountyMap = null;  // { 'Cst': [12], 'Hld': [13], ... } — sig → countyNo[]
+var disruptStationNameMap = null;    // { 'Cst': 'Malmö C', ... } — sig → name
 
 // Refresh interval in seconds
 var DISRUPT_REFRESH_SEC = 60;
+
+// Direct Trafikverket API URL (proxy does not support all objecttypes)
+var DISRUPT_API_URL = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
 
 // County numbers → readable names (for the regions we cover)
 var DISRUPT_COUNTY_NAMES = {
@@ -28,18 +33,24 @@ var DISRUPT_COUNTY_NAMES = {
 // All county numbers we query
 var DISRUPT_COUNTY_NOS = [7, 8, 10, 12, 13, 14];
 
-// Keywords for severity classification (checked against header + description)
+// Keywords for severity classification (checked against FreeText)
 var SEVERITY_HIGH_KEYWORDS = [
   'inställ', 'stopp', 'avstäng', 'spärr', 'olycka', 'påkör',
-  'urspår', 'evakuer', 'brand', 'ej framkomlig'
+  'urspår', 'evakuer', 'brand', 'ej framkomlig', 'ersättningsbuss'
 ];
 var SEVERITY_MEDIUM_KEYWORDS = [
   'försen', 'begräns', 'reducera', 'enkelspår', 'hastighetsnedsätt',
-  'väntetid', 'signalfel', 'växelfel', 'kontaktledning'
+  'väntetid', 'signalfel', 'växelfel', 'kontaktledning', 'ändrad väg',
+  'ändrad tid', 'kortare tåg'
 ];
 var SEVERITY_LOW_KEYWORDS = [
-  'risk', 'kan påverka', 'väntas', 'planerad', 'banarbete', 'underhåll'
+  'risk', 'kan påverka', 'väntas', 'planerad', 'banarbete', 'underhåll',
+  'kommande', 'information'
 ];
+
+// ==========================================
+// Utility functions
+// ==========================================
 
 /**
  * Classify severity from message text content.
@@ -73,20 +84,6 @@ function getSeverityLabel(severity) {
 }
 
 /**
- * Format a datetime string to HH:MM
- */
-function formatDisruptTime(dateStr) {
-  if (!dateStr) return '';
-  try {
-    var d = new Date(dateStr);
-    if (isNaN(d.getTime())) return '';
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-  } catch (e) {
-    return '';
-  }
-}
-
-/**
  * Format a datetime string to YYYY-MM-DD HH:MM
  */
 function formatDisruptDateTime(dateStr) {
@@ -115,8 +112,18 @@ function formatDisruptRelativeTime(dateStr) {
     if (isNaN(d.getTime())) return '';
     var now = new Date();
     var diffMs = now.getTime() - d.getTime();
-    var diffMin = Math.floor(diffMs / 60000);
 
+    // Future date
+    if (diffMs < 0) {
+      var futurMin = Math.floor(-diffMs / 60000);
+      if (futurMin < 60) return 'om ' + futurMin + ' min';
+      var futurH = Math.floor(futurMin / 60);
+      if (futurH < 24) return 'om ' + futurH + ' tim';
+      var futurD = Math.floor(futurH / 24);
+      return 'om ' + futurD + ' d';
+    }
+
+    var diffMin = Math.floor(diffMs / 60000);
     if (diffMin < 1) return 'just nu';
     if (diffMin < 60) return diffMin + ' min sedan';
     var diffH = Math.floor(diffMin / 60);
@@ -144,16 +151,19 @@ function getDisruptRegionNames(countyNos) {
 }
 
 /**
- * Resolve affected location signatures to readable names.
- * Uses depApiStationNames from departure.js if available.
+ * Resolve station signature to readable name.
+ * Checks our own map first, then departure.js data.
  */
 function resolveDisruptStationName(sig) {
   if (!sig) return sig;
-  // Use departure.js station name lookup if available
+  // Check our own station name map (from TrainStation query)
+  if (disruptStationNameMap && disruptStationNameMap[sig]) {
+    return disruptStationNameMap[sig];
+  }
+  // Fall back to departure.js station name lookup
   if (typeof depApiStationNames !== 'undefined' && depApiStationNames[sig]) {
     return depApiStationNames[sig];
   }
-  // Use departure.js sigToName function if available
   if (typeof sigToName === 'function') {
     return sigToName(sig);
   }
@@ -161,127 +171,195 @@ function resolveDisruptStationName(sig) {
 }
 
 /**
- * Get the $dateadd filter string for the selected time range.
- * Returns empty string for 'active' (no time filter = only active messages).
- * Trafikverket $dateadd format: -D.HH:MM:SS (negative = past)
+ * Escape HTML special chars
  */
-function getDisruptTimeFilter() {
-  switch (disruptTimeRange) {
-    case '24h': return '$dateadd(-1.00:00:00)';
-    case '3d':  return '$dateadd(-3.00:00:00)';
-    case '7d':  return '$dateadd(-7.00:00:00)';
-    default:    return ''; // 'active' — no time filter
-  }
+function escDisruptHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/**
- * Build the XML request for Trafikverket TrainMessage API.
- * Fetches messages for our county numbers within the selected time range.
- */
-// Objecttypes to try — test each separately to find which ones work
-var DISRUPT_OBJECTTYPE_TESTS = [
-  { name: 'TrainStationMessage', schema: '1.0' },
-  { name: 'TrainStationMessage', schema: '1.3' },
-  { name: 'RailwayEvent',       schema: '1.0' },
-  { name: 'OperativeEvent',     schema: '1.0' },
-  { name: 'TrainMessage',       schema: '1.0' },
-  { name: 'TrainMessage',       schema: '1.7' }
-];
+// ==========================================
+// Station-County mapping
+// ==========================================
 
-function buildTestXml(objectType, schemaVersion) {
-  return '<REQUEST>'
+/**
+ * Fetch station data from TrainStation v1.5 to build
+ * station signature → county number mapping.
+ * Only fetches stations in our 6 counties.
+ * Cached after first successful fetch.
+ */
+async function fetchDisruptStationMap() {
+  if (disruptStationCountyMap) return; // already loaded
+
+  var countyFilters = '';
+  for (var i = 0; i < DISRUPT_COUNTY_NOS.length; i++) {
+    countyFilters += '<EQ name="CountyNo" value="' + DISRUPT_COUNTY_NOS[i] + '" />';
+  }
+
+  var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="' + objectType + '" schemaversion="' + schemaVersion + '" limit="3">'
-    + '<FILTER>'
-    + '<GT name="StartDateTime" value="$dateadd(-1.00:00:00)" />'
-    + '</FILTER>'
+    + '<QUERY objecttype="TrainStation" schemaversion="1.5">'
+    + '<FILTER><OR>' + countyFilters + '</OR></FILTER>'
+    + '<INCLUDE>LocationSignature</INCLUDE>'
+    + '<INCLUDE>AdvertisedLocationName</INCLUDE>'
+    + '<INCLUDE>CountyNo</INCLUDE>'
     + '</QUERY>'
     + '</REQUEST>';
-}
 
-// Also try without filter (some objecttypes may use different date field names)
-function buildTestXmlNoFilter(objectType, schemaVersion) {
-  return '<REQUEST>'
-    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="' + objectType + '" schemaversion="' + schemaVersion + '" limit="3" />'
-    + '</REQUEST>';
-}
+  var response = await fetch(DISRUPT_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/xml' },
+    body: xml
+  });
 
-/**
- * Parse raw TrainMessage objects into our internal format.
- */
-function parseDisruptMessages(rawMessages) {
-  var parsed = [];
+  if (!response.ok) {
+    console.warn('[DISRUPT] Could not fetch station map, status: ' + response.status);
+    disruptStationCountyMap = {};
+    disruptStationNameMap = {};
+    return;
+  }
 
-  for (var i = 0; i < rawMessages.length; i++) {
-    var msg = rawMessages[i];
-    var header = msg.Header || '';
-    var desc = msg.ExternalDescription || '';
+  var data = JSON.parse(await response.text());
+  var stations = [];
+  if (data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
+    stations = data.RESPONSE.RESULT[0].TrainStation || [];
+  }
 
-    // Extract affected station signatures
-    var stationSigs = [];
-    if (msg.AffectedLocation && msg.AffectedLocation.length > 0) {
-      for (var s = 0; s < msg.AffectedLocation.length; s++) {
-        var loc = msg.AffectedLocation[s];
-        var sig = loc.LocationSignature || loc;
-        if (typeof sig === 'string' && stationSigs.indexOf(sig) === -1) {
-          stationSigs.push(sig);
-        }
-      }
-    }
+  disruptStationCountyMap = {};
+  disruptStationNameMap = {};
 
-    // Also extract from TrafficImpact if present
-    if (msg.TrafficImpact && msg.TrafficImpact.length > 0) {
-      for (var t = 0; t < msg.TrafficImpact.length; t++) {
-        var impact = msg.TrafficImpact[t];
-        if (impact.AffectedLocation && impact.AffectedLocation.length > 0) {
-          for (var tl = 0; tl < impact.AffectedLocation.length; tl++) {
-            var tloc = impact.AffectedLocation[tl];
-            var tsig = tloc.LocationSignature || tloc;
-            if (typeof tsig === 'string' && stationSigs.indexOf(tsig) === -1) {
-              stationSigs.push(tsig);
-            }
+  for (var s = 0; s < stations.length; s++) {
+    var sig = stations[s].LocationSignature;
+    var county = stations[s].CountyNo;
+    var name = stations[s].AdvertisedLocationName;
+    if (sig) {
+      if (!disruptStationCountyMap[sig]) disruptStationCountyMap[sig] = [];
+      if (county) {
+        var countyArr = Array.isArray(county) ? county : [county];
+        for (var ci = 0; ci < countyArr.length; ci++) {
+          if (disruptStationCountyMap[sig].indexOf(countyArr[ci]) === -1) {
+            disruptStationCountyMap[sig].push(countyArr[ci]);
           }
         }
       }
+      if (name) disruptStationNameMap[sig] = name;
+    }
+  }
+
+  console.log('[DISRUPT] Station map: ' + Object.keys(disruptStationCountyMap).length + ' stationer i 6 län');
+}
+
+// ==========================================
+// API query + parsing
+// ==========================================
+
+/**
+ * Build XML request for TrainStationMessage v1.0.
+ * Fetches all non-deleted messages modified in last 30 days.
+ * Filtering by region + time range is done client-side.
+ */
+function buildDisruptXml() {
+  var xml = '<REQUEST>'
+    + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
+    + '<QUERY objecttype="TrainStationMessage" schemaversion="1.0">'
+    + '<FILTER>'
+    + '<AND>'
+    + '<EQ name="Deleted" value="false" />'
+    + '<GT name="ModifiedTime" value="$dateadd(-30.00:00:00)" />'
+    + '</AND>'
+    + '</FILTER>'
+    + '</QUERY>'
+    + '</REQUEST>';
+  return xml;
+}
+
+/**
+ * Parse raw TrainStationMessage objects into our internal format.
+ * Filters out messages not matching our 6 counties.
+ *
+ * TrainStationMessage fields:
+ *   Id, MediaType, LocationCode, StartDateTime, EndDateTime,
+ *   SplitActivationTime, FreeText, Status, VersionNumber,
+ *   ActiveDays, PlatformSignAttributes, Deleted, ModifiedTime
+ */
+function parseDisruptMessages(rawMessages) {
+  var parsed = [];
+  var now = new Date();
+  var skippedOutsideRegion = 0;
+
+  for (var i = 0; i < rawMessages.length; i++) {
+    var msg = rawMessages[i];
+
+    // Skip deleted
+    if (msg.Deleted) continue;
+
+    // Skip empty messages
+    var freeText = (msg.FreeText || '').trim();
+    if (!freeText) continue;
+
+    // Station / location
+    var locationCode = msg.LocationCode || '';
+
+    // County lookup — skip messages outside our 6 counties
+    var countyNos = [];
+    if (locationCode && disruptStationCountyMap) {
+      countyNos = disruptStationCountyMap[locationCode] || [];
+    }
+    if (countyNos.length === 0) {
+      skippedOutsideRegion++;
+      continue; // Station not in our 6 counties
     }
 
-    // Resolve station names
-    var stationNames = [];
-    for (var sn = 0; sn < stationSigs.length; sn++) {
-      stationNames.push({
-        sig: stationSigs[sn],
-        name: resolveDisruptStationName(stationSigs[sn])
-      });
-    }
-
-    // County numbers for this message
-    var countyNos = msg.CountyNo || [];
     var regionNames = getDisruptRegionNames(countyNos);
 
-    // Reason code text (e.g. "Signalfel", "Växelfel")
-    var reasonCode = msg.ReasonCodeText || '';
+    // Station name
+    var stationName = resolveDisruptStationName(locationCode);
 
-    // Severity — also consider reason code text for classification
-    var severity = classifyDisruptSeverity(header, desc + ' ' + reasonCode);
+    // Extract a short header from FreeText
+    // Remove common prefixes like "Kommande:", "Pågående:" etc.
+    var cleanText = freeText.replace(/\n/g, ' ').trim();
+    var header = cleanText;
+    // Truncate to reasonable header length
+    if (header.length > 90) {
+      header = header.substring(0, 87) + '...';
+    }
 
-    // Generate unique ID from index + CreatedTime (stable within a fetch)
-    var msgId = 'msg-' + i + '-' + (msg.CreatedTime || msg.StartDateTime || '').replace(/\D/g, '').substring(0, 12);
+    // Full description (preserve newlines for expanded view)
+    var description = freeText;
+
+    // Severity classification from text
+    var severity = classifyDisruptSeverity(header, description);
+
+    // Dates
+    var startDt = msg.StartDateTime ? new Date(msg.StartDateTime) : null;
+    var endDt = msg.EndDateTime ? new Date(msg.EndDateTime) : null;
+
+    // Is this message currently active? (EndDateTime in the future or null)
+    var isActive = !endDt || endDt.getTime() > now.getTime();
+
+    // Unique ID from API
+    var msgId = msg.Id || ('tsm-' + i);
 
     parsed.push({
       id: msgId,
       header: header,
-      description: desc,
-      reasonCode: reasonCode,
+      description: description,
+      reasonCode: '',
       severity: severity,
       startTime: msg.StartDateTime || null,
       endTime: msg.EndDateTime || null,
-      lastUpdated: msg.LastUpdateDateTime || null,
-      createdTime: msg.CreatedTime || null,
+      lastUpdated: msg.ModifiedTime || null,
       countyNos: countyNos,
       regionNames: regionNames,
-      stations: stationNames
+      stations: locationCode ? [{ sig: locationCode, name: stationName }] : [],
+      isActive: isActive,
+      mediaType: msg.MediaType || '',
+      status: msg.Status || ''
     });
+  }
+
+  if (skippedOutsideRegion > 0) {
+    console.log('[DISRUPT] Filtrerade bort ' + skippedOutsideRegion + ' meddelanden utanför våra län');
   }
 
   // Sort: high severity first, then medium, low, info; within same severity, newest first
@@ -299,14 +377,18 @@ function parseDisruptMessages(rawMessages) {
   return parsed;
 }
 
+// ==========================================
+// Fetch + render
+// ==========================================
+
 /**
- * Fetch disruption messages from Trafikverket API (via same proxy as departure page)
+ * Fetch disruption messages from Trafikverket API.
+ * Flow: fetch station map → fetch TrainStationMessage → parse → filter → render
  */
 async function fetchDisruptions() {
   var statusEl = document.getElementById('disruptStatus');
   var loadingEl = document.getElementById('disruptLoading');
   var emptyEl = document.getElementById('disruptEmpty');
-  var listEl = document.getElementById('disruptList');
 
   // Show loading on first load (if no messages yet)
   if (disruptAllMessages.length === 0 && loadingEl) {
@@ -321,101 +403,68 @@ async function fetchDisruptions() {
   }
 
   try {
-    // Ensure station names are loaded (reuses departure.js function)
+    // 1. Load station-county mapping (cached after first call)
+    await fetchDisruptStationMap();
+
+    // 2. Also load station names from departure.js if available
     if (typeof fetchDepStationNames === 'function') {
       await fetchDepStationNames();
     }
 
-    var DISRUPT_API_URL = 'https://api.trafikinfo.trafikverket.se/v2/data.json';
+    // 3. Fetch TrainStationMessage
+    var xml = buildDisruptXml();
+    var response = await fetch(DISRUPT_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/xml' },
+      body: xml
+    });
 
-    // DISCOVERY: Test each objecttype separately to find which ones this API key can access
-    console.log('[DISRUPT] === SCANNING AVAILABLE OBJECTTYPES ===');
-    var foundData = null;
-
-    for (var ti = 0; ti < DISRUPT_OBJECTTYPE_TESTS.length; ti++) {
-      var test = DISRUPT_OBJECTTYPE_TESTS[ti];
-      var label = test.name + ' v' + test.schema;
-
-      // First try with filter, then without if filter field name is wrong
-      var xmlBodies = [
-        buildTestXml(test.name, test.schema),
-        buildTestXmlNoFilter(test.name, test.schema)
-      ];
-      var xmlLabels = [label + ' (med filter)', label + ' (utan filter)'];
-
-      for (var xi = 0; xi < xmlBodies.length; xi++) {
-        try {
-          var testResp = await fetch(DISRUPT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/xml' },
-            body: xmlBodies[xi]
-          });
-          var testText = await testResp.text();
-
-          if (!testResp.ok) {
-            // Extract short error
-            var errMatch = testText.match(/"MESSAGE":"([^"]+)"/);
-            var shortErr = errMatch ? errMatch[1] : testText.substring(0, 80);
-            console.log('[DISRUPT] ❌ ' + xmlLabels[xi] + ' → ' + shortErr);
-
-            // If "does not exists" skip to next objecttype entirely
-            if (testText.indexOf('does not exists') !== -1) break;
-            // If filter field error, try next variant (without filter)
-            continue;
-          }
-
-          var testData = JSON.parse(testText);
-          var testResults = (testData.RESPONSE && testData.RESPONSE.RESULT) || [];
-
-          if (testResults.length > 0 && !testResults[0].ERROR) {
-            var dataKeys = Object.keys(testResults[0]).filter(function(k) { return k !== 'INFO'; });
-            for (var dk = 0; dk < dataKeys.length; dk++) {
-              var arr = testResults[0][dataKeys[dk]];
-              if (Array.isArray(arr)) {
-                console.log('[DISRUPT] ✅ ' + xmlLabels[xi] + ' → ' + arr.length + ' objekt!');
-                if (arr.length > 0) {
-                  console.log('[DISRUPT] ✅ Fält: ' + Object.keys(arr[0]).join(', '));
-                  console.log('[DISRUPT] ✅ Exempel: ' + JSON.stringify(arr[0]).substring(0, 1000));
-                  if (!foundData) {
-                    foundData = { source: test.name, messages: arr };
-                  }
-                }
-              }
-            }
-          } else if (testResults.length > 0 && testResults[0].ERROR) {
-            console.log('[DISRUPT] ❌ ' + xmlLabels[xi] + ' → ' + JSON.stringify(testResults[0].ERROR));
-            continue;
-          }
-          break; // Got a valid response for this objecttype, move to next
-        } catch (fetchErr) {
-          console.log('[DISRUPT] ❌ ' + xmlLabels[xi] + ' → fetch error: ' + fetchErr.message);
-        }
-      }
+    if (!response.ok) {
+      var errorText = '';
+      try { errorText = await response.text(); } catch (e) { /* ignore */ }
+      console.warn('[DISRUPT] HTTP ' + response.status + ': ' + errorText.substring(0, 200));
+      throw new Error('HTTP ' + response.status);
     }
 
-    console.log('[DISRUPT] === SCAN COMPLETE ===');
+    var data = JSON.parse(await response.text());
+    var rawMessages = [];
+    if (data.RESPONSE && data.RESPONSE.RESULT && data.RESPONSE.RESULT[0]) {
+      rawMessages = data.RESPONSE.RESULT[0].TrainStationMessage || [];
+    }
 
-    var rawMessages = foundData ? foundData.messages : [];
-    var dataSource = foundData ? foundData.source : 'none';
-    console.log('[DISRUPT] Bästa källa: ' + dataSource + ', ' + rawMessages.length + ' meddelanden');
+    console.log('[DISRUPT] ' + rawMessages.length + ' meddelanden totalt från API');
 
-    // Parse into our internal format
-    disruptAllMessages = parseDisruptMessages(rawMessages);
+    // 4. Parse + filter by our 6 counties
+    var allParsed = parseDisruptMessages(rawMessages);
+    console.log('[DISRUPT] ' + allParsed.length + ' meddelanden i våra län');
 
-    // Hide loading
+    // 5. Client-side time range filtering
+    var now = new Date();
+    if (disruptTimeRange === 'active') {
+      // Show only currently active or upcoming messages
+      disruptAllMessages = allParsed.filter(function(m) { return m.isActive; });
+    } else {
+      // Show messages modified within the selected time range
+      var msRanges = { '24h': 86400000, '3d': 259200000, '7d': 604800000 };
+      var msAgo = msRanges[disruptTimeRange] || 86400000;
+      var cutoff = new Date(now.getTime() - msAgo);
+      disruptAllMessages = allParsed.filter(function(m) {
+        var t = m.lastUpdated ? new Date(m.lastUpdated) : null;
+        return t && t.getTime() >= cutoff.getTime();
+      });
+    }
+
+    console.log('[DISRUPT] ' + disruptAllMessages.length + ' efter tidsfilter (' + disruptTimeRange + ')');
+
+    // 6. Hide loading
     if (loadingEl) loadingEl.style.display = 'none';
 
-    // Update region chip counts
+    // 7. Update UI
     updateDisruptChipCounts();
-
-    // Render filtered list
     renderDisruptList();
-
-    // Update summary bar
     updateDisruptSummary();
 
-    // Update status bar with timestamp + countdown
-    var now = new Date();
+    // 8. Update status bar with timestamp + countdown
     var timeStr = String(now.getHours()).padStart(2, '0') + ':'
       + String(now.getMinutes()).padStart(2, '0') + ':'
       + String(now.getSeconds()).padStart(2, '0');
@@ -426,7 +475,7 @@ async function fetchDisruptions() {
     }
 
   } catch (err) {
-    console.error('[DISRUPT] Fetch error: ' + (err.message || err));
+    console.error('[DISRUPT] Fel: ' + (err.message || err));
     if (loadingEl) loadingEl.style.display = 'none';
     if (statusEl) {
       statusEl.innerHTML = '⚠️ ' + (err.message || 'Fel') + ' · Försöker igen...';
@@ -439,9 +488,10 @@ async function fetchDisruptions() {
   }
 }
 
-/**
- * Start countdown timer in status bar
- */
+// ==========================================
+// Countdown timer
+// ==========================================
+
 function startDisruptCountdown() {
   if (disruptCountdownTimer) clearInterval(disruptCountdownTimer);
   var seconds = DISRUPT_REFRESH_SEC;
@@ -455,6 +505,10 @@ function startDisruptCountdown() {
     }
   }, 1000);
 }
+
+// ==========================================
+// Filtering
+// ==========================================
 
 /**
  * Get filtered messages based on active region chips
@@ -498,7 +552,6 @@ function updateDisruptChipCounts() {
     var chip = chips[c];
     var region = chip.getAttribute('data-region');
     if (region === 'all') {
-      // "Alla" chip shows total unique messages
       var countSpan = chip.querySelector('.disrupt-chip-count');
       if (!countSpan) {
         countSpan = document.createElement('span');
@@ -544,7 +597,7 @@ function updateDisruptSummary() {
     }
 
     var parts = [];
-    parts.push(filtered.length + ' störning' + (filtered.length !== 1 ? 'ar' : ''));
+    parts.push(filtered.length + ' meddelande' + (filtered.length !== 1 ? 'n' : ''));
     if (highCount > 0) parts.push(highCount + ' allvarlig' + (highCount !== 1 ? 'a' : ''));
 
     summaryTextEl.textContent = parts.join(' · ');
@@ -556,13 +609,9 @@ function updateDisruptSummary() {
   }
 }
 
-/**
- * Escape HTML special chars
- */
-function escDisruptHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+// ==========================================
+// Card rendering
+// ==========================================
 
 /**
  * Build HTML for a single disruption card
@@ -581,19 +630,18 @@ function buildDisruptCard(msg) {
   var severityBadge = '<span class="disrupt-severity-badge severity-' + msg.severity + '">'
     + getSeverityLabel(msg.severity) + '</span>';
 
-  // Relative time
+  // Active/expired indicator
+  var activeBadge = '';
+  if (!msg.isActive) {
+    activeBadge = '<span class="disrupt-severity-badge severity-info">Avslutad</span>';
+  }
+
+  // Relative time (based on ModifiedTime)
   var relTime = formatDisruptRelativeTime(msg.lastUpdated);
   var timeHtml = relTime ? '<span class="disrupt-card-time">' + escDisruptHtml(relTime) + '</span>' : '';
 
-  // Description (for expanded body)
-  var descHtml = escDisruptHtml(msg.description);
-
-  // Reason code
-  var reasonHtml = '';
-  if (msg.reasonCode) {
-    reasonHtml = '<div class="disrupt-card-desc" style="margin-top:6px;font-style:italic;opacity:0.8;">'
-      + escDisruptHtml(msg.reasonCode) + '</div>';
-  }
+  // Description for expanded body (preserve line breaks)
+  var descHtml = escDisruptHtml(msg.description).replace(/\n/g, '<br>');
 
   // Stations list
   var stationsHtml = '';
@@ -603,7 +651,7 @@ function buildDisruptCard(msg) {
       stationTags += '<span class="disrupt-station-tag">' + escDisruptHtml(msg.stations[s].name) + '</span>';
     }
     stationsHtml = '<div class="disrupt-stations">'
-      + '<div class="disrupt-stations-label">Berörda stationer</div>'
+      + '<div class="disrupt-stations-label">Station</div>'
       + '<div class="disrupt-stations-list">' + stationTags + '</div>'
       + '</div>';
   }
@@ -636,13 +684,13 @@ function buildDisruptCard(msg) {
     + '</div>'
     + '<div class="disrupt-card-meta">'
     + severityBadge
+    + activeBadge
     + regionHtml
     + timeHtml
     + '</div>'
     + '</div>'
     + '<div class="disrupt-card-body">'
     + '<div class="disrupt-card-desc">' + descHtml + '</div>'
-    + reasonHtml
     + stationsHtml
     + timeDetailHtml
     + '</div>'
@@ -666,7 +714,6 @@ function renderDisruptList() {
     listEl.innerHTML = '';
     if (emptyEl) {
       emptyEl.style.display = '';
-      // Update empty state text based on time range
       var emptyTitle = emptyEl.querySelector('.disrupt-empty-title');
       var emptyText = emptyEl.querySelector('.disrupt-empty-text');
       if (disruptTimeRange === 'active') {
@@ -696,31 +743,30 @@ function renderDisruptList() {
   }
 }
 
-/**
- * Handle card expand/collapse (one at a time)
- */
+// ==========================================
+// Card expand/collapse
+// ==========================================
+
 function handleDisruptCardClick() {
   var card = this.closest('.disrupt-card');
   if (!card) return;
   var id = card.getAttribute('data-id');
 
   if (disruptExpandedId === id) {
-    // Collapse
     disruptExpandedId = null;
     card.classList.remove('expanded');
   } else {
-    // Collapse previous
     var prev = document.querySelector('.disrupt-card.expanded');
     if (prev) prev.classList.remove('expanded');
-    // Expand this one
     disruptExpandedId = id;
     card.classList.add('expanded');
   }
 }
 
-/**
- * Initialize region filter chips with click handlers
- */
+// ==========================================
+// Region filter chips
+// ==========================================
+
 function initDisruptFilters() {
   // Default: all regions active
   disruptActiveRegions = { 'all': true };
@@ -735,16 +781,10 @@ function initDisruptFilters() {
   }
 }
 
-/**
- * Handle region chip click — toggle logic:
- * - "Alla" toggles all on/off
- * - Individual chip toggles itself; if all individuals are active, "Alla" becomes active too
- */
 function handleDisruptChipClick() {
   var region = this.getAttribute('data-region');
 
   if (region === 'all') {
-    // Toggle all
     var allCurrentlyActive = disruptActiveRegions['all'] === true;
     var newState = !allCurrentlyActive;
 
@@ -754,10 +794,8 @@ function handleDisruptChipClick() {
       disruptActiveRegions[keys[i]] = newState;
     }
   } else {
-    // Toggle individual
     disruptActiveRegions[region] = !disruptActiveRegions[region];
 
-    // Check if all individual regions are now active → auto-activate "Alla"
     var allActive = true;
     var rKeys = Object.keys(DISRUPT_COUNTY_NAMES);
     for (var j = 0; j < rKeys.length; j++) {
@@ -776,14 +814,14 @@ function handleDisruptChipClick() {
     chips[c].classList.toggle('active', disruptActiveRegions[r] === true);
   }
 
-  // Re-render
   renderDisruptList();
   updateDisruptSummary();
 }
 
-/**
- * Initialize time range toggle buttons
- */
+// ==========================================
+// Time range toggle
+// ==========================================
+
 function initDisruptTimeToggle() {
   var btns = document.querySelectorAll('#disruptTimeToggle .disrupt-time-btn');
   for (var i = 0; i < btns.length; i++) {
@@ -791,16 +829,12 @@ function initDisruptTimeToggle() {
   }
 }
 
-/**
- * Handle time range button click
- */
 function handleDisruptTimeClick() {
   var range = this.getAttribute('data-range');
-  if (range === disruptTimeRange) return; // already selected
+  if (range === disruptTimeRange) return;
 
   disruptTimeRange = range;
 
-  // Update button visual state
   var btns = document.querySelectorAll('#disruptTimeToggle .disrupt-time-btn');
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle('active', btns[i].getAttribute('data-range') === range);
@@ -814,13 +848,13 @@ function handleDisruptTimeClick() {
   fetchDisruptions();
 }
 
-/**
- * Called when the disruptions page is shown
- */
+// ==========================================
+// Page lifecycle
+// ==========================================
+
 function onDisruptionsPageShow() {
   disruptPageActive = true;
 
-  // Measure header height (reuse departure page pattern)
   var header = document.querySelector('.header');
   if (header) {
     document.documentElement.style.setProperty('--dep-header-height', header.offsetHeight + 'px');
@@ -831,10 +865,7 @@ function onDisruptionsPageShow() {
     initDisruptFilters();
   }
 
-  // Initialize time toggle on first show
   initDisruptTimeToggle();
-
-  // Fetch data immediately
   fetchDisruptions();
 
   // Auto-refresh
@@ -843,9 +874,6 @@ function onDisruptionsPageShow() {
   }, DISRUPT_REFRESH_SEC * 1000);
 }
 
-/**
- * Called when leaving the disruptions page
- */
 function onDisruptionsPageHide() {
   disruptPageActive = false;
   if (disruptRefreshTimer) {
