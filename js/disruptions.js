@@ -202,14 +202,12 @@ function buildDisruptXml() {
 
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainMessage" schemaversion="1.7" orderby="LastUpdateDateTime desc">'
+    + '<QUERY objecttype="TrainMessage" schemaversion="1.6" orderby="LastUpdateDateTime desc">'
     + '<FILTER>'
     + filterBlock
     + '</FILTER>'
-    + '<INCLUDE>EventId</INCLUDE>'
     + '<INCLUDE>Header</INCLUDE>'
     + '<INCLUDE>ExternalDescription</INCLUDE>'
-    + '<INCLUDE>ReasonCodeText</INCLUDE>'
     + '<INCLUDE>StartDateTime</INCLUDE>'
     + '<INCLUDE>EndDateTime</INCLUDE>'
     + '<INCLUDE>LastUpdateDateTime</INCLUDE>'
@@ -233,7 +231,6 @@ function parseDisruptMessages(rawMessages) {
     var msg = rawMessages[i];
     var header = msg.Header || '';
     var desc = msg.ExternalDescription || '';
-    var reasonCode = msg.ReasonCodeText || '';
 
     // Extract affected station signatures
     var stationSigs = [];
@@ -279,11 +276,13 @@ function parseDisruptMessages(rawMessages) {
     // Severity
     var severity = classifyDisruptSeverity(header, desc);
 
+    // Generate unique ID from header + start time (no EventId in API)
+    var msgId = 'msg-' + i + '-' + (msg.StartDateTime || '').replace(/\D/g, '').substring(0, 12);
+
     parsed.push({
-      id: msg.EventId || ('msg-' + i),
+      id: msgId,
       header: header,
       description: desc,
-      reasonCode: reasonCode,
       severity: severity,
       startTime: msg.StartDateTime || null,
       endTime: msg.EndDateTime || null,
