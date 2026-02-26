@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v5.56';
+const CACHE_VERSION = 'v5.60';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -27,6 +27,7 @@ const FILES_TO_CACHE = [
   './css/documents.css',
   './css/disruptions.css',
   './css/positions.css',
+  './css/overtime.css',
   // JS files
   './js/config.js',
   './js/firebase.js',
@@ -48,6 +49,7 @@ const FILES_TO_CACHE = [
   './js/documents.js',
   './js/disruptions.js',
   './js/positions.js',
+  './js/overtime.js',
   './js/app.js',
   // Assets
   './icon.png',
@@ -78,7 +80,9 @@ const EXTERNAL_TO_CACHE = [
   'https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-auth-compat.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
+  'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+  'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap',
+  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
 ];
 
 // CDN domains that should be cached for offline use

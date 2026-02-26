@@ -114,6 +114,9 @@ function showPage(pageId) {
   if (pageId !== 'disruptions') {
     if (typeof onDisruptionsPageHide === 'function') onDisruptionsPageHide();
   }
+  if (pageId !== 'overtime') {
+    if (typeof onOvertimePageHide === 'function') onOvertimePageHide();
+  }
 
   // Activate page + set header title
   if (pageId === 'schedule') {
@@ -159,6 +162,10 @@ function showPage(pageId) {
     document.getElementById('documentsPage').classList.add('active');
     headerTitle.textContent = 'Dokument';
     if (typeof onDocumentsPageShow === 'function') onDocumentsPageShow();
+  } else if (pageId === 'overtime') {
+    document.getElementById('overtimePage').classList.add('active');
+    headerTitle.textContent = 'Övertid';
+    if (typeof onOvertimePageShow === 'function') onOvertimePageShow();
   }
 
   closeSidebarMenu();
