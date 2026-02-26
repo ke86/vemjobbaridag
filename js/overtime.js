@@ -1,20 +1,29 @@
 // ==========================================
 // OVERTIME PAGE (Förseningsövertid)
-// Full functionality — v5.61 (CF Worker submission + profile trains)
+// Full functionality — v5.62 (pre-fill URL submission + profile trains)
 // ==========================================
 
 // === CONFIGURATION ===
 var OT_FORM_PAGE_URL = 'https://forms.office.com/pages/responsepage.aspx?id=Se4TKTWAFU-sN964AeJDbeO9eygRfwVLmiPtN4i6AAlUQk1XTjNGWkhPQ040SU9UQTBZUk9GSVJIMCQlQCN0PWcu&route=shorturl';
-var OT_FORM_API_BASE = 'https://forms.office.com/formapi/api/2913ee49-8035-4f15-ac37-deb801e2436d/groups/287bbde3-7f11-4b05-9a23-ed3788ba0009';
-var OT_FORM_API_ID = 'Se4TKTWAFU-sN964AeJDbeO9eygRfwVLmiPtN4i6AAlUQk1XTjNGWkhPQ040SU9UQTBZUk9GSVJIMCQlQCN0PWcu';
 var OT_DEFAULT_PHRASES = ['Signalfel', 'Spårarbete', 'Fordonsfel', 'Växelfel', 'Vänta på anslutning'];
 
+// MS Forms question IDs (mapped from form page)
+var OT_QUESTION_IDS = {
+  trafikomrade: 'r08a877c91e5940aab46a20f29e8975c3',
+  kompPengar:   're8987294ed2b4297bbf9b8fe1ee51526',
+  tagNummer:    'r0a442fdb2676477885508e2f6359d9ce',
+  ordTid:       'r34420eb0c53945ce856c8b32dd00d04b',
+  orsak:        'rbe59ed60ea8148a6a2173f5cc4895e2f',
+  forsening:    'rc33b805e58a54fc89981cf7e781b8027',
+  faktTid:      'r90237a906de84044b602c67085e11e0d',
+  namn:         'r37f071b4259d4c8cbed7031b788a030f',
+  adNummer:     'r5f2541b0525848eebaacabc4d577a3dc',
+  datum:        'r0030f2c942874489affd4c0b8edb4feb'
+};
+
 // === STATE ===
-var OT_WORKER_URL = 'https://ms-forms-proxy.kenny-eriksson1986.workers.dev';
 var otExtraMinutes = 0;
-var otIsSubmitting = false;
 var otCurrentView = 'form';
-var otLastSubmittedData = null;
 var OT_MAX_DRAFTS = 10;
 var OT_MAX_HISTORY = 20;
 var otOrsakDropdownOpen = false;
@@ -639,52 +648,34 @@ function otRenderSettingsPanel() {
   // API status
   var statusText = document.getElementById('otApiStatusText');
   if (statusText) {
-    statusText.textContent = '✅ Skickar via Cloudflare Worker → Microsoft Forms';
+    statusText.textContent = '✅ Öppnar förifyllt formulär i ny flik';
   }
 }
 
 // ==========================================
-// CLOUDFLARE WORKER SUBMISSION
+// PRE-FILL URL SUBMISSION
 // ==========================================
 
-function otInitWorkerStatus() {
+function otInitSubmitStatus() {
   var dot = document.getElementById('otStatusDot');
   var label = document.getElementById('otStatusLabel');
   if (dot) dot.className = 'ot-status-dot ok';
   if (label) label.textContent = 'Redo';
   var hint = document.getElementById('otSubmitHint');
-  if (hint) hint.textContent = 'Skickas direkt till Microsoft Forms';
+  if (hint) hint.textContent = 'Öppnar förifyllt formulär — du trycker bara Skicka';
 }
 
-function otSetSubmitStatus(text) {
-  var el = document.getElementById('otSubmitStatus');
-  if (!el) return;
-  el.textContent = text;
-  if (text) {
-    el.classList.add('working');
-  } else {
-    el.classList.remove('working');
-  }
-}
-
-function otOnSubmitResult(success, reason) {
-  var btn = document.getElementById('otSubmitBtn');
-  if (btn) {
-    btn.classList.remove('loading');
-    btn.disabled = false;
-  }
-  otIsSubmitting = false;
-  otSetSubmitStatus('');
-
-  if (success) {
-    if (otLastSubmittedData) {
-      otAddToHistory(otLastSubmittedData);
-      otLastSubmittedData = null;
+/**
+ * Build a pre-filled MS Forms URL from form data.
+ */
+function otBuildPreFillUrl(formData) {
+  var url = OT_FORM_PAGE_URL;
+  for (var key in OT_QUESTION_IDS) {
+    if (formData[key] !== undefined && formData[key] !== '') {
+      url += '&' + OT_QUESTION_IDS[key] + '=' + encodeURIComponent(formData[key]);
     }
-    otShowSuccess('Förseningsövertiden har registrerats!');
-  } else {
-    otShowToast('Inskickning misslyckades: ' + (reason || 'okänt fel'), 'error');
   }
+  return url;
 }
 
 // ==========================================
@@ -751,8 +742,6 @@ function otGetFormData() {
 // ==========================================
 
 function otHandleSubmit() {
-  if (otIsSubmitting) return;
-
   var errors = otValidateForm();
   if (errors.length > 0) {
     otShowToast('Fyll i: ' + errors.join(', '), 'error');
@@ -761,38 +750,16 @@ function otHandleSubmit() {
     return;
   }
 
-  var btn = document.getElementById('otSubmitBtn');
-  if (btn) {
-    btn.classList.add('loading');
-    btn.disabled = true;
-  }
-  otIsSubmitting = true;
-
   var formData = otGetFormData();
-  otLastSubmittedData = formData;
   otUpdateSetting('kompPengar', formData.kompPengar);
 
-  otSetSubmitStatus('Skickar...');
+  // Build pre-filled URL and open in new tab
+  var url = otBuildPreFillUrl(formData);
+  window.open(url, '_blank');
 
-  fetch(OT_WORKER_URL + '/submit', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ formData: formData })
-  })
-  .then(function(resp) { return resp.json(); })
-  .then(function(result) {
-    if (result.success) {
-      otOnSubmitResult(true);
-    } else {
-      otOnSubmitResult(false, result.error || 'Okänt fel');
-    }
-  })
-  .catch(function(err) {
-    // Network error — offer fallback
-    otOnSubmitResult(false, null);
-    otShowToast('Nätverksfel — öppnar formuläret i ny flik', 'error');
-    window.open(OT_FORM_PAGE_URL, '_blank');
-  });
+  // Save to history (user will confirm submission in the form)
+  otAddToHistory(formData);
+  otShowSuccess('Formuläret har öppnats — tryck Skicka i formuläret!');
 }
 
 // ==========================================
@@ -804,7 +771,7 @@ function otShowSuccess(message) {
   if (btn) {
     btn.classList.remove('loading');
     btn.classList.add('success');
-    btn.innerHTML = '<i class="fas fa-check"></i> Inskickat!';
+    btn.innerHTML = '<i class="fas fa-external-link-alt"></i> Öppnat!';
     btn.disabled = false;
   }
 
@@ -1320,8 +1287,8 @@ function initOvertime() {
   // Initial badges
   otUpdateBadges();
 
-  // Init worker status indicator
-  otInitWorkerStatus();
+  // Init submit status indicator
+  otInitSubmitStatus();
 
   console.log('[OT] Overtime page initialized');
 }
