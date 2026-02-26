@@ -1,6 +1,6 @@
 // ==========================================
 // OVERTIME PAGE (Förseningsövertid)
-// Full functionality — v5.60 (profile train integration)
+// Full functionality — v5.61 (CF Worker submission + profile trains)
 // ==========================================
 
 // === CONFIGURATION ===
@@ -10,7 +10,7 @@ var OT_FORM_API_ID = 'Se4TKTWAFU-sN964AeJDbeO9eygRfwVLmiPtN4i6AAlUQk1XTjNGWkhPQ0
 var OT_DEFAULT_PHRASES = ['Signalfel', 'Spårarbete', 'Fordonsfel', 'Växelfel', 'Vänta på anslutning'];
 
 // === STATE ===
-var otPoeAvailable = false;
+var OT_WORKER_URL = 'https://ms-forms-proxy.kenny-eriksson1986.workers.dev';
 var otExtraMinutes = 0;
 var otIsSubmitting = false;
 var otCurrentView = 'form';
@@ -639,103 +639,21 @@ function otRenderSettingsPanel() {
   // API status
   var statusText = document.getElementById('otApiStatusText');
   if (statusText) {
-    statusText.textContent = otPoeAvailable
-      ? '✅ Redo — skickar via AI-agent (Claude-Code)'
-      : '⚠️ Poe API ej tillgängligt — öppnar formuläret i ny flik';
+    statusText.textContent = '✅ Skickar via Cloudflare Worker → Microsoft Forms';
   }
 }
 
 // ==========================================
-// POE API / CLAUDE-CODE SUBMISSION
+// CLOUDFLARE WORKER SUBMISSION
 // ==========================================
 
-function otInitPoeApi() {
+function otInitWorkerStatus() {
   var dot = document.getElementById('otStatusDot');
   var label = document.getElementById('otStatusLabel');
-
-  if (window.Poe && typeof window.Poe.sendUserMessage === 'function') {
-    otPoeAvailable = true;
-    if (dot) dot.className = 'ot-status-dot ok';
-    if (label) label.textContent = 'Redo — skickar via AI-agent';
-    var hint = document.getElementById('otSubmitHint');
-    if (hint) hint.textContent = 'Skickas via AI-agent till Microsoft Forms';
-
-    // Register handler for Claude-Code responses
-    window.Poe.registerHandler('ot-form-submit', function(result) {
-      var msg = result.responses[0];
-
-      if (msg.status === 'error') {
-        otOnSubmitResult(false, msg.statusText || 'AI-agenten stötte på ett fel');
-        return;
-      }
-
-      if (msg.status === 'incomplete') {
-        var txt = msg.content || '';
-        if (txt.length > 20) {
-          otSetSubmitStatus('AI-agenten arbetar...');
-        }
-        return;
-      }
-
-      if (msg.status === 'complete') {
-        var content = msg.content || '';
-        if (content.indexOf('RESULT:SUCCESS') !== -1) {
-          otOnSubmitResult(true);
-        } else {
-          var reason = 'Okänt fel';
-          var failIdx = content.indexOf('RESULT:FAILED:');
-          if (failIdx !== -1) {
-            reason = content.substring(failIdx + 14, failIdx + 200).trim();
-          }
-          otOnSubmitResult(false, reason);
-        }
-      }
-    });
-  } else {
-    otPoeAvailable = false;
-    if (dot) dot.className = 'ot-status-dot fail';
-    if (label) label.textContent = 'Poe API ej tillgängligt';
-    var hint2 = document.getElementById('otSubmitHint');
-    if (hint2) hint2.textContent = 'Öppnar formuläret i ny flik';
-    var banner = document.getElementById('otFallbackBanner');
-    if (banner) banner.classList.add('show');
-  }
-}
-
-function otBuildSubmitPrompt(formData) {
-  var data = JSON.stringify(formData, null, 2);
-  return [
-    '<system>You submit Microsoft Forms responses using Python requests. Execute immediately without explanation. After the POST, print exactly "RESULT:SUCCESS" if HTTP 2xx, or "RESULT:FAILED:{status_code} {response_body[:200]}" otherwise.</system>',
-    '',
-    'Submit this data to Microsoft Forms:',
-    '',
-    'Form page URL: ' + OT_FORM_PAGE_URL,
-    'API base: ' + OT_FORM_API_BASE,
-    'Form ID: ' + OT_FORM_API_ID,
-    '',
-    'Steps:',
-    '1. GET the form page URL. Find antiForgeryToken in the HTML (search for "antiForgeryToken":"VALUE").',
-    "2. GET {api_base}/light/runtimeForms('{form_id}')?$expand=questions($expand=choices) with headers Accept:application/json and __RequestVerificationToken:{token}. Map question IDs by matching title keywords.",
-    "3. POST to {api_base}/light/forms('{form_id}')/responses",
-    '',
-    'Form data to submit:',
-    data,
-    '',
-    'Map data keys to form question titles:',
-    '  trafikomrade -> title contains "Trafikområde"',
-    '  namn -> title contains "Namn"',
-    '  datum -> title contains "Datum"',
-    '  adNummer -> title contains "AD-nummer"',
-    '  tagNummer -> title contains "Tågnummer"',
-    '  ordTid -> title contains "Ordinarie"',
-    '  faktTid -> title contains "Faktisk"',
-    '  forsening -> title contains "Försening"',
-    '  orsak -> title contains "Orsak"',
-    '  kompPengar -> title contains "Komp"',
-    '',
-    'POST body: {"startDate": "<ISO now>", "submitDate": "<ISO now>", "answers": "<JSON string of [{questionId, answer1}]>"}',
-    'POST headers: Content-Type: application/json, __RequestVerificationToken: {token}'
-  ].join('\n');
+  if (dot) dot.className = 'ot-status-dot ok';
+  if (label) label.textContent = 'Redo';
+  var hint = document.getElementById('otSubmitHint');
+  if (hint) hint.textContent = 'Skickas direkt till Microsoft Forms';
 }
 
 function otSetSubmitStatus(text) {
@@ -854,39 +772,27 @@ function otHandleSubmit() {
   otLastSubmittedData = formData;
   otUpdateSetting('kompPengar', formData.kompPengar);
 
-  if (otPoeAvailable) {
-    otSetSubmitStatus('Startar AI-agent...');
-    var prompt = otBuildSubmitPrompt(formData);
-    window.Poe.sendUserMessage('@Claude-Code ' + prompt, {
-      handler: 'ot-form-submit',
-      stream: true,
-      openChat: false,
-      parameters: { thinking_budget: 0 }
-    }).catch(function(err) {
-      otIsSubmitting = false;
-      if (btn) {
-        btn.classList.remove('loading');
-        btn.disabled = false;
-      }
-      otSetSubmitStatus('');
+  otSetSubmitStatus('Skickar...');
 
-      if (err && err.errorType === 'USER_REJECTED_CONFIRMATION') {
-        otShowToast('Inskickning avbruten.', 'info');
-      } else {
-        otShowToast('Kunde inte starta AI-agenten. Öppnar formuläret istället.', 'error');
-        window.open(OT_FORM_PAGE_URL, '_blank');
-      }
-    });
-  } else {
-    // Fallback: open form in new tab
-    if (btn) {
-      btn.classList.remove('loading');
-      btn.disabled = false;
+  fetch(OT_WORKER_URL + '/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ formData: formData })
+  })
+  .then(function(resp) { return resp.json(); })
+  .then(function(result) {
+    if (result.success) {
+      otOnSubmitResult(true);
+    } else {
+      otOnSubmitResult(false, result.error || 'Okänt fel');
     }
-    otIsSubmitting = false;
+  })
+  .catch(function(err) {
+    // Network error — offer fallback
+    otOnSubmitResult(false, null);
+    otShowToast('Nätverksfel — öppnar formuläret i ny flik', 'error');
     window.open(OT_FORM_PAGE_URL, '_blank');
-    otShowToast('Formuläret har öppnats i en ny flik.', 'info');
-  }
+  });
 }
 
 // ==========================================
@@ -1414,8 +1320,8 @@ function initOvertime() {
   // Initial badges
   otUpdateBadges();
 
-  // Init Poe API (check availability, register handler)
-  otInitPoeApi();
+  // Init worker status indicator
+  otInitWorkerStatus();
 
   console.log('[OT] Overtime page initialized');
 }
