@@ -1182,3 +1182,183 @@ html.dark .ft-tab-btn.ft-tab-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; box-shadow: 0 0 8px rgba(96, 165, 250, 0.5); }
 }
+
+/* ==========================================
+   PERSONAL TAB
+   ========================================== */
+
+.ft-personal-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+}
+
+.ft-personal-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  gap: 8px;
+}
+.ft-personal-empty-icon {
+  font-size: 40px;
+  opacity: 0.5;
+}
+.ft-personal-empty-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.ft-personal-empty-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.ft-personal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ft-personal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 8px;
+}
+.ft-personal-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.ft-personal-header-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary, rgba(0,0,0,0.06));
+  padding: 3px 10px;
+  border-radius: 10px;
+}
+
+.ft-personal-vehicles {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary, rgba(0,0,0,0.04));
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+.ft-personal-vehicles-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+.ft-personal-vehicles-list {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.ft-personal-card {
+  background: var(--bg-card, #fff);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border: 1px solid var(--border-color, rgba(0,0,0,0.06));
+}
+.ft-personal-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ft-personal-card-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ft-personal-card-phone {
+  font-size: 18px;
+  text-decoration: none;
+  flex-shrink: 0;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.ft-personal-card-phone:active {
+  background: rgba(0,0,0,0.08);
+}
+.ft-personal-card-detail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+  padding-left: 38px; /* align with name after role badge */
+}
+.ft-personal-card-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+.ft-personal-card-route {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Role badges */
+.ft-personal-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+.ft-personal-role-lf {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.ft-personal-role-tv {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Dark mode */
+html.dark .ft-personal-card {
+  background: var(--bg-card, #1e1e1e);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+html.dark .ft-personal-role-lf {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93bbfd;
+}
+html.dark .ft-personal-role-tv {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+html.dark .ft-personal-vehicles {
+  background: rgba(255,255,255,0.06);
+}
+html.dark .ft-personal-header-count {
+  background: rgba(255,255,255,0.1);
+}
+html.dark .ft-personal-card-phone:active {
+  background: rgba(255,255,255,0.1);
+}

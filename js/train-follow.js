@@ -757,10 +757,12 @@
     var isTimetable = activeTopbarTab === 'timetable';
     var isLa = activeTopbarTab === 'la';
     var isTko = activeTopbarTab === 'tko';
+    var isPersonal = activeTopbarTab === 'personal';
     var hasTko = followedTrain && getTkoPages(followedTrain.trainNr);
 
     var tabsHtml =
         '<button class="ft-tab-btn' + (isTimetable ? ' ft-tab-active' : '') + '" data-tab="timetable">Följ tåg</button>'
+      + '<button class="ft-tab-btn' + (isPersonal ? ' ft-tab-active' : '') + '" data-tab="personal">Personal</button>'
       + '<button class="ft-tab-btn' + (isLa ? ' ft-tab-active' : '') + (_khPulseActive ? ' ft-tab-pulse' : '') + '" data-tab="la">LA</button>';
     if (hasTko) {
       tabsHtml += '<button class="ft-tab-btn' + (isTko ? ' ft-tab-active' : '') + '" data-tab="tko">TKØ</button>';
@@ -985,11 +987,13 @@
     var ftContent = document.getElementById('ftPageContent');
     var laContent = document.getElementById('ftLaContent');
     var tkoContent = document.getElementById('ftTkoContent');
+    var personalContent = document.getElementById('ftPersonalContent');
     if (!ftContent || !laContent) return;
 
     ftContent.style.display = tab === 'timetable' ? '' : 'none';
     laContent.style.display = tab === 'la' ? '' : 'none';
     if (tkoContent) tkoContent.style.display = tab === 'tko' ? '' : 'none';
+    if (personalContent) personalContent.style.display = tab === 'personal' ? '' : 'none';
   }
 
   /**
@@ -1002,6 +1006,8 @@
       renderFtLa();
     } else if (tab === 'tko') {
       renderFtTko();
+    } else if (tab === 'personal') {
+      renderFtPersonal();
     }
   }
 
@@ -1232,6 +1238,168 @@
           + '<div class="la-viewer-error-text">Kunde inte ladda K26 TKØ PDF.</div></div>';
       });
     }
+  }
+
+  // ==========================================
+  // PERSONAL TAB — crew on this train
+  // ==========================================
+
+  /**
+   * Find all crew members assigned to the followed train from dagvyAllData.
+   * Returns array of { name, role, fromStation, toStation, timeStart, timeEnd, phone, vehicles }
+   */
+  function ftFindCrewForTrain(trainNr) {
+    if (typeof dagvyAllData === 'undefined' || !trainNr) return [];
+    var dateKey = typeof getDateKey === 'function' ? getDateKey(typeof currentDate !== 'undefined' ? currentDate : new Date()) : '';
+    if (!dateKey) return [];
+
+    var result = [];
+    var seen = {}; // avoid duplicates by name+role
+
+    for (var normalizedName in dagvyAllData) {
+      var dagvyDoc = dagvyAllData[normalizedName];
+      if (!dagvyDoc || !dagvyDoc.days) continue;
+
+      var dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+      if (!dayData || !dayData.crews) continue;
+
+      for (var i = 0; i < dayData.crews.length; i++) {
+        var trainCrew = dayData.crews[i];
+        if (!trainCrew.trainNr || trainCrew.trainNr !== trainNr) continue;
+
+        var vehicles = trainCrew.vehicles || [];
+
+        for (var j = 0; j < trainCrew.crew.length; j++) {
+          var c = trainCrew.crew[j];
+          var key = (c.name || '') + '|' + (c.role || '');
+          if (seen[key]) continue;
+          seen[key] = true;
+
+          // Try to find phone from registeredEmployees
+          var phone = '';
+          if (typeof registeredEmployees !== 'undefined') {
+            for (var id in registeredEmployees) {
+              var emp = registeredEmployees[id];
+              if (typeof normalizeName === 'function' && normalizeName(emp.name) === normalizedName) {
+                phone = emp.phone || '';
+                break;
+              }
+            }
+          }
+
+          result.push({
+            name: c.name || '',
+            role: c.role || '',
+            fromStation: c.fromStation || '',
+            toStation: c.toStation || '',
+            timeStart: c.timeStart || '',
+            timeEnd: c.timeEnd || '',
+            phone: phone,
+            vehicles: vehicles
+          });
+        }
+      }
+    }
+
+    // Sort: Lokförare first, then Tågvärd, then alphabetical
+    result.sort(function(a, b) {
+      var roleOrder = { 'Lokförare': 0, 'Tågvärd': 1 };
+      var ra = roleOrder[a.role] !== undefined ? roleOrder[a.role] : 2;
+      var rb = roleOrder[b.role] !== undefined ? roleOrder[b.role] : 2;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name, 'sv');
+    });
+
+    return result;
+  }
+
+  /**
+   * Render the Personal tab content into #ftPersonalContent.
+   */
+  function renderFtPersonal() {
+    var container = document.getElementById('ftPersonalContent');
+    if (!container || !followedTrain) return;
+
+    var trainNr = followedTrain.trainNr;
+    var crew = ftFindCrewForTrain(trainNr);
+
+    if (crew.length === 0) {
+      container.innerHTML =
+        '<div class="ft-personal-empty">'
+        + '<div class="ft-personal-empty-icon">👥</div>'
+        + '<div class="ft-personal-empty-text">Ingen personaldata för tåg ' + trainNr + '</div>'
+        + '<div class="ft-personal-empty-hint">Dagvy behöver vara laddad för att visa personal.</div>'
+        + '</div>';
+      return;
+    }
+
+    // Collect unique vehicles
+    var allVehicles = [];
+    var vSeen = {};
+    for (var v = 0; v < crew.length; v++) {
+      if (crew[v].vehicles) {
+        for (var vi = 0; vi < crew[v].vehicles.length; vi++) {
+          var veh = crew[v].vehicles[vi];
+          if (!vSeen[veh]) { vSeen[veh] = true; allVehicles.push(veh); }
+        }
+      }
+    }
+
+    var html = '<div class="ft-personal-list">';
+
+    // Header
+    html += '<div class="ft-personal-header">'
+      + '<span class="ft-personal-header-title">Bemanning tåg ' + trainNr + '</span>'
+      + '<span class="ft-personal-header-count">' + crew.length + ' pers</span>'
+      + '</div>';
+
+    // Vehicles row
+    if (allVehicles.length > 0) {
+      html += '<div class="ft-personal-vehicles">'
+        + '<span class="ft-personal-vehicles-label">Fordon</span>'
+        + '<span class="ft-personal-vehicles-list">' + allVehicles.join(' · ') + '</span>'
+        + '</div>';
+    }
+
+    // Crew cards
+    for (var i = 0; i < crew.length; i++) {
+      var c = crew[i];
+      var roleBadge = c.role === 'Lokförare'
+        ? '<span class="ft-personal-role ft-personal-role-lf">LF</span>'
+        : '<span class="ft-personal-role ft-personal-role-tv">TV</span>';
+
+      var route = (c.fromStation && c.toStation && c.fromStation !== c.toStation)
+        ? c.fromStation + ' → ' + c.toStation
+        : c.fromStation || c.toStation || '';
+
+      var timeRange = '';
+      if (c.timeStart && c.timeEnd) {
+        timeRange = c.timeStart + '–' + c.timeEnd;
+      }
+
+      html += '<div class="ft-personal-card">'
+        + '<div class="ft-personal-card-top">'
+        + roleBadge
+        + '<span class="ft-personal-card-name">' + c.name + '</span>';
+
+      if (c.phone) {
+        html += '<a href="tel:' + c.phone + '" class="ft-personal-card-phone" title="Ring">📞</a>';
+      }
+
+      html += '</div>';
+
+      if (route || timeRange) {
+        html += '<div class="ft-personal-card-detail">';
+        if (timeRange) html += '<span class="ft-personal-card-time">' + timeRange + '</span>';
+        if (route) html += '<span class="ft-personal-card-route">' + route + '</span>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
   }
 
   /**
