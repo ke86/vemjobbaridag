@@ -1289,15 +1289,21 @@ html.dark .ft-tab-btn.ft-tab-pulse {
   white-space: nowrap;
 }
 .ft-personal-card-phone {
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
   text-decoration: none;
   flex-shrink: 0;
-  padding: 4px;
-  border-radius: 8px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 .ft-personal-card-phone:active {
-  background: rgba(0,0,0,0.08);
+  background: #15803d;
+  transform: scale(0.92);
 }
 .ft-personal-card-detail {
   display: flex;
@@ -1359,6 +1365,71 @@ html.dark .ft-personal-vehicles {
 html.dark .ft-personal-header-count {
   background: rgba(255,255,255,0.1);
 }
+html.dark .ft-personal-card-phone {
+  background: #15803d;
+}
 html.dark .ft-personal-card-phone:active {
+  background: #166534;
+}
+
+/* Separator between on-board and off-board crew */
+.ft-personal-separator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 4px;
+}
+.ft-personal-separator-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-color, rgba(0,0,0,0.1));
+}
+.ft-personal-separator-text {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+html.dark .ft-personal-separator-line {
   background: rgba(255,255,255,0.1);
+}
+
+/* Dimmed cards for off-board crew */
+.ft-personal-card-dim {
+  opacity: 0.5;
+  background: var(--bg-secondary, rgba(0,0,0,0.03));
+  box-shadow: none;
+  border-color: transparent;
+}
+html.dark .ft-personal-card-dim {
+  background: rgba(255,255,255,0.03);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* "Me" card highlight */
+.ft-personal-card-me {
+  border-left: 3px solid #3b82f6;
+}
+.ft-personal-me-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #3b82f6;
+  background: #dbeafe;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+html.dark .ft-personal-card-me {
+  border-left-color: #60a5fa;
+}
+html.dark .ft-personal-me-tag {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93bbfd;
 }

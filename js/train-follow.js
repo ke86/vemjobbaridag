@@ -776,7 +776,6 @@
       + '</div>'
       + '<div class="ft-topbar-right">'
       + '<button class="ft-stop-follow-btn" id="ftStopFollow">Sluta följa</button>'
-      + '<button class="ft-close-btn" id="ftClosePanel" title="Tillbaka">✕</button>'
       + '</div>';
 
     // Tab toggle listeners
@@ -802,9 +801,6 @@
       });
     }
 
-    document.getElementById('ftClosePanel').addEventListener('click', function() {
-      showPage('schedule');
-    });
     document.getElementById('ftStopFollow').addEventListener('click', function() {
       stopFollowing(false);
     });
@@ -1275,17 +1271,8 @@
           if (seen[key]) continue;
           seen[key] = true;
 
-          // Try to find phone from registeredEmployees
-          var phone = '';
-          if (typeof registeredEmployees !== 'undefined') {
-            for (var id in registeredEmployees) {
-              var emp = registeredEmployees[id];
-              if (typeof normalizeName === 'function' && normalizeName(emp.name) === normalizedName) {
-                phone = emp.phone || '';
-                break;
-              }
-            }
-          }
+          // Phone is stored directly on the crew member object
+          var phone = c.phone || '';
 
           result.push({
             name: c.name || '',
@@ -1301,8 +1288,73 @@
       }
     }
 
-    // Sort: Lokförare first, then Tågvärd, then alphabetical
+    // Determine who is "on board" by checking overlap with the profile user's segment
+    // Same logic as dagvy.js "Med dig" — if profile user is on this train,
+    // check which crew members' time ranges overlap with the profile user's time range
+    var myStart = '';
+    var myEnd = '';
+    var profileId = typeof getProfileEmployeeId === 'function' ? getProfileEmployeeId() : null;
+    if (profileId && typeof registeredEmployees !== 'undefined' && registeredEmployees[profileId]) {
+      var myName = registeredEmployees[profileId].name || '';
+      var myNormalized = typeof normalizeName === 'function' ? normalizeName(myName) : myName.toLowerCase().trim();
+      // Find my segment on this train
+      for (var m = 0; m < result.length; m++) {
+        var mKey = typeof normalizeName === 'function' ? normalizeName(result[m].name) : result[m].name.toLowerCase().trim();
+        if (mKey === myNormalized) {
+          myStart = result[m].timeStart;
+          myEnd = result[m].timeEnd;
+          result[m].isMe = true;
+          break;
+        }
+      }
+    }
+
+    // If we found the profile user's segment, use overlap logic
+    // Otherwise fall back to current-time logic
+    var useOverlap = (myStart && myEnd);
+    var myStartMin = 0, myEndMin = 0;
+    if (useOverlap) {
+      var msP = myStart.split(':');
+      var meP = myEnd.split(':');
+      myStartMin = parseInt(msP[0], 10) * 60 + parseInt(msP[1], 10);
+      myEndMin = parseInt(meP[0], 10) * 60 + parseInt(meP[1], 10);
+    }
+
+    var now = new Date();
+    var nowMin = now.getHours() * 60 + now.getMinutes();
+    var isToday = typeof getDateKey === 'function' && typeof currentDate !== 'undefined'
+      && getDateKey(currentDate) === getDateKey(new Date());
+
+    for (var r = 0; r < result.length; r++) {
+      var p = result[r];
+      if (p.isMe) { p.onBoard = true; continue; }
+
+      if (!p.timeStart || !p.timeEnd) {
+        p.onBoard = true; // can't determine, assume on board
+        continue;
+      }
+      var sp = p.timeStart.split(':');
+      var ep = p.timeEnd.split(':');
+      var pStartMin = parseInt(sp[0], 10) * 60 + parseInt(sp[1], 10);
+      var pEndMin = parseInt(ep[0], 10) * 60 + parseInt(ep[1], 10);
+
+      if (useOverlap) {
+        // Overlap: person's range intersects with my range
+        p.onBoard = (pStartMin < myEndMin && pEndMin > myStartMin);
+      } else if (isToday) {
+        // Fallback: time-based
+        p.onBoard = (nowMin >= pStartMin && nowMin < pEndMin);
+      } else {
+        p.onBoard = true;
+      }
+    }
+
+    // Sort: me first, then on board, then by role (LF > TV), then alphabetical
     result.sort(function(a, b) {
+      if (a.isMe && !b.isMe) return -1;
+      if (!a.isMe && b.isMe) return 1;
+      if (a.onBoard && !b.onBoard) return -1;
+      if (!a.onBoard && b.onBoard) return 1;
       var roleOrder = { 'Lokförare': 0, 'Tågvärd': 1 };
       var ra = roleOrder[a.role] !== undefined ? roleOrder[a.role] : 2;
       var rb = roleOrder[b.role] !== undefined ? roleOrder[b.role] : 2;
@@ -1361,9 +1413,28 @@
         + '</div>';
     }
 
-    // Crew cards
+    // Phone SVG icon (green)
+    var phoneSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>'
+      + '</svg>';
+
+    // Crew cards — split into onBoard and offBoard
+    var addedSeparator = false;
     for (var i = 0; i < crew.length; i++) {
       var c = crew[i];
+
+      // Add separator before first off-board person
+      if (!c.onBoard && !addedSeparator) {
+        addedSeparator = true;
+        html += '<div class="ft-personal-separator">'
+          + '<span class="ft-personal-separator-line"></span>'
+          + '<span class="ft-personal-separator-text">Övrig bemanning</span>'
+          + '<span class="ft-personal-separator-line"></span>'
+          + '</div>';
+      }
+
+      var dimClass = !c.onBoard ? ' ft-personal-card-dim' : '';
+      var meClass = c.isMe ? ' ft-personal-card-me' : '';
       var roleBadge = c.role === 'Lokförare'
         ? '<span class="ft-personal-role ft-personal-role-lf">LF</span>'
         : '<span class="ft-personal-role ft-personal-role-tv">TV</span>';
@@ -1377,13 +1448,13 @@
         timeRange = c.timeStart + '–' + c.timeEnd;
       }
 
-      html += '<div class="ft-personal-card">'
+      html += '<div class="ft-personal-card' + dimClass + meClass + '">'
         + '<div class="ft-personal-card-top">'
         + roleBadge
-        + '<span class="ft-personal-card-name">' + c.name + '</span>';
+        + '<span class="ft-personal-card-name">' + c.name + (c.isMe ? ' <span class="ft-personal-me-tag">Du</span>' : '') + '</span>';
 
       if (c.phone) {
-        html += '<a href="tel:' + c.phone + '" class="ft-personal-card-phone" title="Ring">📞</a>';
+        html += '<a href="tel:' + c.phone + '" class="ft-personal-card-phone" title="Ring">' + phoneSvg + '</a>';
       }
 
       html += '</div>';
