@@ -918,3 +918,78 @@ html.dark .login-card {
     font-size: 16px;
   }
 }
+
+/* ==========================================
+   LINKS PAGE (Länkar)
+   ========================================== */
+
+#linksPage {
+  padding: 16px;
+}
+.links-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.links-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--border-color, rgba(0,0,0,0.06));
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.links-card:active {
+  background: var(--bg-secondary, rgba(0,0,0,0.04));
+  transform: scale(0.98);
+}
+.links-card-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary, rgba(0,0,0,0.04));
+  border-radius: 10px;
+}
+.links-card-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.links-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.links-card-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.links-card-arrow {
+  font-size: 22px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  font-weight: 300;
+}
+
+html.dark .links-card {
+  background: var(--bg-card, #1e1e1e);
+  border-color: rgba(255,255,255,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+html.dark .links-card:active {
+  background: rgba(255,255,255,0.06);
+}
+html.dark .links-card-icon {
+  background: rgba(255,255,255,0.06);
+}

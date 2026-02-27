@@ -162,6 +162,9 @@ function showPage(pageId) {
     document.getElementById('documentsPage').classList.add('active');
     headerTitle.textContent = 'Dokument';
     if (typeof onDocumentsPageShow === 'function') onDocumentsPageShow();
+  } else if (pageId === 'links') {
+    document.getElementById('linksPage').classList.add('active');
+    headerTitle.textContent = 'Länkar';
   } else if (pageId === 'overtime') {
     document.getElementById('overtimePage').classList.add('active');
     headerTitle.textContent = 'Övertid';

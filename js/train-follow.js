@@ -1249,8 +1249,8 @@
     var dateKey = typeof getDateKey === 'function' ? getDateKey(typeof currentDate !== 'undefined' ? currentDate : new Date()) : '';
     if (!dateKey) return [];
 
-    var result = [];
-    var seen = {}; // avoid duplicates by name+role
+    // Collect all crew entries, grouping multiple legs per person (same as dagvy.js personMap)
+    var personMap = {}; // key: "name|role" → { name, role, phone, vehicles, legs: [] }
 
     for (var normalizedName in dagvyAllData) {
       var dagvyDoc = dagvyAllData[normalizedName];
@@ -1268,56 +1268,70 @@
         for (var j = 0; j < trainCrew.crew.length; j++) {
           var c = trainCrew.crew[j];
           var key = (c.name || '') + '|' + (c.role || '');
-          if (seen[key]) continue;
-          seen[key] = true;
 
-          // Phone is stored directly on the crew member object
-          var phone = c.phone || '';
-
-          result.push({
-            name: c.name || '',
-            role: c.role || '',
-            fromStation: c.fromStation || '',
-            toStation: c.toStation || '',
-            timeStart: c.timeStart || '',
-            timeEnd: c.timeEnd || '',
-            phone: phone,
-            vehicles: vehicles
+          if (!personMap[key]) {
+            personMap[key] = {
+              name: c.name || '',
+              role: c.role || '',
+              phone: c.phone || '',
+              vehicles: vehicles,
+              legs: []
+            };
+          }
+          personMap[key].legs.push({
+            from: c.fromStation || '',
+            to: c.toStation || '',
+            start: c.timeStart || '',
+            end: c.timeEnd || ''
           });
         }
       }
     }
 
-    // Determine who is "on board" by checking overlap with the profile user's segment
+    // Convert personMap to result array with combined time range and route
+    var result = [];
+    for (var pk in personMap) {
+      var pm = personMap[pk];
+      // Sort legs by start time
+      pm.legs.sort(function(a, b) { return a.start < b.start ? -1 : a.start > b.start ? 1 : 0; });
+      var legRoute = pm.legs.map(function(l) { return l.from + ' → ' + l.to; }).join(', ');
+      var fullStart = pm.legs[0].start;
+      var fullEnd = pm.legs[pm.legs.length - 1].end;
+      result.push({
+        name: pm.name,
+        role: pm.role,
+        phone: pm.phone,
+        vehicles: pm.vehicles,
+        legs: pm.legs,
+        route: legRoute,
+        timeStart: fullStart,
+        timeEnd: fullEnd
+      });
+    }
+
+    // Determine who is "on board" by checking overlap with the profile user's legs
     // Same logic as dagvy.js "Med dig" — if profile user is on this train,
     // check which crew members' time ranges overlap with the profile user's time range
-    var myStart = '';
-    var myEnd = '';
+    var myStartMin = 0, myEndMin = 0;
+    var useOverlap = false;
     var profileId = typeof getProfileEmployeeId === 'function' ? getProfileEmployeeId() : null;
     if (profileId && typeof registeredEmployees !== 'undefined' && registeredEmployees[profileId]) {
       var myName = registeredEmployees[profileId].name || '';
       var myNormalized = typeof normalizeName === 'function' ? normalizeName(myName) : myName.toLowerCase().trim();
-      // Find my segment on this train
       for (var m = 0; m < result.length; m++) {
         var mKey = typeof normalizeName === 'function' ? normalizeName(result[m].name) : result[m].name.toLowerCase().trim();
         if (mKey === myNormalized) {
-          myStart = result[m].timeStart;
-          myEnd = result[m].timeEnd;
           result[m].isMe = true;
+          if (result[m].timeStart && result[m].timeEnd) {
+            var msP = result[m].timeStart.split(':');
+            var meP = result[m].timeEnd.split(':');
+            myStartMin = parseInt(msP[0], 10) * 60 + parseInt(msP[1], 10);
+            myEndMin = parseInt(meP[0], 10) * 60 + parseInt(meP[1], 10);
+            useOverlap = true;
+          }
           break;
         }
       }
-    }
-
-    // If we found the profile user's segment, use overlap logic
-    // Otherwise fall back to current-time logic
-    var useOverlap = (myStart && myEnd);
-    var myStartMin = 0, myEndMin = 0;
-    if (useOverlap) {
-      var msP = myStart.split(':');
-      var meP = myEnd.split(':');
-      myStartMin = parseInt(msP[0], 10) * 60 + parseInt(msP[1], 10);
-      myEndMin = parseInt(meP[0], 10) * 60 + parseInt(meP[1], 10);
     }
 
     var now = new Date();
@@ -1330,20 +1344,30 @@
       if (p.isMe) { p.onBoard = true; continue; }
 
       if (!p.timeStart || !p.timeEnd) {
-        p.onBoard = true; // can't determine, assume on board
+        p.onBoard = true;
         continue;
       }
-      var sp = p.timeStart.split(':');
-      var ep = p.timeEnd.split(':');
-      var pStartMin = parseInt(sp[0], 10) * 60 + parseInt(sp[1], 10);
-      var pEndMin = parseInt(ep[0], 10) * 60 + parseInt(ep[1], 10);
 
       if (useOverlap) {
-        // Overlap: person's range intersects with my range
-        p.onBoard = (pStartMin < myEndMin && pEndMin > myStartMin);
+        // Check if ANY of this person's legs overlap with my full time span
+        p.onBoard = p.legs.some(function(leg) {
+          if (!leg.start || !leg.end) return true;
+          var ls = leg.start.split(':');
+          var le = leg.end.split(':');
+          var legStart = parseInt(ls[0], 10) * 60 + parseInt(ls[1], 10);
+          var legEnd = parseInt(le[0], 10) * 60 + parseInt(le[1], 10);
+          return (legStart < myEndMin && legEnd > myStartMin);
+        });
       } else if (isToday) {
-        // Fallback: time-based
-        p.onBoard = (nowMin >= pStartMin && nowMin < pEndMin);
+        // Fallback: check if any leg covers current time
+        p.onBoard = p.legs.some(function(leg) {
+          if (!leg.start || !leg.end) return true;
+          var ls = leg.start.split(':');
+          var le = leg.end.split(':');
+          var legStart = parseInt(ls[0], 10) * 60 + parseInt(ls[1], 10);
+          var legEnd = parseInt(le[0], 10) * 60 + parseInt(le[1], 10);
+          return (nowMin >= legStart && nowMin < legEnd);
+        });
       } else {
         p.onBoard = true;
       }
@@ -1439,9 +1463,7 @@
         ? '<span class="ft-personal-role ft-personal-role-lf">LF</span>'
         : '<span class="ft-personal-role ft-personal-role-tv">TV</span>';
 
-      var route = (c.fromStation && c.toStation && c.fromStation !== c.toStation)
-        ? c.fromStation + ' → ' + c.toStation
-        : c.fromStation || c.toStation || '';
+      var route = c.route || '';
 
       var timeRange = '';
       if (c.timeStart && c.timeEnd) {
