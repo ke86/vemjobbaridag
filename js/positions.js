@@ -717,7 +717,28 @@ function buildPersonSchedule(personName) {
   var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
   var nameLower = personName.toLowerCase();
 
+  // Calculate yesterday's date string for cutoff
+  var yesterdayObj = new Date();
+  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+  var yesterday = yesterdayObj.getFullYear() + '-' +
+    String(yesterdayObj.getMonth() + 1).padStart(2, '0') + '-' +
+    String(yesterdayObj.getDate()).padStart(2, '0');
+
+  // Count how many old days (before yesterday) exist
+  var oldDayCount = 0;
+  for (var ci = 0; ci < _posAvailDates.length; ci++) {
+    if (_posAvailDates[ci] < yesterday) oldDayCount++;
+  }
+
   var html = '<div class="pos-schedule-list">';
+
+  // Toggle button for old days (only show if there are old days to hide)
+  if (oldDayCount > 0) {
+    html += '<button class="pos-schedule-toggle-old" onclick="this.parentElement.classList.toggle(\'pos-show-old\'); this.textContent = this.parentElement.classList.contains(\'pos-show-old\') ? \'▲ Dölj tidigare dagar\' : \'▼ Visa tidigare dagar (' + oldDayCount + ')\';">';
+    html += '▼ Visa tidigare dagar (' + oldDayCount + ')';
+    html += '</button>';
+  }
+
   html += '<div class="pos-schedule-header">';
   html += '<span>Dag</span><span>Tur</span><span>Tid</span><span></span>';
   html += '</div>';
@@ -729,6 +750,7 @@ function buildPersonSchedule(personName) {
     var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
     var isToday = dateStr === today;
     var isCurrent = dateStr === _posCurrentDate;
+    var isOld = dateStr < yesterday;
 
     // Find person in this day
     var found = null;
@@ -742,6 +764,7 @@ function buildPersonSchedule(personName) {
     var rowClass = 'pos-schedule-row';
     if (isToday) rowClass += ' pos-schedule-today';
     if (isCurrent) rowClass += ' pos-schedule-current';
+    if (isOld) rowClass += ' pos-schedule-old';
 
     if (found) {
       var flags = classifyPosFlags(found);

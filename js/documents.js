@@ -118,6 +118,92 @@ var DOC_KOLLEKTIVAVTAL_TOC = [
 ];
 
 // =============================================
+// TOC DATA — SR 26-3 (Sikkerhedsreglement, Banedanmark)
+// Page numbers are PDF pages (printed page + 4)
+// =============================================
+var DOC_SR263_TOC = [
+  { title: 'Afsnit 1 – Indledning og almindelige bestemmelser', page: 13, children: [
+    { title: '§ 1 Indledning', page: 14 },
+    { title: '§ 2 Almindelige bestemmelser', page: 16 },
+    { title: '§ 3 Personalets kompetence og ansvar', page: 33 }
+  ]},
+  { title: 'Afsnit 2 – Signaler', page: 46, children: [
+    { title: '§ 6 Hovedsignaler', page: 47 },
+    { title: '§ 7 Forsignalering af hovedsignaler', page: 91 },
+    { title: '§ 8 DV-signaler samt hvide lys', page: 104 },
+    { title: '§ 9 Sporstopper med rødt lys og refleks', page: 113 },
+    { title: '§ 10 Sporskiftesignaler og sporsperresignaler', page: 115 },
+    { title: '§ 11 Automatisk sikrede overkørsler', page: 123 },
+    { title: '§ 12 Signaler på tog og køretøjer', page: 133 },
+    { title: '§ 13 Afgangssignaler', page: 139 },
+    { title: '§ 15 Lydsignaler', page: 143 },
+    { title: '§ 16 Standsignaler', page: 145 },
+    { title: '§ 17 Mærker', page: 180 },
+    { title: '§ 18 Håndsignaler', page: 204 }
+  ]},
+  { title: 'Afsnit 3 – Sikkerhedstjeneste', page: 224, children: [
+    { title: '§ 32 Sikkerhedsmeldinger', page: 227 },
+    { title: '§ 33 Sikring af køretøjer', page: 231 },
+    { title: '§ 34 Forstyrrelser og arbejder i sikringsanlæg', page: 233 },
+    { title: '§ 35 Betjening af togekspeditionssteder', page: 242 },
+    { title: '§ 36 Rangering', page: 244 },
+    { title: '§ 37 Kørestrøm', page: 251 }
+  ]},
+  { title: 'Afsnit 4 – Togenes fremførelse', page: 260, children: [
+    { title: '§ 41 Sporbenyttelse og togfølge på den fri bane', page: 262 },
+    { title: '§ 42 Togrækkefølge og krydsning', page: 264 },
+    { title: '§ 43 Af- og tilbagemelding af tog', page: 266 },
+    { title: '§ 44 Rangertogveje', page: 269 },
+    { title: '§ 45 Hovedtogveje', page: 274 },
+    { title: '§ 46 Kørsel når signalgivning ikke kan anvendes', page: 287 },
+    { title: '§ 47 Kørsel på strækninger med linjeblok', page: 291 },
+    { title: '§ 50 Togenes standsning og afgang', page: 296 },
+    { title: '§ 52 Banestrækningens hastighed', page: 300 },
+    { title: '§ 53 La', page: 306 }
+  ]},
+  { title: 'Afsnit 5 – Ekstratog', page: 310, children: [
+    { title: '§ 55 Ekstratog', page: 311 }
+  ]},
+  { title: 'Afsnit 6 – Togenes størrelse, sammensætning og hastighed', page: 318, children: [
+    { title: '§ 61 Togenes størrelse', page: 320 },
+    { title: '§ 62 Bremser', page: 321 },
+    { title: '§ 63 Transport af usædvanlig transport', page: 325 },
+    { title: '§ 64 Transport af farligt gods (RID)', page: 327 },
+    { title: '§ 66 Bremseprøver', page: 331 },
+    { title: '§ 68 Togenes hastighed', page: 333 }
+  ]},
+  { title: 'Afsnit 7 – Infrastrukturarbejder', page: 336, children: [
+    { title: '§ 70 Generelle forhold', page: 337 },
+    { title: '§ 71 Arbejds- og placeringskørsel', page: 342 },
+    { title: '§ 72 Planlægning af infrastrukturarbejder', page: 350 },
+    { title: '§ 73 Udførelse af infrastrukturarbejder', page: 355 },
+    { title: '§ 75 Arbejde i og ved køreledningsanlæg', page: 375 },
+    { title: '§ 78 Arbejdskøretøjer', page: 383 }
+  ]},
+  { title: 'Afsnit 8 – Uregelmæssigheder', page: 387, children: [
+    { title: '§ 84 Aflysning af tog', page: 392 },
+    { title: '§ 85 Kørestrøm. Fejl og uregelmæssigheder', page: 393 },
+    { title: '§ 86 Sporspærring uden SR-arbejdsleder', page: 401 },
+    { title: '§ 89 Ekstraordinær standsning. Nedbrudte tog og hjælpetog', page: 406 },
+    { title: '§ 90 Uheld, ulykker og sikkerhedsmæssige hændelser', page: 409 }
+  ]},
+  { title: 'Afsnit 9 – Bilag', page: 416, children: [
+    { title: 'Bilag 1 Strækninger (signal 11.5)', page: 417 },
+    { title: 'Bilag 2 S-blanketter', page: 418 },
+    { title: 'Bilag 3 Udsigtslængde fra arbejdssted', page: 426 },
+    { title: 'Bilag 5 Strækninger med elektrisk togopvarmning', page: 428 },
+    { title: 'Bilag 6 Strækninger med køreledningsanlæg', page: 429 },
+    { title: 'Bilag 7 Fortegnelse over faresedler', page: 430 },
+    { title: 'Bilag 8 Strækninger med linjeblok, fjernstyring mv.', page: 438 },
+    { title: 'Bilag 9 Strækninger med faste togkontrolanlæg', page: 440 },
+    { title: 'Bilag 10 Stedlig dækning af sporspærringer', page: 441 },
+    { title: 'Bilag 11 Stationer (midlertidige hastighedsnedsættelser)', page: 443 },
+    { title: 'Bilag 12 Hastighed relateret til høj metervægt', page: 444 }
+  ]},
+  { title: 'Afsnit 10 – Definitioner', page: 446 }
+];
+
+// =============================================
 // REMOTE ZIP CONFIG
 // =============================================
 var REMOTE_DOC_WORKER = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
@@ -749,6 +835,10 @@ var DOC_REGISTRY = {
   k26tko: {
     url: 'docs/K26-TKO.pdf',
     toc: null
+  },
+  sr263: {
+    url: 'docs/SR-26-3.pdf',
+    toc: DOC_SR263_TOC
   }
 };
 

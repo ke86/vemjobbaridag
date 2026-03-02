@@ -720,6 +720,34 @@ html.dark .pos-schedule-today {
   justify-content: center;
 }
 
+/* ── Schedule: old days toggle ────────────── */
+.pos-schedule-old {
+  display: none;
+}
+.pos-show-old .pos-schedule-old {
+  display: grid;
+}
+
+.pos-schedule-toggle-old {
+  display: block;
+  width: 100%;
+  padding: 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--accent-blue);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  text-align: center;
+  transition: opacity 0.15s;
+}
+.pos-schedule-toggle-old:active {
+  opacity: 0.6;
+}
+
 /* ── Empty page placeholder ────────────────── */
 .positions-empty {
   display: flex;

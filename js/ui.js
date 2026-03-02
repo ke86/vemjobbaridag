@@ -1698,29 +1698,38 @@ function getEmployeeShiftStatus(shift) {
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // Strategy 1: Check dagvy data (most accurate — knows about all train segments)
-  if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
-    const nextTrain = getNextTrainForEmployee(shift.employeeId);
-    if (nextTrain && nextTrain.finished) return 'finished';
-    if (nextTrain) return 'active'; // dagvy has trains, not finished → active
-  }
-
-  // Strategy 2: Fallback — parse shift times from "HH:MM-HH:MM" format
+  // Parse shift start/end times — these always set the boundaries
   const timeParts = (shift.time || '').split('-');
+  let startMinutes = -1;
+  let endMinutes = -1;
   if (timeParts.length >= 2) {
     const startStr = timeParts[0].trim();
     const endStr = timeParts[timeParts.length - 1].trim();
     const startMatch = startStr.match(/^(\d{1,2}):(\d{2})/);
     const endMatch = endStr.match(/^(\d{1,2}):(\d{2})/);
+    if (startMatch) startMinutes = parseInt(startMatch[1]) * 60 + parseInt(startMatch[2]);
+    if (endMatch) endMinutes = parseInt(endMatch[1]) * 60 + parseInt(endMatch[2]);
+  }
 
-    if (startMatch && endMatch) {
-      const startMinutes = parseInt(startMatch[1]) * 60 + parseInt(startMatch[2]);
-      const endMinutes = parseInt(endMatch[1]) * 60 + parseInt(endMatch[2]);
-
-      if (nowMinutes > endMinutes) return 'finished';
-      if (nowMinutes < startMinutes) return 'upcoming';
-      return 'active';
+  // If we have valid times, use them as hard boundaries
+  if (startMinutes >= 0 && endMinutes >= 0) {
+    // Before shift start → always upcoming
+    if (nowMinutes < startMinutes) return 'upcoming';
+    // After shift end → always finished
+    if (nowMinutes > endMinutes) return 'finished';
+    // Between start and end: check dagvy for early finish, otherwise active
+    if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
+      const nextTrain = getNextTrainForEmployee(shift.employeeId);
+      if (nextTrain && nextTrain.finished) return 'finished';
     }
+    return 'active';
+  }
+
+  // No parseable times — try dagvy only as last resort
+  if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
+    const nextTrain = getNextTrainForEmployee(shift.employeeId);
+    if (nextTrain && nextTrain.finished) return 'finished';
+    if (nextTrain) return 'active';
   }
 
   return null;

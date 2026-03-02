@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v5.68';
+const CACHE_VERSION = 'v5.71';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -54,9 +54,10 @@ const FILES_TO_CACHE = [
   // Assets
   './icon.png',
   './manifest.json',
-  // Documents (PDF)
-  './docs/Kollektivavtal.pdf',
-  './docs/K26-TKO.pdf',
+  // Documents (PDF) — lazy-cached on first open, not precached (saves ~6 MB on install)
+  // './docs/Kollektivavtal.pdf',
+  // './docs/K26-TKO.pdf',
+  // './docs/SR-26-3.pdf',
   // Data
   './data/ob-tillagg.json',
   // Turn icons (SVG)
