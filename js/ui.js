@@ -1871,6 +1871,7 @@ function renderEmployees() {
 
     // Determine time display
     let timeDisplay = shift.time || '-';
+    let originalTimeHtml = '';
     let isWorking = true;
     if (shift.isBirthdayOnly || shift.isNameDayOnly) {
       timeDisplay = 'Ledig';
@@ -1878,6 +1879,10 @@ function renderEmployees() {
     } else if (nonWorkingTypes.includes(shift.badge)) {
       timeDisplay = 'Ledig';
       isWorking = false;
+    }
+    // Show struck-through original time if dagvy changed it
+    if (shift.originalTime && shift.originalTime !== shift.time) {
+      originalTimeHtml = `<span class="original-time">${shift.originalTime}</span>`;
     }
 
     // Get break info for working employees (gated by Rast toggle)
@@ -1894,8 +1899,20 @@ function renderEmployees() {
     // Build badge HTML with icon toggle support
     const badgeHtml = (shift.isBirthdayOnly || shift.isNameDayOnly) ? '' : renderBadgeWithToggle(shift);
 
-    // "Uppdaterad" badge if schedule was updated from dagvy
-    const updatedBadge = shift.updatedFromDagvy ? '<span class="dagvy-updated-badge">UPD</span>' : '';
+    // "DAGVY" badge if shift was created from dagvy (no original schedule entry)
+    // "UPD" badge if existing schedule was updated from dagvy
+    // "⚠️" conflict badge if non-working type has dagvy data
+    let updatedBadge = '';
+    if (shift.dagvyConflict) {
+      updatedBadge = '<span class="dagvy-conflict-badge" title="Har dagvy: Tur ' +
+        (shift.dagvyConflictTurn || '?') +
+        (shift.dagvyConflictTime ? ' ' + shift.dagvyConflictTime : '') +
+        '">⚠️</span>';
+    } else if (shift.addedFromDagvy) {
+      updatedBadge = '<span class="dagvy-added-badge">DAGVY</span>';
+    } else if (shift.updatedFromDagvy) {
+      updatedBadge = '<span class="dagvy-updated-badge">UPD</span>';
+    }
 
     // Shift status: active / upcoming / finished (only for today)
     const shiftStatus = isWorking ? getEmployeeShiftStatus(shift) : null;
@@ -1910,7 +1927,7 @@ function renderEmployees() {
       <div class="employee-card ${allClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
           <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}${finishedLabel}</div>
-          <div class="employee-time">${timeDisplay}${rastHtml}</div>
+          <div class="employee-time">${originalTimeHtml}${timeDisplay}${rastHtml}</div>
         </div>
         <div class="employee-badge">
           ${badgeHtml}

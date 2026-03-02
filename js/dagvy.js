@@ -379,6 +379,21 @@ async function showDagvyPopup(employeeId) {
   // Update turn info
   if (turnEl) {
     turnEl.innerHTML = 'Tur <strong>' + todayDagvy.turnr + '</strong> &middot; ' + todayDagvy.start + ' – ' + todayDagvy.end;
+
+    // Show original schedule time/turn if dagvy changed them
+    var shift = (employeesData[dateKey] || []).find(function(s) { return s.employeeId === employeeId; });
+    if (shift) {
+      var origParts = [];
+      if (shift.originalBadgeText && shift.originalBadgeText !== shift.badgeText) {
+        origParts.push('Tur ' + shift.originalBadgeText);
+      }
+      if (shift.originalTime && shift.originalTime !== shift.time) {
+        origParts.push(shift.originalTime);
+      }
+      if (origParts.length > 0) {
+        turnEl.innerHTML += '<span class="dagvy-original-info">Schema: ' + origParts.join(' · ') + '</span>';
+      }
+    }
   }
 
   // Show badge if data is from previous dagvy (smart merge)
@@ -388,6 +403,17 @@ async function showDagvyPopup(employeeId) {
     badge.textContent = '⏳ Från föregående dagvy';
     var personBar = dagvyPage.querySelector('.dagvy-person-bar');
     if (personBar) personBar.appendChild(badge);
+  }
+
+  // Show conflict warning if person is on non-working type but has dagvy
+  var conflictShift = (employeesData[dateKey] || []).find(function(s) { return s.employeeId === employeeId; });
+  if (conflictShift && conflictShift.dagvyConflict) {
+    var badgeLabel = conflictShift.badge || 'ledig';
+    var conflictBadge = document.createElement('div');
+    conflictBadge.className = 'dagvy-conflict-notice';
+    conflictBadge.textContent = '⚠️ Schemalagd som ' + badgeLabel.toUpperCase() + ' men har dagvy';
+    var pBar = dagvyPage.querySelector('.dagvy-person-bar');
+    if (pBar) pBar.appendChild(conflictBadge);
   }
 
   // Store for re-render on mode toggle
@@ -413,8 +439,20 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
   const shift = allShifts.find(function(s) { return s.employeeId === employeeId; });
   if (!shift) return;
 
-  // Skip non-working types (FP, semester, etc.)
-  if (nonWorkingTypes.includes(shift.badge)) return;
+  // Flag conflict if non-working type has dagvy data (don't overwrite schedule)
+  if (nonWorkingTypes.includes(shift.badge)) {
+    var dagvyTurnCheck = (dayData.turnr || '').trim();
+    if (dagvyTurnCheck) {
+      shift.dagvyConflict = true;
+      shift.dagvyConflictTurn = dagvyTurnCheck;
+      var dvTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
+      shift.dagvyConflictTime = dvTimeValid ? dayData.start + '-' + dayData.end : '';
+      console.log('[DAGVY-CONFLICT] ' + (registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : employeeId) +
+        ' has ' + shift.badge + ' but dagvy shows tur=' + dagvyTurnCheck);
+      renderEmployees();
+    }
+    return;
+  }
 
   const dagvyTurn = (dayData.turnr || '').trim();
   const dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
@@ -436,6 +474,14 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
     ' | turn: "' + currentTurn + '" → "' + dagvyTurn + '"' +
     ' | time: "' + currentTime + '" → "' + dagvyTime + '"' +
     ' | currentDate=' + getDateKey(currentDate));
+
+  // Preserve original values before first overwrite
+  if (turnChanged && !shift.hasOwnProperty('originalBadgeText')) {
+    shift.originalBadgeText = currentTurn;
+  }
+  if (timeChanged && !shift.hasOwnProperty('originalTime')) {
+    shift.originalTime = currentTime;
+  }
 
   // Update the shift data
   if (turnChanged) {
@@ -480,6 +526,36 @@ function applyDagvyToSchedule(empName, dagvyData) {
 
   if (!dayData || dayData.notFound) return;
 
+  // Check if employee has a shift — if not, create a virtual one from dagvy
+  var allShifts = employeesData[dateKey];
+  if (!allShifts) {
+    employeesData[dateKey] = [];
+    allShifts = employeesData[dateKey];
+  }
+  var existingShift = allShifts.find(function(s) { return s.employeeId === employeeId; });
+
+  if (!existingShift) {
+    // Create virtual shift from dagvy data
+    var dagvyTurn = (dayData.turnr || '').trim();
+    var dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
+    var dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : '-';
+    if (dagvyTurn) {
+      var virtualShift = {
+        employeeId: employeeId,
+        badge: '',
+        badgeText: dagvyTurn,
+        time: dagvyTime,
+        addedFromDagvy: true,
+        updatedFromDagvy: true
+      };
+      allShifts.push(virtualShift);
+      console.log('[DAGVY-VIRTUAL] Created virtual shift for ' + empName +
+        ' | tur=' + dagvyTurn + ' | tid=' + dagvyTime);
+      renderEmployees();
+      return;
+    }
+  }
+
   updateScheduleFromDagvy(employeeId, dayData, dateKey);
 }
 
@@ -517,12 +593,39 @@ function reapplyDagvyCorrections() {
 
     // Find the shift for this employee
     var shift = allShifts.find(function(s) { return s.employeeId === employeeId; });
-    if (!shift) continue;
-    if (nonWorkingTypes.includes(shift.badge)) continue;
 
     var dagvyTurn = (dayData.turnr || '').trim();
     var dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
     var dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : '';
+
+    // No shift exists → create virtual shift from dagvy
+    if (!shift) {
+      if (dagvyTurn) {
+        allShifts.push({
+          employeeId: employeeId,
+          badge: '',
+          badgeText: dagvyTurn,
+          time: dagvyTime || '-',
+          addedFromDagvy: true,
+          updatedFromDagvy: true
+        });
+        appliedAny = true;
+        console.log('[DAGVY-REAPPLY-VIRTUAL] Created virtual shift for ' + normalizedName +
+          ' | tur=' + dagvyTurn + ' | tid=' + dagvyTime);
+      }
+      continue;
+    }
+
+    if (nonWorkingTypes.includes(shift.badge)) {
+      if (dagvyTurn) {
+        shift.dagvyConflict = true;
+        shift.dagvyConflictTurn = dagvyTurn;
+        shift.dagvyConflictTime = dagvyTime || '';
+        appliedAny = true;
+      }
+      continue;
+    }
+
     var currentTurn = (shift.badgeText || '').trim();
     var currentTime = (shift.time || '').trim();
 
@@ -530,6 +633,14 @@ function reapplyDagvyCorrections() {
     var timeChanged = dagvyTime && dagvyTime !== currentTime;
 
     if (!turnChanged && !timeChanged) continue;
+
+    // Preserve original values before first overwrite
+    if (turnChanged && !shift.hasOwnProperty('originalBadgeText')) {
+      shift.originalBadgeText = currentTurn;
+    }
+    if (timeChanged && !shift.hasOwnProperty('originalTime')) {
+      shift.originalTime = currentTime;
+    }
 
     if (turnChanged) shift.badgeText = dagvyTurn;
     if (timeChanged) shift.time = dagvyTime;

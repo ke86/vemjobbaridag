@@ -55,6 +55,19 @@
   font-size: 15px;
 }
 
+/* Original schedule info shown in popup when dagvy changed turn/time */
+.dagvy-original-info {
+  display: block;
+  font-size: 11px;
+  color: #b45309;
+  margin-top: 2px;
+  opacity: 0.85;
+}
+
+.dark .dagvy-original-info {
+  color: #fbbf24;
+}
+
 /* --- Bar actions (toggle + close) --- */
 .dagvy-bar-actions {
   display: flex;
@@ -574,6 +587,23 @@
 .dark .dagvy-previous-badge {
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.15);
+}
+
+/* Conflict notice: non-working type has dagvy */
+.dagvy-conflict-notice {
+  width: 100%;
+  margin-top: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+  background: #fee2e2;
+  border-radius: 6px;
+  text-align: center;
+}
+.dark .dagvy-conflict-notice {
+  color: #fca5a5;
+  background: rgba(252, 165, 165, 0.15);
 }
 
 /* ==========================================
