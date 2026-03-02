@@ -1891,8 +1891,8 @@ function renderEmployees() {
     if (showRast && isWorking && shift.employeeId) {
       const breakInfo = getBreakForEmployee(shift.employeeId);
       if (breakInfo && breakInfo.time) {
-        const cityText = breakInfo.city || '';
-        rastHtml = `<span class="rast-flip" data-rast-time="${breakInfo.time}" data-rast-city="${cityText}"><span class="rast-icon">🍽</span><span class="rast-time">${breakInfo.time}</span><span class="rast-city">${cityText}</span></span>`;
+        const cityText = breakInfo.city ? ' · ' + breakInfo.city : '';
+        rastHtml = `<div class="rast-line">🍽 ${breakInfo.time}${cityText}</div>`;
       }
     }
 
@@ -1927,7 +1927,8 @@ function renderEmployees() {
       <div class="employee-card ${allClasses}" style="animation-delay: ${index * 0.05}s" onclick="showDagvyPopup('${shift.employeeId}')">
         <div class="employee-info">
           <div class="employee-name">${emp.name}${cakeHtml}${crownHtml}${updatedBadge}${finishedLabel}</div>
-          <div class="employee-time">${originalTimeHtml}${timeDisplay}${rastHtml}</div>
+          <div class="employee-time">${originalTimeHtml}${timeDisplay}</div>
+          ${rastHtml}
         </div>
         <div class="employee-badge">
           ${badgeHtml}
@@ -1949,13 +1950,6 @@ function renderEmployees() {
     stopTrainRealtimePolling();
   }
 
-  // Start rast flip timer if there are any rast-flip elements
-  const rastFlips = document.querySelectorAll('.rast-flip');
-  if (rastFlips.length > 0) {
-    startRastFlipTimer();
-  } else {
-    stopRastFlipTimer();
-  }
 }
 
 

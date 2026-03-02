@@ -427,45 +427,4 @@ function stopTrainFlipTimer() {
 
 
 // ==========================================
-// RAST (BREAK) FLIP ANIMATION
-// Flips between rast time and city every 5s
-// ==========================================
-
-let rastFlipTimer = null;
-let rastFlipShowingCity = false;
-
-/**
- * Toggle all rast-flip elements between showing time and city
- */
-function flipRastBadges() {
-  rastFlipShowingCity = !rastFlipShowingCity;
-  const flips = document.querySelectorAll('.rast-flip');
-  flips.forEach(el => {
-    // Only flip if we have a city to show
-    const city = el.getAttribute('data-rast-city');
-    if (!city) return;
-    el.classList.toggle('show-city', rastFlipShowingCity);
-  });
-}
-
-/**
- * Start the 5-second rast flip timer
- */
-function startRastFlipTimer() {
-  if (rastFlipTimer) return; // Already running
-  rastFlipShowingCity = false;
-  rastFlipTimer = setInterval(flipRastBadges, 5000);
-}
-
-/**
- * Stop the rast flip timer and reset to showing time
- */
-function stopRastFlipTimer() {
-  if (rastFlipTimer) {
-    clearInterval(rastFlipTimer);
-    rastFlipTimer = null;
-  }
-  rastFlipShowingCity = false;
-  const flips = document.querySelectorAll('.rast-flip.show-city');
-  flips.forEach(el => el.classList.remove('show-city'));
-}
+// (Rast flip animation removed in v5.73 — rast now shown as static line)
