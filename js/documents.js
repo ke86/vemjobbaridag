@@ -684,6 +684,77 @@ function isDateRangeActive(dateFrom, dateTo) {
   return today >= dateFrom && today <= dateTo;
 }
 
+// =============================================
+// ACTIVE NOTICES — for main page banner
+// =============================================
+var _activeNoticesCache = null;  // { notices: [], ts }
+var _activeNoticesTTL = 10 * 60 * 1000; // 10 min
+
+/**
+ * Fetch active (today) notices from both Driftmeddelande and TA Danmark.
+ * Returns Promise<Array<{ title, type, dateRange, trainNumbers, remoteId, fileIdx }>>
+ * Uses same /parsed endpoints as the document list.
+ */
+function getActiveNotices() {
+  // Return cache if fresh
+  if (_activeNoticesCache && (Date.now() - _activeNoticesCache.ts) < _activeNoticesTTL) {
+    return Promise.resolve(_activeNoticesCache.notices);
+  }
+
+  var sources = [
+    { id: 'driftmeddelande', type: 'drift', label: 'Driftmeddelande' },
+    { id: 'ta_danmark', type: 'ta', label: 'TA Danmark' }
+  ];
+
+  var promises = sources.map(function(src) {
+    var config = REMOTE_DOC_MAP[src.id];
+    if (!config) return Promise.resolve([]);
+
+    // Reuse existing list cache if available
+    var cached = _remoteListCache[src.id];
+    if (cached && (Date.now() - cached.ts) < _activeNoticesTTL) {
+      return Promise.resolve(filterActiveItems(cached.items, src));
+    }
+
+    return fetchRemoteDocList(config.parsed).then(function(items) {
+      _remoteListCache[src.id] = { items: items, ts: Date.now() };
+      return filterActiveItems(items, src);
+    }).catch(function() {
+      return []; // Fail silently per source
+    });
+  });
+
+  return Promise.all(promises).then(function(results) {
+    var all = [];
+    for (var r = 0; r < results.length; r++) {
+      all = all.concat(results[r]);
+    }
+    _activeNoticesCache = { notices: all, ts: Date.now() };
+    return all;
+  });
+}
+
+/**
+ * Filter parsed items to only active ones (today within date range).
+ */
+function filterActiveItems(items, src) {
+  var active = [];
+  for (var i = 0; i < items.length; i++) {
+    var f = items[i];
+    if (!isDateRangeActive(f._dateFrom, f._dateTo)) continue;
+    active.push({
+      title: f._title || f.filename,
+      type: src.type,
+      label: src.label,
+      dateRange: formatDateRange(f._dateFrom, f._dateTo),
+      trainNumbers: f.trainNumbers || [],
+      remoteId: src.id,
+      fileIdx: i
+    });
+  }
+  return active;
+}
+
 /**
  * Render the document list from /parsed JSON data.
  */
@@ -825,6 +896,112 @@ function openRemotePdf(fileIdx) {
 }
 
 // =============================================
+// TOC DATA — TF 120126 (Trafiksäkerhetsföreskrift ØSB)
+// Offset: printed page + 6 = PDF page
+// =============================================
+var DOC_TF120126_TOC = [
+  { title: '0. Inledande anvisningar', page: 7 },
+  { title: '1. Allmänna bestämmelser', page: 15, children: [
+    { title: '1.1. Giltighetsområde', page: 15 },
+    { title: '1.2. Språk', page: 15 },
+    { title: '1.3. Definitioner', page: 16, children: [
+      { title: '1.3.1. Lok / "Lokomotiv"', page: 16 },
+      { title: '1.3.2. Förare / "Lokomotivfører"', page: 16 },
+      { title: '1.3.3. Strail', page: 16 },
+      { title: '1.3.4. Tunnelavstånd', page: 17 }
+    ]}
+  ]},
+  { title: '2. Beskrivning av sträckningen', page: 19, children: [
+    { title: '2.1. Systemgränsen', page: 19 },
+    { title: '2.2. Svenskt utrustad sträcka', page: 19 },
+    { title: '2.3. Danskt utrustad sträcka', page: 19 },
+    { title: '2.4. Trafikledning av ÖSB', page: 19, children: [
+      { title: '2.4.1. Svensk trafikledning', page: 19 },
+      { title: '2.4.2. Dansk trafikledning', page: 20 }
+    ]},
+    { title: '2.5. ØSB Konsortiets Trafikcenter', page: 20 },
+    { title: '2.6. Kommunikation', page: 21, children: [
+      { title: '2.6.1. Allmänna bestämmelser', page: 21 },
+      { title: '2.6.2. Vid passage av systemgränsen', page: 21 },
+      { title: '2.6.3. Kommunikation tågklarerare – förare', page: 21 },
+      { title: '2.6.4. Kommunikation stationsbestyrare – förare', page: 21 }
+    ]},
+    { title: '2.7. Strömsystem', page: 23, children: [
+      { title: '2.7.1. Allmänna bestämmelser', page: 23 },
+      { title: '2.7.2. Svenska systemdelen', page: 23 },
+      { title: '2.7.3. Danska systemdelen', page: 25 }
+    ]},
+    { title: '2.8. Krav på fordon', page: 25, children: [
+      { title: '2.8.1. Allmänna bestämmelser', page: 25 },
+      { title: '2.8.2. ATC', page: 25 },
+      { title: '2.8.3. Sista vagnen saknar tryckluftbroms', page: 27 },
+      { title: '2.8.4. Nödbromsöverbryggning m.m.', page: 27 },
+      { title: '2.8.5. Spårfordon vid arbete', page: 27 }
+    ]},
+    { title: '2.9. Krav för förarpersonal', page: 28 },
+    { title: '2.10. Personalens innehav av regelverk', page: 28 }
+  ]},
+  { title: '3. Körning över systemgränsen', page: 37, children: [
+    { title: '3.1. Allmänna bestämmelser', page: 37 },
+    { title: '3.2. Tågs avsändande från Peberholm → KLK', page: 37 },
+    { title: '3.3. Framförande av godståg', page: 38, children: [
+      { title: '3.3.1. Vagnslistor', page: 38 },
+      { title: '3.3.2. Explosiv vara klass 1', page: 38 },
+      { title: '3.3.3. Specialtransporter', page: 40 },
+      { title: '3.3.4. Vagnkontrollanläggning', page: 40 }
+    ]},
+    { title: '3.4. Slutsignaler', page: 41 },
+    { title: '3.5. Framförande av arbejdskøretøjer', page: 43, children: [
+      { title: '3.5.1. Allmänna bestämmelser', page: 43 },
+      { title: '3.5.2. Från Peberholm mot KLK', page: 43 },
+      { title: '3.5.3. Från Peberholm till spärrat spår', page: 44 },
+      { title: '3.5.4. Från KLK mot Peberholm', page: 45 },
+      { title: '3.5.5. Från spärrat spår till Peberholm', page: 45 }
+    ]},
+    { title: '3.6. Oregelmässigheter', page: 46 }
+  ]},
+  { title: '4. Havererat tåg / Evakuering', page: 49, children: [
+    { title: '4.1. Entydigt på ena sidan', page: 49 },
+    { title: '4.2. På båda sidor av systemgränsen', page: 49 }
+  ]},
+  { title: '5. Infrastrukturarbetens planläggning', page: 55, children: [
+    { title: '5.1. Allmänna bestämmelser', page: 55 },
+    { title: '5.2. Avstängt spår / Sporspærringer', page: 55 }
+  ]},
+  { title: '6. Tillfälliga hastighetsnedsättningar', page: 59, children: [
+    { title: '6.1. Bekantgörelse', page: 59 },
+    { title: '6.2. Nedsättning med ATC', page: 59 },
+    { title: '6.3. Säkerställande KLK–Peberholm', page: 59 },
+    { title: '6.4. Nedsättning utan signalering', page: 62 }
+  ]},
+  { title: '7. Särskilda förhållanden', page: 63, children: [
+    { title: '7.1. Säkerhetsorder för extratåg', page: 63 },
+    { title: '7.2. Trafikstart efter väder', page: 63 },
+    { title: '7.3. Svenska systemdelen', page: 63, children: [
+      { title: '7.3.1. Tågorder', page: 63 },
+      { title: '7.3.2. Ordergivningsdriftplats', page: 64 },
+      { title: '7.3.3. Trafikala restriktioner vid väder', page: 64 },
+      { title: '7.3.4. Personer i eller intill spåret', page: 66 }
+    ]},
+    { title: '7.4. Danska systemdelen', page: 67, children: [
+      { title: '7.4.1. La', page: 67 },
+      { title: '7.4.2. Nollställning av axelräknare', page: 68 },
+      { title: '7.4.3. Personer i eller intill spåret', page: 69 }
+    ]}
+  ]},
+  { title: '8. Körplaner / Tjenestekøreplaner', page: 70, children: [
+    { title: '8.1. Allmänna bestämmelser', page: 70 },
+    { title: '8.2. Planenliga körplaner', page: 70 },
+    { title: '8.3. Tågnummer', page: 70 },
+    { title: '8.4. Anordnande och inställande av tåg', page: 70 }
+  ]},
+  { title: 'Bilaga 1 – Schematisk översikt ØSB', page: 77 },
+  { title: 'Bilaga 2 – Reserv', page: 79 },
+  { title: 'Bilaga 3 – Testkörningar', page: 81 },
+  { title: 'Bilaga 4 – Utdrag ur TF för tågpersonal', page: 87 }
+];
+
+// =============================================
 // DOCUMENT REGISTRY
 // =============================================
 var DOC_REGISTRY = {
@@ -839,6 +1016,10 @@ var DOC_REGISTRY = {
   sr263: {
     url: 'docs/SR-26-3.pdf',
     toc: DOC_SR263_TOC
+  },
+  tf120126: {
+    url: 'docs/TF-120126.pdf',
+    toc: DOC_TF120126_TOC
   }
 };
 

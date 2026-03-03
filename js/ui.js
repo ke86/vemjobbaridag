@@ -1950,8 +1950,101 @@ function renderEmployees() {
     stopTrainRealtimePolling();
   }
 
+  // Fetch and render active notices (async, non-blocking)
+  renderActiveNotices();
 }
 
+// ==========================================
+// ACTIVE NOTICES BANNER
+// ==========================================
+var _noticesRendered = false; // avoid re-fetching on every renderEmployees call
+
+function renderActiveNotices() {
+  var banner = document.getElementById('noticesBanner');
+  if (!banner) return;
+
+  // Only fetch once per page show (cache handles TTL)
+  if (typeof getActiveNotices !== 'function') {
+    banner.innerHTML = '';
+    return;
+  }
+
+  getActiveNotices().then(function(notices) {
+    if (!notices || notices.length === 0) {
+      banner.innerHTML = '';
+      banner.style.display = 'none';
+      return;
+    }
+
+    banner.style.display = '';
+    var count = notices.length;
+    var headerText = '⚠️ ' + count + ' gällande meddelande' + (count > 1 ? 'n' : '');
+
+    var html = '<div class="notice-banner">';
+    html += '<div class="notice-header" onclick="toggleNoticeExpand()">';
+    html += '<span class="notice-header-text">' + headerText + '</span>';
+    html += '<span class="notice-header-arrow" id="noticeArrow">▼</span>';
+    html += '</div>';
+    html += '<div class="notice-items" id="noticeItems" style="display:none;">';
+
+    for (var i = 0; i < notices.length; i++) {
+      var n = notices[i];
+      var typeIcon = n.type === 'ta' ? '🔴' : '🟡';
+      var typeLabel = n.type === 'ta' ? 'TA' : 'Drift';
+
+      var trainHtml = '';
+      if (n.trainNumbers && n.trainNumbers.length > 0) {
+        var trains = n.trainNumbers.slice(0, 6).join(', ');
+        if (n.trainNumbers.length > 6) trains += ' …';
+        trainHtml = '<span class="notice-item-trains">Tåg: ' + trains + '</span>';
+      }
+
+      html += '<div class="notice-item notice-item-' + n.type + '" onclick="openNoticeDoc(\'' + n.remoteId + '\',' + n.fileIdx + ')">';
+      html += '<span class="notice-item-icon">' + typeIcon + '</span>';
+      html += '<div class="notice-item-info">';
+      html += '<span class="notice-item-title">' + n.title + '</span>';
+      html += '<span class="notice-item-meta">' + typeLabel + (n.dateRange ? ' · ' + n.dateRange : '') + '</span>';
+      if (trainHtml) html += trainHtml;
+      html += '</div>';
+      html += '<span class="notice-item-arrow">›</span>';
+      html += '</div>';
+    }
+
+    html += '</div></div>';
+    banner.innerHTML = html;
+  }).catch(function() {
+    banner.innerHTML = '';
+    banner.style.display = 'none';
+  });
+}
+
+function toggleNoticeExpand() {
+  var items = document.getElementById('noticeItems');
+  var arrow = document.getElementById('noticeArrow');
+  if (!items) return;
+  var isHidden = items.style.display === 'none';
+  items.style.display = isHidden ? '' : 'none';
+  if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+}
+
+function openNoticeDoc(remoteId, fileIdx) {
+  // Navigate to documents page and open the specific remote doc
+  if (typeof showPage === 'function') {
+    showPage('documents');
+  }
+  // Small delay to let page render, then open the remote zip and then the PDF
+  setTimeout(function() {
+    if (typeof openRemoteZip === 'function') {
+      openRemoteZip(remoteId);
+      // Wait for list to load, then open the PDF
+      setTimeout(function() {
+        if (typeof openRemotePdf === 'function') {
+          openRemotePdf(fileIdx);
+        }
+      }, 1500);
+    }
+  }, 300);
+}
 
 // ==========================================
 // MONTHLY VIEW
