@@ -1713,23 +1713,9 @@ function getEmployeeShiftStatus(shift) {
 
   // If we have valid times, use them as hard boundaries
   if (startMinutes >= 0 && endMinutes >= 0) {
-    // Before shift start → always upcoming
     if (nowMinutes < startMinutes) return 'upcoming';
-    // After shift end → always finished
     if (nowMinutes > endMinutes) return 'finished';
-    // Between start and end: check dagvy for early finish, otherwise active
-    if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
-      const nextTrain = getNextTrainForEmployee(shift.employeeId);
-      if (nextTrain && nextTrain.finished) return 'finished';
-    }
     return 'active';
-  }
-
-  // No parseable times — try dagvy only as last resort
-  if (typeof getNextTrainForEmployee === 'function' && shift.employeeId) {
-    const nextTrain = getNextTrainForEmployee(shift.employeeId);
-    if (nextTrain && nextTrain.finished) return 'finished';
-    if (nextTrain) return 'active';
   }
 
   return null;
