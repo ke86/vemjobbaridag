@@ -673,31 +673,46 @@ function formatDateRange(dateFrom, dateTo) {
 }
 
 /**
- * Check if today falls within a date range.
+ * Check if a reference date falls within a date range.
+ * @param {string} dateFrom  YYYY-MM-DD
+ * @param {string} dateTo    YYYY-MM-DD
+ * @param {string} [refDateStr] YYYY-MM-DD — defaults to today if omitted
  */
-function isDateRangeActive(dateFrom, dateTo) {
+function isDateRangeActive(dateFrom, dateTo, refDateStr) {
   if (!dateFrom || !dateTo) return false;
-  var now = new Date();
-  var today = now.getFullYear() + '-' +
-    String(now.getMonth() + 1).padStart(2, '0') + '-' +
-    String(now.getDate()).padStart(2, '0');
-  return today >= dateFrom && today <= dateTo;
+  if (!refDateStr) {
+    var now = new Date();
+    refDateStr = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0');
+  }
+  return refDateStr >= dateFrom && refDateStr <= dateTo;
 }
 
 // =============================================
 // ACTIVE NOTICES — for main page banner
 // =============================================
-var _activeNoticesCache = null;  // { notices: [], ts }
+var _activeNoticesCache = null;  // { dateKey, notices: [], ts }
 var _activeNoticesTTL = 10 * 60 * 1000; // 10 min
 
 /**
- * Fetch active (today) notices from both Driftmeddelande and TA Danmark.
+ * Fetch active notices for a given date from both Driftmeddelande and TA Danmark.
+ * @param {string} [dateStr] YYYY-MM-DD — defaults to today if omitted
  * Returns Promise<Array<{ title, type, dateRange, trainNumbers, remoteId, fileIdx }>>
  * Uses same /parsed endpoints as the document list.
  */
-function getActiveNotices() {
-  // Return cache if fresh
-  if (_activeNoticesCache && (Date.now() - _activeNoticesCache.ts) < _activeNoticesTTL) {
+function getActiveNotices(dateStr) {
+  if (!dateStr) {
+    var now = new Date();
+    dateStr = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0');
+  }
+
+  // Return cache if fresh AND same date
+  if (_activeNoticesCache &&
+      _activeNoticesCache.dateKey === dateStr &&
+      (Date.now() - _activeNoticesCache.ts) < _activeNoticesTTL) {
     return Promise.resolve(_activeNoticesCache.notices);
   }
 
@@ -710,15 +725,15 @@ function getActiveNotices() {
     var config = REMOTE_DOC_MAP[src.id];
     if (!config) return Promise.resolve([]);
 
-    // Reuse existing list cache if available
+    // Reuse existing list cache if available (API data doesn't change per date)
     var cached = _remoteListCache[src.id];
     if (cached && (Date.now() - cached.ts) < _activeNoticesTTL) {
-      return Promise.resolve(filterActiveItems(cached.items, src));
+      return Promise.resolve(filterActiveItems(cached.items, src, dateStr));
     }
 
     return fetchRemoteDocList(config.parsed).then(function(items) {
       _remoteListCache[src.id] = { items: items, ts: Date.now() };
-      return filterActiveItems(items, src);
+      return filterActiveItems(items, src, dateStr);
     }).catch(function() {
       return []; // Fail silently per source
     });
@@ -729,19 +744,22 @@ function getActiveNotices() {
     for (var r = 0; r < results.length; r++) {
       all = all.concat(results[r]);
     }
-    _activeNoticesCache = { notices: all, ts: Date.now() };
+    _activeNoticesCache = { dateKey: dateStr, notices: all, ts: Date.now() };
     return all;
   });
 }
 
 /**
- * Filter parsed items to only active ones (today within date range).
+ * Filter parsed items to only active ones for a given date.
+ * @param {Array} items   Parsed doc items
+ * @param {Object} src    Source config { id, type, label }
+ * @param {string} dateStr YYYY-MM-DD to check against
  */
-function filterActiveItems(items, src) {
+function filterActiveItems(items, src, dateStr) {
   var active = [];
   for (var i = 0; i < items.length; i++) {
     var f = items[i];
-    if (!isDateRangeActive(f._dateFrom, f._dateTo)) continue;
+    if (!isDateRangeActive(f._dateFrom, f._dateTo, dateStr)) continue;
     active.push({
       title: f._title || f.filename,
       type: src.type,

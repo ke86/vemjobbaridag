@@ -1950,8 +1950,8 @@ function renderEmployees() {
     stopTrainRealtimePolling();
   }
 
-  // Fetch and render active notices (async, non-blocking)
-  renderActiveNotices();
+  // Fetch and render active notices for the selected date (async, non-blocking)
+  renderActiveNotices(getDateKey(currentDate));
 }
 
 // ==========================================
@@ -1959,7 +1959,7 @@ function renderEmployees() {
 // ==========================================
 var _noticesRendered = false; // avoid re-fetching on every renderEmployees call
 
-function renderActiveNotices() {
+function renderActiveNotices(dateStr) {
   var banner = document.getElementById('noticesBanner');
   if (!banner) return;
 
@@ -1969,7 +1969,7 @@ function renderActiveNotices() {
     return;
   }
 
-  getActiveNotices().then(function(notices) {
+  getActiveNotices(dateStr).then(function(notices) {
     if (!notices || notices.length === 0) {
       banner.innerHTML = '';
       banner.style.display = 'none';
