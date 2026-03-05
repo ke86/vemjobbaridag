@@ -477,20 +477,18 @@ function renderParkeringPage() {
   html += '<span class="parkering-hero-total">' + PARK_MAX_SPOTS + '</span>';
   html += '</div>';
 
-  // Label
-  if (isToday) {
-    if (isFull) {
+  // Label — full/overful check FIRST regardless of day
+  if (isFull) {
+    if (isToday) {
       html += '<div class="parkering-hero-label parkering-label-full">⚠️ P-huset fullt!</div>';
     } else {
-      var freeSpots = PARK_MAX_SPOTS - carsIn;
-      html += '<div class="parkering-hero-label">' + freeSpots + ' lediga platser just nu</div>';
-    }
-  } else {
-    if (isFull) {
       html += '<div class="parkering-hero-label parkering-label-full">⚠️ Överfullt — ' + carsIn + ' bilar på ' + PARK_MAX_SPOTS + ' platser</div>';
-    } else {
-      html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
     }
+  } else if (isToday) {
+    var freeSpots = PARK_MAX_SPOTS - carsIn;
+    html += '<div class="parkering-hero-label">' + freeSpots + ' lediga platser just nu</div>';
+  } else {
+    html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
   }
 
   // Next out (only today)
@@ -526,14 +524,14 @@ function renderParkeringPage() {
   if (carsInList.length > 0) {
     html += '<div class="parkering-section-label">🚗 Parkerad (' + carsInList.length + ')</div>';
     for (var ci = 0; ci < carsInList.length; ci++) {
-      html += _renderParkCard(carsInList[ci], nowMin, true, isToday);
+      html += _renderParkCard(carsInList[ci], nowMin, true, isToday, ci + 1);
     }
   }
 
   if (carsOutList.length > 0) {
     html += '<div class="parkering-section-label parkering-section-out">Ej parkerad (' + carsOutList.length + ')</div>';
     for (var co = 0; co < carsOutList.length; co++) {
-      html += _renderParkCard(carsOutList[co], nowMin, false, isToday);
+      html += _renderParkCard(carsOutList[co], nowMin, false, isToday, co + 1);
     }
   }
 
@@ -545,7 +543,7 @@ function renderParkeringPage() {
   updateParkeringMenuIndicator();
 }
 
-function _renderParkCard(entry, nowMin, isIn, isToday) {
+function _renderParkCard(entry, nowMin, isIn, isToday, num) {
   var cls = isIn ? 'parkering-card parkering-card-in' : 'parkering-card parkering-card-out';
 
   var detailHtml = '';
@@ -580,6 +578,7 @@ function _renderParkCard(entry, nowMin, isIn, isToday) {
   }
 
   return '<div class="' + cls + '">' +
+    '<span class="parkering-card-num">' + num + '.</span>' +
     '<span class="parkering-card-icon">' + (isIn ? '🚗' : '⚪') + '</span>' +
     '<div class="parkering-card-info">' +
       '<span class="parkering-card-name">' + entry.name + '</span>' +
