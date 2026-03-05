@@ -379,6 +379,74 @@ function updateParkeringMenuIndicator() {
 }
 
 // =============================================
+// TIME ANALYSIS — Find periods where parking is full
+// =============================================
+
+/**
+ * Analyze a full day and find time periods where cars >= PARK_MAX_SPOTS.
+ * Uses the raw shift time ranges (startMin/endMin/overnight/source) from
+ * buildParkingStatus, scanning every 5 minutes across 00:00–23:59.
+ *
+ * @param {string} dateStr  YYYY-MM-DD
+ * @returns {Array<{from: number, to: number, max: number}>}  periods in minutes
+ */
+function _parkAnalyzeDay(dateStr) {
+  var status = buildParkingStatus(dateStr);
+
+  // Build time ranges: each range = { from: min, to: min } within 0–1440
+  var ranges = [];
+  for (var i = 0; i < status.length; i++) {
+    var e = status[i];
+    if (e.startMin < 0 || e.endMin < 0) continue;
+
+    if (e.source === 'yesterday' && e.overnight) {
+      // Night shift from day before — car parked from 00:00 until endMin
+      ranges.push({ from: 0, to: e.endMin });
+    } else if (e.source === 'day' && e.overnight) {
+      // Night shift starting this day — car parked from startMin until end of day
+      ranges.push({ from: e.startMin, to: 1440 });
+    } else if (e.source === 'day') {
+      // Normal day shift
+      ranges.push({ from: e.startMin, to: e.endMin });
+    }
+  }
+
+  if (ranges.length === 0) return [];
+
+  // Scan every 5 minutes
+  var fullStart = -1;
+  var fullPeriods = [];
+  var maxInPeriod = 0;
+
+  for (var m = 0; m <= 1440; m += 5) {
+    var count = 0;
+    for (var r = 0; r < ranges.length; r++) {
+      if (m >= ranges[r].from && m < ranges[r].to) count++;
+    }
+
+    if (count >= PARK_MAX_SPOTS) {
+      if (fullStart < 0) {
+        fullStart = m;
+        maxInPeriod = count;
+      }
+      if (count > maxInPeriod) maxInPeriod = count;
+    } else {
+      if (fullStart >= 0) {
+        fullPeriods.push({ from: fullStart, to: m, max: maxInPeriod });
+        fullStart = -1;
+        maxInPeriod = 0;
+      }
+    }
+  }
+
+  if (fullStart >= 0) {
+    fullPeriods.push({ from: fullStart, to: 1440, max: maxInPeriod });
+  }
+
+  return fullPeriods;
+}
+
+// =============================================
 // PARKERING PAGE — Render
 // =============================================
 
@@ -487,6 +555,15 @@ function renderParkeringPage() {
     }
   } else {
     html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
+  }
+
+  // Time analysis — show periods where parking is full
+  var fullPeriods = _parkAnalyzeDay(dateStr);
+  if (fullPeriods.length > 0) {
+    var periodsStr = fullPeriods.map(function(p) {
+      return _parkFmtTime(p.from) + '–' + _parkFmtTime(p.to);
+    }).join(', ');
+    html += '<div class="parkering-hero-analysis">⚠️ Fullt kl ' + periodsStr + '</div>';
   }
 
   // Next out (only today)

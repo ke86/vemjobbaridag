@@ -314,6 +314,16 @@
   color: #ef5350;
 }
 
+.parkering-hero-analysis {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e53935;
+}
+.dark .parkering-hero-analysis {
+  color: #ef5350;
+}
+
 .parkering-hero-next {
   margin-top: 14px;
   padding-top: 12px;
