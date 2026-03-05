@@ -237,77 +237,74 @@ function buildParkingStatus(dateStr) {
 
   for (var i = 0; i < sorted.length; i++) {
     var name = sorted[i];
-    var entry = {
-      name: name,
-      carIn: false,
-      startMin: -1,
-      endMin: -1,
-      turnr: '',
-      timeStr: '',
-      overnight: false,
-      source: ''
-    };
+    var hasDay = false;
 
-    // 1. Check selected date's positions
+    // 1. Check selected date's positions (today's own shift)
     var dayMatch = _parkFindPerson(name, dayPos);
     if (dayMatch) {
       var tt = _parkGetTimes(dayMatch);
-      entry.turnr = dayMatch.turnr || '';
-      entry.startMin = tt.startMin;
-      entry.endMin = tt.endMin;
-      entry.timeStr = tt.timeStr;
-      entry.source = 'day';
-
       if (tt.startMin >= 0 && tt.endMin >= 0) {
+        var dayEntry = {
+          name: name, carIn: false,
+          startMin: tt.startMin, endMin: tt.endMin,
+          turnr: dayMatch.turnr || '', timeStr: tt.timeStr,
+          overnight: false, source: 'day'
+        };
+
         if (_parkIsOvernight(tt.startMin, tt.endMin)) {
-          entry.overnight = true;
+          dayEntry.overnight = true;
           if (isToday) {
-            entry.carIn = nowMin >= tt.startMin;
+            dayEntry.carIn = nowMin >= tt.startMin;
           } else {
-            // Non-today: car will be in (they work this day)
-            entry.carIn = true;
+            dayEntry.carIn = true;
           }
         } else {
           if (isToday) {
-            entry.carIn = nowMin >= tt.startMin && nowMin < tt.endMin;
+            dayEntry.carIn = nowMin >= tt.startMin && nowMin < tt.endMin;
           } else {
-            entry.carIn = true;
+            dayEntry.carIn = true;
           }
         }
+
+        results.push(dayEntry);
+        hasDay = true;
       }
     }
 
     // 2. Check day before for overnight shifts ending this morning
-    if (!entry.carIn) {
-      var dayBeforeMatch = _parkFindPerson(name, dayBeforePos);
-      if (dayBeforeMatch) {
-        var yt = _parkGetTimes(dayBeforeMatch);
-        if (yt.startMin >= 0 && yt.endMin >= 0 && _parkIsOvernight(yt.startMin, yt.endMin)) {
-          if (isToday) {
-            if (nowMin < yt.endMin) {
-              entry.carIn = true;
-              entry.startMin = yt.startMin;
-              entry.endMin = yt.endMin;
-              entry.turnr = dayBeforeMatch.turnr || '';
-              entry.timeStr = yt.timeStr;
-              entry.overnight = true;
-              entry.source = 'yesterday';
-            }
-          } else {
-            // Non-today: include overnight from day before
-            entry.carIn = true;
-            entry.startMin = yt.startMin;
-            entry.endMin = yt.endMin;
-            entry.turnr = dayBeforeMatch.turnr || '';
-            entry.timeStr = yt.timeStr;
-            entry.overnight = true;
-            entry.source = 'yesterday';
-          }
+    //    This can create a SECOND entry for the same person
+    var dayBeforeMatch = _parkFindPerson(name, dayBeforePos);
+    if (dayBeforeMatch) {
+      var yt = _parkGetTimes(dayBeforeMatch);
+      if (yt.startMin >= 0 && yt.endMin >= 0 && _parkIsOvernight(yt.startMin, yt.endMin)) {
+        var yesterdayIn = false;
+        if (isToday) {
+          yesterdayIn = nowMin < yt.endMin;
+        } else {
+          yesterdayIn = true;
+        }
+
+        if (yesterdayIn) {
+          results.push({
+            name: name, carIn: true,
+            startMin: yt.startMin, endMin: yt.endMin,
+            turnr: dayBeforeMatch.turnr || '', timeStr: yt.timeStr,
+            overnight: true, source: 'yesterday'
+          });
         }
       }
     }
 
-    results.push(entry);
+    // 3. If no entries were added for this person, add an empty entry
+    var lastAdded = results.length > 0 ? results[results.length - 1] : null;
+    if (!lastAdded || lastAdded.name !== name) {
+      results.push({
+        name: name, carIn: false,
+        startMin: -1, endMin: -1,
+        turnr: '', timeStr: '',
+        overnight: false, source: ''
+      });
+    }
   }
 
   return results;
@@ -369,8 +366,12 @@ function updateParkeringMenuIndicator() {
 
   var todayStatus = buildParkingStatus(getTodayStr());
   var carsIn = 0;
+  var menuCounted = {};
   for (var i = 0; i < todayStatus.length; i++) {
-    if (todayStatus[i].carIn) carsIn++;
+    if (todayStatus[i].carIn && !menuCounted[todayStatus[i].name]) {
+      carsIn++;
+      menuCounted[todayStatus[i].name] = true;
+    }
   }
 
   dot.style.display = '';
@@ -496,11 +497,14 @@ function renderParkeringPage() {
   var now = new Date();
   var nowMin = isToday ? (now.getHours() * 60 + now.getMinutes()) : -1;
 
-  // Count
+  // Count unique persons with carIn (avoid double-counting same person)
   var carsIn = 0;
-  var total = status.length;
+  var countedNames = {};
   for (var i = 0; i < status.length; i++) {
-    if (status[i].carIn) carsIn++;
+    if (status[i].carIn && !countedNames[status[i].name]) {
+      carsIn++;
+      countedNames[status[i].name] = true;
+    }
   }
 
   var isFull = isToday && carsIn >= PARK_MAX_SPOTS;
@@ -576,14 +580,31 @@ function renderParkeringPage() {
 
   // ── Person list ──
   var carsInList = status.filter(function(s) { return s.carIn; });
-  var carsOutList = status.filter(function(s) { return !s.carIn; });
+
+  // "Ej parkerad": only persons who have NO carIn entry at all
+  var namesWithCarIn = {};
+  for (var ni = 0; ni < carsInList.length; ni++) {
+    namesWithCarIn[carsInList[ni].name] = true;
+  }
+  var carsOutList = [];
+  var outSeen = {};
+  for (var oi = 0; oi < status.length; oi++) {
+    var oEntry = status[oi];
+    if (!namesWithCarIn[oEntry.name] && !outSeen[oEntry.name]) {
+      carsOutList.push(oEntry);
+      outSeen[oEntry.name] = true;
+    }
+  }
 
   carsInList.sort(function(a, b) {
-    var aEnd = a.endMin;
-    var bEnd = b.endMin;
-    if (a.source === 'day' && a.overnight) aEnd = 9999;
-    if (b.source === 'day' && b.overnight) bEnd = 9999;
-    return aEnd - bEnd;
+    // Yesterday entries first (already parked from night before)
+    var aIsYesterday = a.source === 'yesterday' ? 0 : 1;
+    var bIsYesterday = b.source === 'yesterday' ? 0 : 1;
+    if (aIsYesterday !== bIsYesterday) return aIsYesterday - bIsYesterday;
+    // Within same group: sort by startMin
+    var aStart = a.startMin >= 0 ? a.startMin : 9999;
+    var bStart = b.startMin >= 0 ? b.startMin : 9999;
+    return aStart - bStart;
   });
 
   carsOutList.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
