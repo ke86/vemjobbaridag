@@ -3,13 +3,19 @@
  * Tracks which employees have parking and shows real-time parking occupancy.
  *
  * Logic:
- *  - Checks TODAY's positions for day shifts and evening/night shifts starting today
- *  - Checks YESTERDAY's positions for night shifts that end this morning
+ *  - Checks selected date's positions for day shifts and evening/night shifts
+ *  - Checks the day before for night shifts that end the selected morning
  *  - A car is "in" the parking lot between shift start and shift end
  *  - Night shifts (start > end): car in from start, stays overnight until end next morning
+ *  - 11 parking spots: 0-10 = green (OK), 11+ = red (full)
  *
  * Storage: IndexedDB via saveSetting('parkering', [...names])
  */
+
+// =============================================
+// CONSTANTS
+// =============================================
+var PARK_MAX_SPOTS = 11;
 
 // =============================================
 // STATE
@@ -17,6 +23,7 @@
 var _parkeringList = [];        // Array of name strings
 var _parkeringLoaded = false;   // Has data been loaded from IndexedDB?
 var _parkeringExpanded = false;  // Is the detail list expanded?
+var _parkDate = new Date();      // Currently viewed date
 
 var _parkeringDefaults = [
   'Petter Tegnér Sjöstrand',
@@ -116,10 +123,8 @@ function addParkeringPerson() {
   var name = input.value.trim();
   if (!name) return;
 
-  // Capitalize first letter of each word
   name = name.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
 
-  // Check duplicate (case-insensitive)
   var nameLC = name.toLowerCase();
   for (var i = 0; i < _parkeringList.length; i++) {
     if (_parkeringList[i].toLowerCase() === nameLC) {
@@ -142,7 +147,6 @@ function removeParkeringPerson(name) {
   renderParkeringSettingsList();
 }
 
-// Allow Enter key on input
 document.addEventListener('keydown', function(e) {
   if (e.target && e.target.id === 'parkeringNameInput' && e.key === 'Enter') {
     e.preventDefault();
@@ -151,12 +155,9 @@ document.addEventListener('keydown', function(e) {
 });
 
 // =============================================
-// TIME HELPERS
+// DATE HELPERS
 // =============================================
 
-/**
- * Parse "HH:MM" to minutes since midnight. Returns -1 if invalid.
- */
 function _parkParseTime(str) {
   if (!str || str === '-') return -1;
   var m = str.match(/^(\d{1,2}):(\d{2})/);
@@ -164,31 +165,50 @@ function _parkParseTime(str) {
   return parseInt(m[1]) * 60 + parseInt(m[2]);
 }
 
-/**
- * Format minutes since midnight to "HH:MM"
- */
 function _parkFmtTime(min) {
   var h = Math.floor(min / 60) % 24;
   var m = min % 60;
   return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
 }
 
-/**
- * Get yesterday's date string (YYYY-MM-DD)
- */
-function _parkYesterday() {
-  var d = new Date();
-  d.setDate(d.getDate() - 1);
+function _parkDateStr(d) {
   return d.getFullYear() + '-' +
     String(d.getMonth() + 1).padStart(2, '0') + '-' +
     String(d.getDate()).padStart(2, '0');
 }
 
-/**
- * Check if a shift is overnight (start > end, e.g., 22:15-06:15)
- */
+function _parkDayBefore(dateStr) {
+  var parts = dateStr.split('-');
+  var d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  d.setDate(d.getDate() - 1);
+  return _parkDateStr(d);
+}
+
+function _parkIsToday(dateStr) {
+  return dateStr === getTodayStr();
+}
+
 function _parkIsOvernight(startMin, endMin) {
   return startMin >= 0 && endMin >= 0 && endMin <= startMin;
+}
+
+// =============================================
+// DATE NAVIGATION
+// =============================================
+
+function parkPrevDay() {
+  _parkDate.setDate(_parkDate.getDate() - 1);
+  renderParkeringPage();
+}
+
+function parkNextDay() {
+  _parkDate.setDate(_parkDate.getDate() + 1);
+  renderParkeringPage();
+}
+
+function parkGoToday() {
+  _parkDate = new Date();
+  renderParkeringPage();
 }
 
 // =============================================
@@ -196,19 +216,19 @@ function _parkIsOvernight(startMin, endMin) {
 // =============================================
 
 /**
- * Build parking status for all persons.
- * Returns array of objects:
- *   { name, carIn (bool), startMin, endMin, turnr, timeStr, overnight, source ('today'|'yesterday') }
+ * Build parking status for all persons on a given date.
+ * @param {string} dateStr  YYYY-MM-DD to check
+ * Returns array of { name, carIn, startMin, endMin, turnr, timeStr, overnight, source }
  */
-function buildParkingStatus() {
+function buildParkingStatus(dateStr) {
+  var isToday = _parkIsToday(dateStr);
   var now = new Date();
-  var nowMin = now.getHours() * 60 + now.getMinutes();
-  var todayStr = getTodayStr();
-  var yesterdayStr = _parkYesterday();
+  var nowMin = isToday ? (now.getHours() * 60 + now.getMinutes()) : -1;
+  var dayBeforeStr = _parkDayBefore(dateStr);
 
   var dagar = (_posCache && _posCache.data && _posCache.data.dagar) ? _posCache.data.dagar : {};
-  var todayPos = dagar[todayStr] || [];
-  var yesterdayPos = dagar[yesterdayStr] || [];
+  var dayPos = dagar[dateStr] || [];
+  var dayBeforePos = dagar[dayBeforeStr] || [];
 
   var results = [];
   var sorted = _parkeringList.slice().sort(function(a, b) {
@@ -228,40 +248,57 @@ function buildParkingStatus() {
       source: ''
     };
 
-    // 1. Check today's positions
-    var todayMatch = _parkFindPerson(name, todayPos);
-    if (todayMatch) {
-      var tt = _parkGetTimes(todayMatch);
-      entry.turnr = todayMatch.turnr || '';
+    // 1. Check selected date's positions
+    var dayMatch = _parkFindPerson(name, dayPos);
+    if (dayMatch) {
+      var tt = _parkGetTimes(dayMatch);
+      entry.turnr = dayMatch.turnr || '';
       entry.startMin = tt.startMin;
       entry.endMin = tt.endMin;
       entry.timeStr = tt.timeStr;
-      entry.source = 'today';
+      entry.source = 'day';
 
       if (tt.startMin >= 0 && tt.endMin >= 0) {
         if (_parkIsOvernight(tt.startMin, tt.endMin)) {
-          // Night shift starting today — car is in from start onwards
           entry.overnight = true;
-          entry.carIn = nowMin >= tt.startMin;
+          if (isToday) {
+            entry.carIn = nowMin >= tt.startMin;
+          } else {
+            // Non-today: car will be in (they work this day)
+            entry.carIn = true;
+          }
         } else {
-          // Normal day shift — car is in between start and end
-          entry.carIn = nowMin >= tt.startMin && nowMin < tt.endMin;
+          if (isToday) {
+            entry.carIn = nowMin >= tt.startMin && nowMin < tt.endMin;
+          } else {
+            entry.carIn = true;
+          }
         }
       }
     }
 
-    // 2. Check yesterday's positions for overnight shifts ending this morning
+    // 2. Check day before for overnight shifts ending this morning
     if (!entry.carIn) {
-      var yesterdayMatch = _parkFindPerson(name, yesterdayPos);
-      if (yesterdayMatch) {
-        var yt = _parkGetTimes(yesterdayMatch);
+      var dayBeforeMatch = _parkFindPerson(name, dayBeforePos);
+      if (dayBeforeMatch) {
+        var yt = _parkGetTimes(dayBeforeMatch);
         if (yt.startMin >= 0 && yt.endMin >= 0 && _parkIsOvernight(yt.startMin, yt.endMin)) {
-          // Overnight shift from yesterday — car still in if we haven't passed end time
-          if (nowMin < yt.endMin) {
+          if (isToday) {
+            if (nowMin < yt.endMin) {
+              entry.carIn = true;
+              entry.startMin = yt.startMin;
+              entry.endMin = yt.endMin;
+              entry.turnr = dayBeforeMatch.turnr || '';
+              entry.timeStr = yt.timeStr;
+              entry.overnight = true;
+              entry.source = 'yesterday';
+            }
+          } else {
+            // Non-today: include overnight from day before
             entry.carIn = true;
             entry.startMin = yt.startMin;
             entry.endMin = yt.endMin;
-            entry.turnr = yesterdayMatch.turnr || '';
+            entry.turnr = dayBeforeMatch.turnr || '';
             entry.timeStr = yt.timeStr;
             entry.overnight = true;
             entry.source = 'yesterday';
@@ -276,9 +313,6 @@ function buildParkingStatus() {
   return results;
 }
 
-/**
- * Find a person by name in a position array
- */
 function _parkFindPerson(name, posArray) {
   var nameLC = name.toLowerCase().trim();
   for (var j = 0; j < posArray.length; j++) {
@@ -289,14 +323,10 @@ function _parkFindPerson(name, posArray) {
   return null;
 }
 
-/**
- * Get resolved times for a position entry (using getPosTime for fallback)
- */
 function _parkGetTimes(pos) {
   var start = pos.start;
   var slut = pos.slut;
 
-  // Use getPosTime for TIL/reserve time lookup
   if (typeof getPosTime === 'function') {
     var resolved = getPosTime(pos);
     if (resolved.start && resolved.start !== '-') start = resolved.start;
@@ -314,10 +344,46 @@ function _parkGetTimes(pos) {
 }
 
 // =============================================
+// MENU INDICATOR — green/red dot next to Parkering
+// =============================================
+
+/**
+ * Update the parking indicator in the sidebar menu.
+ * Call this after positions data is loaded.
+ */
+function updateParkeringMenuIndicator() {
+  var dot = document.getElementById('parkeringMenuDot');
+  if (!dot) return;
+
+  if (!_parkeringLoaded) {
+    loadParkeringList().then(function() {
+      updateParkeringMenuIndicator();
+    });
+    return;
+  }
+
+  if (_parkeringList.length === 0 || !_posCache || !_posCache.data) {
+    dot.style.display = 'none';
+    return;
+  }
+
+  var todayStatus = buildParkingStatus(getTodayStr());
+  var carsIn = 0;
+  for (var i = 0; i < todayStatus.length; i++) {
+    if (todayStatus[i].carIn) carsIn++;
+  }
+
+  dot.style.display = '';
+  dot.className = carsIn >= PARK_MAX_SPOTS ? 'park-menu-dot park-dot-red' : 'park-menu-dot park-dot-green';
+  dot.textContent = carsIn;
+}
+
+// =============================================
 // PARKERING PAGE — Render
 // =============================================
 
 function onParkeringPageShow() {
+  _parkDate = new Date(); // Reset to today when opening page
   var container = document.getElementById('parkeringContainer');
   if (!container) return;
 
@@ -345,7 +411,6 @@ function renderParkeringPage() {
     return;
   }
 
-  // Check if pos data available
   var hasPosData = _posCache && _posCache.data && _posCache.data.dagar;
   if (!hasPosData) {
     container.innerHTML =
@@ -357,9 +422,11 @@ function renderParkeringPage() {
     return;
   }
 
-  var status = buildParkingStatus();
+  var dateStr = _parkDateStr(_parkDate);
+  var isToday = _parkIsToday(dateStr);
+  var status = buildParkingStatus(dateStr);
   var now = new Date();
-  var nowMin = now.getHours() * 60 + now.getMinutes();
+  var nowMin = isToday ? (now.getHours() * 60 + now.getMinutes()) : -1;
 
   // Count
   var carsIn = 0;
@@ -368,40 +435,65 @@ function renderParkeringPage() {
     if (status[i].carIn) carsIn++;
   }
 
-  // Find "next out" — among cars currently in, which has the earliest end time ahead
+  var isFull = carsIn >= PARK_MAX_SPOTS;
+  var colorClass = isFull ? 'parkering-full' : 'parkering-ok';
+
+  // Find "next out" (only for today)
   var nextOut = null;
   var nextOutMin = Infinity;
-  for (var n = 0; n < status.length; n++) {
-    var s = status[n];
-    if (!s.carIn || s.endMin < 0) continue;
-
-    // For overnight shifts from today (starting tonight), they leave tomorrow — skip for "nästa ut"
-    if (s.source === 'today' && s.overnight) continue;
-
-    // For overnight from yesterday ending today, or day shifts
-    if (s.endMin > nowMin && s.endMin < nextOutMin) {
-      nextOutMin = s.endMin;
-      nextOut = s;
+  if (isToday) {
+    for (var n = 0; n < status.length; n++) {
+      var s = status[n];
+      if (!s.carIn || s.endMin < 0) continue;
+      if (s.source === 'day' && s.overnight) continue;
+      if (s.endMin > nowMin && s.endMin < nextOutMin) {
+        nextOutMin = s.endMin;
+        nextOut = s;
+      }
     }
   }
 
-  // Date string
+  // Date display
   var dayNames = ['Söndag', 'Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag'];
   var monthNames = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-  var dateStr = dayNames[now.getDay()] + ' ' + now.getDate() + ' ' + monthNames[now.getMonth()];
+  var displayDate = dayNames[_parkDate.getDay()] + ' ' + _parkDate.getDate() + ' ' + monthNames[_parkDate.getMonth()];
 
   var html = '';
 
-  // ── Top: Date + Count ──
-  html += '<div class="parkering-hero">';
-  html += '<div class="parkering-hero-date">' + dateStr + '</div>';
-  html += '<div class="parkering-hero-count">';
-  html += '<span class="parkering-hero-num">' + carsIn + '</span>';
-  html += '<span class="parkering-hero-sep">/</span>';
-  html += '<span class="parkering-hero-total">' + total + '</span>';
-  html += '</div>';
-  html += '<div class="parkering-hero-label">bilar i p-huset just nu</div>';
+  // ── Hero ──
+  html += '<div class="parkering-hero ' + colorClass + '">';
 
+  // Date navigation
+  html += '<div class="parkering-nav">';
+  html += '<button class="parkering-nav-btn" onclick="parkPrevDay()">◀</button>';
+  html += '<span class="parkering-nav-date' + (isToday ? ' parkering-nav-today' : '') + '" onclick="parkGoToday()">' + displayDate + (isToday ? '' : '') + '</span>';
+  html += '<button class="parkering-nav-btn" onclick="parkNextDay()">▶</button>';
+  html += '</div>';
+
+  // Count
+  html += '<div class="parkering-hero-count">';
+  html += '<span class="parkering-hero-num ' + colorClass + '">' + carsIn + '</span>';
+  html += '<span class="parkering-hero-sep">/</span>';
+  html += '<span class="parkering-hero-total">' + PARK_MAX_SPOTS + '</span>';
+  html += '</div>';
+
+  // Label
+  if (isToday) {
+    if (isFull) {
+      html += '<div class="parkering-hero-label parkering-label-full">⚠️ P-huset fullt!</div>';
+    } else {
+      var freeSpots = PARK_MAX_SPOTS - carsIn;
+      html += '<div class="parkering-hero-label">' + freeSpots + ' lediga platser just nu</div>';
+    }
+  } else {
+    if (isFull) {
+      html += '<div class="parkering-hero-label parkering-label-full">⚠️ Överfullt — ' + carsIn + ' bilar på ' + PARK_MAX_SPOTS + ' platser</div>';
+    } else {
+      html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
+    }
+  }
+
+  // Next out (only today)
   if (nextOut) {
     html += '<div class="parkering-hero-next">';
     html += 'Nästa ut: <strong>' + nextOut.name + '</strong> kl ' + _parkFmtTime(nextOut.endMin);
@@ -409,56 +501,51 @@ function renderParkeringPage() {
   }
   html += '</div>';
 
-  // ── Person list: parked first, sorted by end time ──
+  // ── Person list ──
   var carsInList = status.filter(function(s) { return s.carIn; });
   var carsOutList = status.filter(function(s) { return !s.carIn; });
 
-  // Sort parked cars by end time (nearest first), overnight-tonight last
   carsInList.sort(function(a, b) {
     var aEnd = a.endMin;
     var bEnd = b.endMin;
-    // Overnight from today → push to end (they leave tomorrow)
-    if (a.source === 'today' && a.overnight) aEnd = 9999;
-    if (b.source === 'today' && b.overnight) bEnd = 9999;
+    if (a.source === 'day' && a.overnight) aEnd = 9999;
+    if (b.source === 'day' && b.overnight) bEnd = 9999;
     return aEnd - bEnd;
   });
 
-  // Sort not-parked alphabetically
   carsOutList.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
 
-  // ── Expandable details ──
+  // Expandable
   html += '<div class="parkering-expand-header" onclick="toggleParkeringExpand()">';
-  html += '<span>Visa detaljer</span>';
+  html += '<span>' + (_parkeringExpanded ? 'Dölj detaljer' : 'Visa detaljer') + '</span>';
   html += '<span class="parkering-expand-arrow" id="parkeringArrow">' + (_parkeringExpanded ? '▲' : '▼') + '</span>';
   html += '</div>';
 
   html += '<div class="parkering-detail-list" id="parkeringDetailList" style="' + (_parkeringExpanded ? '' : 'display:none;') + '">';
 
-  // Cars IN
   if (carsInList.length > 0) {
-    html += '<div class="parkering-section-label">🚗 Står i p-huset (' + carsInList.length + ')</div>';
+    html += '<div class="parkering-section-label">🚗 Parkerad (' + carsInList.length + ')</div>';
     for (var ci = 0; ci < carsInList.length; ci++) {
-      html += _renderParkCard(carsInList[ci], nowMin, true);
+      html += _renderParkCard(carsInList[ci], nowMin, true, isToday);
     }
   }
 
-  // Cars OUT
   if (carsOutList.length > 0) {
     html += '<div class="parkering-section-label parkering-section-out">Ej parkerad (' + carsOutList.length + ')</div>';
     for (var co = 0; co < carsOutList.length; co++) {
-      html += _renderParkCard(carsOutList[co], nowMin, false);
+      html += _renderParkCard(carsOutList[co], nowMin, false, isToday);
     }
   }
 
   html += '</div>';
 
   container.innerHTML = html;
+
+  // Also update menu indicator for today
+  updateParkeringMenuIndicator();
 }
 
-/**
- * Render a parking person card
- */
-function _renderParkCard(entry, nowMin, isIn) {
+function _renderParkCard(entry, nowMin, isIn, isToday) {
   var cls = isIn ? 'parkering-card parkering-card-in' : 'parkering-card parkering-card-out';
 
   var detailHtml = '';
@@ -470,10 +557,9 @@ function _renderParkCard(entry, nowMin, isIn) {
     if (entry.timeStr) {
       detailHtml += '<span class="parkering-card-time">' + entry.timeStr + '</span>';
     }
-    // For parked cars: show when they leave
-    if (isIn && entry.endMin >= 0) {
+    if (isIn && entry.endMin >= 0 && isToday) {
       var leavesStr = '';
-      if (entry.source === 'today' && entry.overnight) {
+      if (entry.source === 'day' && entry.overnight) {
         leavesStr = 'Kör ut imorgon ' + _parkFmtTime(entry.endMin);
       } else if (entry.endMin > nowMin) {
         var diff = entry.endMin - nowMin;
@@ -488,7 +574,7 @@ function _renderParkCard(entry, nowMin, isIn) {
       }
     }
     if (entry.source === 'yesterday') {
-      detailHtml += '<span class="parkering-card-night">nattpass igår</span>';
+      detailHtml += '<span class="parkering-card-night">nattpass dagen innan</span>';
     }
     detailHtml += '</div>';
   }
@@ -502,20 +588,17 @@ function _renderParkCard(entry, nowMin, isIn) {
   '</div>';
 }
 
-/**
- * Toggle expand/collapse of detail list
- */
 function toggleParkeringExpand() {
   _parkeringExpanded = !_parkeringExpanded;
   var list = document.getElementById('parkeringDetailList');
   var arrow = document.getElementById('parkeringArrow');
   if (list) list.style.display = _parkeringExpanded ? '' : 'none';
   if (arrow) arrow.textContent = _parkeringExpanded ? '▲' : '▼';
+  // Update button text
+  var header = document.querySelector('.parkering-expand-header span:first-child');
+  if (header) header.textContent = _parkeringExpanded ? 'Dölj detaljer' : 'Visa detaljer';
 }
 
-/**
- * Fetch positions data if not cached, then re-render
- */
 function fetchPositionsForParkering() {
   if (_posCache && _posCache.data) {
     renderParkeringPage();

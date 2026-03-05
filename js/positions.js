@@ -71,6 +71,8 @@ function fetchPositions() {
       }
 
       renderPositions();
+      // Update parking menu indicator when positions data arrives
+      if (typeof updateParkeringMenuIndicator === 'function') updateParkeringMenuIndicator();
     })
     .catch(function(err) {
       if (container) {

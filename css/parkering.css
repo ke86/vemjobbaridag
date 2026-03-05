@@ -101,6 +101,37 @@
 }
 
 /* ==========================================
+   MENU INDICATOR — dot next to Parkering
+   ========================================== */
+
+.park-menu-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.park-dot-green {
+  background: #4caf50;
+  color: #fff;
+}
+.park-dot-red {
+  background: #e53935;
+  color: #fff;
+  animation: park-dot-pulse 2s ease-in-out infinite;
+}
+@keyframes park-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* ==========================================
    PARKERING PAGE
    ========================================== */
 
@@ -146,28 +177,92 @@
   cursor: pointer;
 }
 
-/* ── Hero: Date + Count ── */
+/* ── Hero ── */
 .parkering-hero {
   text-align: center;
-  padding: 24px 16px 20px;
+  padding: 20px 16px;
   margin-bottom: 8px;
   border-radius: 16px;
-  background: linear-gradient(145deg, rgba(74, 144, 217, 0.1), rgba(56, 182, 130, 0.06));
   border: 1px solid rgba(74, 144, 217, 0.12);
-}
-.dark .parkering-hero {
-  background: linear-gradient(145deg, rgba(90, 155, 230, 0.12), rgba(60, 190, 140, 0.06));
-  border-color: rgba(90, 155, 230, 0.15);
+  transition: background 0.3s, border-color 0.3s;
 }
 
-.parkering-hero-date {
-  font-size: 13px;
+/* Green (OK) */
+.parkering-hero.parkering-ok {
+  background: linear-gradient(145deg, rgba(76, 175, 80, 0.08), rgba(56, 182, 130, 0.04));
+  border-color: rgba(76, 175, 80, 0.15);
+}
+.dark .parkering-hero.parkering-ok {
+  background: linear-gradient(145deg, rgba(76, 175, 80, 0.1), rgba(56, 182, 130, 0.05));
+  border-color: rgba(76, 175, 80, 0.18);
+}
+
+/* Red (Full) */
+.parkering-hero.parkering-full {
+  background: linear-gradient(145deg, rgba(229, 57, 53, 0.08), rgba(229, 57, 53, 0.03));
+  border-color: rgba(229, 57, 53, 0.2);
+}
+.dark .parkering-hero.parkering-full {
+  background: linear-gradient(145deg, rgba(229, 57, 53, 0.12), rgba(229, 57, 53, 0.05));
+  border-color: rgba(229, 57, 53, 0.22);
+}
+
+/* ── Date navigation ── */
+.parkering-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.parkering-nav-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(120, 120, 140, 0.08);
+  color: var(--text-primary, #1a1a2e);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.parkering-nav-btn:active {
+  background: rgba(120, 120, 140, 0.18);
+}
+.dark .parkering-nav-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d0d0e0;
+}
+.dark .parkering-nav-btn:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.parkering-nav-date {
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.3px;
-  color: var(--accent-blue, #4a90d9);
-  margin-bottom: 12px;
+  color: var(--text-primary, #1a1a2e);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+.parkering-nav-date:active {
+  background: rgba(120, 120, 140, 0.08);
+}
+.dark .parkering-nav-date {
+  color: #e0e0ec;
 }
 
+.parkering-nav-today {
+  color: var(--accent-blue, #4a90d9);
+}
+
+/* ── Count ── */
 .parkering-hero-count {
   display: flex;
   align-items: baseline;
@@ -179,11 +274,14 @@
 .parkering-hero-num {
   font-size: 52px;
   font-weight: 800;
-  color: var(--text-primary, #1a1a2e);
   letter-spacing: -2px;
+  transition: color 0.3s;
 }
-.dark .parkering-hero-num {
-  color: #f0f0f8;
+.parkering-hero-num.parkering-ok {
+  color: #4caf50;
+}
+.parkering-hero-num.parkering-full {
+  color: #e53935;
 }
 
 .parkering-hero-sep {
@@ -206,6 +304,14 @@
   font-size: 12.5px;
   color: rgba(120, 120, 140, 0.6);
   margin-top: 6px;
+}
+
+.parkering-label-full {
+  color: #e53935;
+  font-weight: 600;
+}
+.dark .parkering-label-full {
+  color: #ef5350;
 }
 
 .parkering-hero-next {
