@@ -339,28 +339,6 @@
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
-/* ── Expand toggle ── */
-.parkering-expand-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--accent-blue, #4a90d9);
-  -webkit-tap-highlight-color: transparent;
-  user-select: none;
-}
-.parkering-expand-header:active {
-  opacity: 0.7;
-}
-
-.parkering-expand-arrow {
-  font-size: 12px;
-  transition: transform 0.2s;
-}
-
 /* ── Section labels ── */
 .parkering-section-label {
   font-size: 12px;

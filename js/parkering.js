@@ -22,7 +22,6 @@ var PARK_MAX_SPOTS = 11;
 // =============================================
 var _parkeringList = [];        // Array of name strings
 var _parkeringLoaded = false;   // Has data been loaded from IndexedDB?
-var _parkeringExpanded = false;  // Is the detail list expanded?
 var _parkDate = new Date();      // Currently viewed date
 
 var _parkeringDefaults = [
@@ -609,13 +608,8 @@ function renderParkeringPage() {
 
   carsOutList.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
 
-  // Expandable
-  html += '<div class="parkering-expand-header" onclick="toggleParkeringExpand()">';
-  html += '<span>' + (_parkeringExpanded ? 'Dölj detaljer' : 'Visa detaljer') + '</span>';
-  html += '<span class="parkering-expand-arrow" id="parkeringArrow">' + (_parkeringExpanded ? '▲' : '▼') + '</span>';
-  html += '</div>';
-
-  html += '<div class="parkering-detail-list" id="parkeringDetailList" style="' + (_parkeringExpanded ? '' : 'display:none;') + '">';
+  // Detail list — always visible
+  html += '<div class="parkering-detail-list">';
 
   if (carsInList.length > 0) {
     html += '<div class="parkering-section-label">🚗 Parkerad (' + carsInList.length + ')</div>';
@@ -681,17 +675,6 @@ function _renderParkCard(entry, nowMin, isIn, isToday, num) {
       detailHtml +
     '</div>' +
   '</div>';
-}
-
-function toggleParkeringExpand() {
-  _parkeringExpanded = !_parkeringExpanded;
-  var list = document.getElementById('parkeringDetailList');
-  var arrow = document.getElementById('parkeringArrow');
-  if (list) list.style.display = _parkeringExpanded ? '' : 'none';
-  if (arrow) arrow.textContent = _parkeringExpanded ? '▲' : '▼';
-  // Update button text
-  var header = document.querySelector('.parkering-expand-header span:first-child');
-  if (header) header.textContent = _parkeringExpanded ? 'Dölj detaljer' : 'Visa detaljer';
 }
 
 function fetchPositionsForParkering() {
