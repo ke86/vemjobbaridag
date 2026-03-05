@@ -44,6 +44,7 @@
   <link rel="stylesheet" href="css/documents.css">
   <link rel="stylesheet" href="css/disruptions.css">
   <link rel="stylesheet" href="css/positions.css">
+  <link rel="stylesheet" href="css/parkering.css">
   <link rel="stylesheet" href="css/overtime.css">
 </head>
 <body>
@@ -101,6 +102,7 @@
       <li><a href="#" data-page="documents"><span class="icon">📄</span> Dokument</a></li>
       <li><a href="#" data-page="links"><span class="icon">🔗</span> Länkar</a></li>
       <!-- <li><a href="#" data-page="overtime"><span class="icon">⏱️</span> Övertid</a></li> PAUSAD: väntar på pre-fill aktivering -->
+      <li><a href="#" data-page="parkering"><span class="icon">🅿️</span> Parkering</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
   </nav>
@@ -795,6 +797,23 @@
             </div>
           </div>
 
+          <!-- Parkering (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="parkeringSubsection">
+            <div class="subsection-header" id="parkeringSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">🅿️ Parkering</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="parkeringSubContent">
+              <div class="parkering-add-row" id="parkeringAddRow">
+                <input type="text" id="parkeringNameInput" class="parkering-input" placeholder="Lägg till namn…" autocomplete="off">
+                <button class="parkering-add-btn" id="parkeringAddBtn" onclick="addParkeringPerson()">+</button>
+              </div>
+              <div class="parkering-list" id="parkeringList">
+                <!-- Rendered by parkering.js -->
+              </div>
+            </div>
+          </div>
+
           <!-- Radera data (collapsible) -->
           <div class="settings-subsection collapsible-sub" id="deleteSubsection">
             <div class="subsection-header" id="deleteSubHeader">
@@ -815,7 +834,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.78</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v5.82</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -823,6 +842,13 @@
           Sök efter uppdatering
         </button>
       </div>
+    </div>
+  </main>
+
+  <!-- Parkering Page -->
+  <main class="parkering-page page" id="parkeringPage">
+    <div class="parkering-container" id="parkeringContainer">
+      <!-- Rendered by parkering.js -->
     </div>
   </main>
 
@@ -1278,6 +1304,7 @@
   <script src="js/documents.js"></script>
   <script src="js/disruptions.js"></script>
   <script src="js/positions.js"></script>
+  <script src="js/parkering.js"></script>
   <script src="js/overtime.js"></script>
   <script src="js/app.js"></script>
 

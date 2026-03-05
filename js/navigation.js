@@ -165,6 +165,10 @@ function showPage(pageId) {
   } else if (pageId === 'links') {
     document.getElementById('linksPage').classList.add('active');
     headerTitle.textContent = 'Länkar';
+  } else if (pageId === 'parkering') {
+    document.getElementById('parkeringPage').classList.add('active');
+    headerTitle.textContent = 'Parkering';
+    if (typeof onParkeringPageShow === 'function') onParkeringPageShow();
   } else if (pageId === 'overtime') {
     document.getElementById('overtimePage').classList.add('active');
     headerTitle.textContent = 'Övertid';

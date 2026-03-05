@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v5.78';
+const CACHE_VERSION = 'v5.82';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -27,6 +27,7 @@ const FILES_TO_CACHE = [
   './css/documents.css',
   './css/disruptions.css',
   './css/positions.css',
+  './css/parkering.css',
   './css/overtime.css',
   // JS files
   './js/config.js',
@@ -49,6 +50,7 @@ const FILES_TO_CACHE = [
   './js/documents.js',
   './js/disruptions.js',
   './js/positions.js',
+  './js/parkering.js',
   './js/overtime.js',
   './js/app.js',
   // Assets

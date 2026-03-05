@@ -428,6 +428,26 @@ async function showDagvyPopup(employeeId) {
 }
 
 /**
+ * Look up start-end time for a turn number from TIL_TURN_TIMES / TIL_SHIFT_TIMES.
+ * Returns "HH:MM-HH:MM" string or null if not found.
+ */
+function lookupTurnTime(turnr) {
+  if (!turnr) return null;
+  var key = turnr.trim();
+  var keyUpper = key.toUpperCase();
+  var match = null;
+  if (typeof TIL_SHIFT_TIMES !== 'undefined' && TIL_SHIFT_TIMES[keyUpper]) {
+    match = TIL_SHIFT_TIMES[keyUpper];
+  } else if (typeof TIL_TURN_TIMES !== 'undefined') {
+    match = TIL_TURN_TIMES[key] || TIL_TURN_TIMES[keyUpper] || null;
+  }
+  if (match && match.length >= 2) {
+    return match[0] + '-' + match[1];
+  }
+  return null;
+}
+
+/**
  * Compare dagvy data with schedule and update if different
  */
 function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
@@ -486,6 +506,17 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
   // Update the shift data
   if (turnChanged) {
     shift.badgeText = dagvyTurn;
+    // If dagvy didn't provide a new time, look up from TIL_TURN_TIMES / TIL_SHIFT_TIMES
+    if (!timeChanged && dagvyTurn) {
+      var lookupTime = lookupTurnTime(dagvyTurn);
+      if (lookupTime) {
+        if (!shift.hasOwnProperty('originalTime')) {
+          shift.originalTime = currentTime;
+        }
+        shift.time = lookupTime;
+        console.log('[DAGVY-LOOKUP] ' + empName + ' turn ' + dagvyTurn + ' → time from lookup: ' + lookupTime);
+      }
+    }
   }
   if (timeChanged) {
     shift.time = dagvyTime;
@@ -538,13 +569,14 @@ function applyDagvyToSchedule(empName, dagvyData) {
     // Create virtual shift from dagvy data
     var dagvyTurn = (dayData.turnr || '').trim();
     var dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
-    var dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : '-';
+    var dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : '';
+    var virtualTime = dagvyTime || lookupTurnTime(dagvyTurn) || '-';
     if (dagvyTurn) {
       var virtualShift = {
         employeeId: employeeId,
         badge: '',
         badgeText: dagvyTurn,
-        time: dagvyTime,
+        time: virtualTime,
         addedFromDagvy: true,
         updatedFromDagvy: true
       };
@@ -601,11 +633,12 @@ function reapplyDagvyCorrections() {
     // No shift exists → create virtual shift from dagvy
     if (!shift) {
       if (dagvyTurn) {
+        var virtualTime = dagvyTime || lookupTurnTime(dagvyTurn) || '-';
         allShifts.push({
           employeeId: employeeId,
           badge: '',
           badgeText: dagvyTurn,
-          time: dagvyTime || '-',
+          time: virtualTime,
           addedFromDagvy: true,
           updatedFromDagvy: true
         });
@@ -642,7 +675,19 @@ function reapplyDagvyCorrections() {
       shift.originalTime = currentTime;
     }
 
-    if (turnChanged) shift.badgeText = dagvyTurn;
+    if (turnChanged) {
+      shift.badgeText = dagvyTurn;
+      // If dagvy didn't provide a new time, look up from TIL_TURN_TIMES / TIL_SHIFT_TIMES
+      if (!timeChanged && dagvyTurn) {
+        var lookupTime = lookupTurnTime(dagvyTurn);
+        if (lookupTime) {
+          if (!shift.hasOwnProperty('originalTime')) {
+            shift.originalTime = currentTime;
+          }
+          shift.time = lookupTime;
+        }
+      }
+    }
     if (timeChanged) shift.time = dagvyTime;
     shift.updatedFromDagvy = true;
     appliedAny = true;

@@ -1,0 +1,351 @@
+/* ==========================================
+   PARKERING — Settings list + Page
+   ========================================== */
+
+/* ── Settings: Add row ── */
+.parkering-add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.parkering-input {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 16px;
+  border: 1.5px solid rgba(120, 120, 140, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-primary, #1a1a2e);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.parkering-input:focus {
+  border-color: var(--accent-blue, #4a90d9);
+}
+.dark .parkering-input {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e8e8f0;
+}
+.dark .parkering-input:focus {
+  border-color: var(--accent-blue, #6aa8e8);
+}
+
+.parkering-add-btn {
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-blue, #4a90d9);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.parkering-add-btn:active {
+  background: #3a78c0;
+}
+
+/* ── Settings: Person list ── */
+.parkering-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(120, 120, 140, 0.12);
+}
+.parkering-list-item:last-child {
+  border-bottom: none;
+}
+
+.parkering-list-name {
+  font-size: 14.5px;
+  color: var(--text-primary, #1a1a2e);
+}
+.dark .parkering-list-name {
+  color: #d8d8e4;
+}
+
+.parkering-remove-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(220, 60, 60, 0.12);
+  color: #d44;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.parkering-remove-btn:active {
+  background: rgba(220, 60, 60, 0.25);
+}
+.dark .parkering-remove-btn {
+  background: rgba(220, 80, 80, 0.15);
+  color: #e66;
+}
+
+.parkering-empty {
+  text-align: center;
+  color: rgba(120, 120, 140, 0.6);
+  font-size: 13px;
+  padding: 12px 0;
+}
+
+/* ==========================================
+   PARKERING PAGE
+   ========================================== */
+
+.parkering-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ── Empty / Loading state ── */
+.parkering-page-empty,
+.parkering-page-loading {
+  text-align: center;
+  padding: 60px 20px;
+}
+.parkering-page-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.parkering-page-empty p,
+.parkering-page-loading p {
+  margin: 4px 0;
+  color: var(--text-primary, #1a1a2e);
+  font-size: 15px;
+}
+.dark .parkering-page-empty p,
+.dark .parkering-page-loading p {
+  color: #c8c8d8;
+}
+.parkering-page-empty-hint {
+  font-size: 13px !important;
+  opacity: 0.55;
+}
+
+.parkering-retry-btn {
+  margin-top: 16px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent-blue, #4a90d9);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ── Hero: Date + Count ── */
+.parkering-hero {
+  text-align: center;
+  padding: 24px 16px 20px;
+  margin-bottom: 8px;
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(74, 144, 217, 0.1), rgba(56, 182, 130, 0.06));
+  border: 1px solid rgba(74, 144, 217, 0.12);
+}
+.dark .parkering-hero {
+  background: linear-gradient(145deg, rgba(90, 155, 230, 0.12), rgba(60, 190, 140, 0.06));
+  border-color: rgba(90, 155, 230, 0.15);
+}
+
+.parkering-hero-date {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--accent-blue, #4a90d9);
+  margin-bottom: 12px;
+}
+
+.parkering-hero-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1;
+}
+
+.parkering-hero-num {
+  font-size: 52px;
+  font-weight: 800;
+  color: var(--text-primary, #1a1a2e);
+  letter-spacing: -2px;
+}
+.dark .parkering-hero-num {
+  color: #f0f0f8;
+}
+
+.parkering-hero-sep {
+  font-size: 32px;
+  font-weight: 300;
+  color: rgba(120, 120, 140, 0.35);
+  margin: 0 2px;
+}
+
+.parkering-hero-total {
+  font-size: 28px;
+  font-weight: 600;
+  color: rgba(120, 120, 140, 0.45);
+}
+.dark .parkering-hero-total {
+  color: rgba(200, 200, 220, 0.4);
+}
+
+.parkering-hero-label {
+  font-size: 12.5px;
+  color: rgba(120, 120, 140, 0.6);
+  margin-top: 6px;
+}
+
+.parkering-hero-next {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(120, 120, 140, 0.1);
+  font-size: 13.5px;
+  color: var(--text-primary, #1a1a2e);
+}
+.parkering-hero-next strong {
+  font-weight: 600;
+}
+.dark .parkering-hero-next {
+  color: #d0d0e0;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Expand toggle ── */
+.parkering-expand-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent-blue, #4a90d9);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.parkering-expand-header:active {
+  opacity: 0.7;
+}
+
+.parkering-expand-arrow {
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+/* ── Section labels ── */
+.parkering-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(120, 120, 140, 0.5);
+  padding: 10px 0 6px;
+}
+.parkering-section-out {
+  margin-top: 8px;
+}
+
+/* ── Person cards ── */
+.parkering-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(120, 120, 140, 0.1);
+}
+.dark .parkering-card {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.parkering-card-in {
+  border-left: 3px solid #4caf50;
+}
+.parkering-card-out {
+  opacity: 0.45;
+}
+
+.parkering-card-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.parkering-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.parkering-card-name {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary, #1a1a2e);
+}
+.dark .parkering-card-name {
+  color: #e0e0ec;
+}
+
+.parkering-card-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.parkering-card-turn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-blue, #4a90d9);
+  background: rgba(74, 144, 217, 0.1);
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+.dark .parkering-card-turn {
+  background: rgba(100, 170, 240, 0.12);
+  color: #7bb8f0;
+}
+
+.parkering-card-time {
+  font-size: 12.5px;
+  color: rgba(120, 120, 140, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+.dark .parkering-card-time {
+  color: rgba(200, 200, 220, 0.5);
+}
+
+.parkering-card-leaves {
+  font-size: 11.5px;
+  color: #e67e22;
+  font-weight: 500;
+}
+.dark .parkering-card-leaves {
+  color: #f0a050;
+}
+
+.parkering-card-night {
+  font-size: 11px;
+  color: rgba(120, 120, 180, 0.65);
+  font-style: italic;
+}
+.dark .parkering-card-night {
+  color: rgba(160, 160, 220, 0.55);
+}
