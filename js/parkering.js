@@ -435,8 +435,8 @@ function renderParkeringPage() {
     if (status[i].carIn) carsIn++;
   }
 
-  var isFull = carsIn >= PARK_MAX_SPOTS;
-  var colorClass = isFull ? 'parkering-full' : 'parkering-ok';
+  var isFull = isToday && carsIn >= PARK_MAX_SPOTS;
+  var colorClass = isToday ? (isFull ? 'parkering-full' : 'parkering-ok') : 'parkering-ok';
 
   // Find "next out" (only for today)
   var nextOut = null;
@@ -477,16 +477,14 @@ function renderParkeringPage() {
   html += '<span class="parkering-hero-total">' + PARK_MAX_SPOTS + '</span>';
   html += '</div>';
 
-  // Label — full/overful check FIRST regardless of day
-  if (isFull) {
-    if (isToday) {
+  // Label — full/red only for today (real-time), other days just show count
+  if (isToday) {
+    if (isFull) {
       html += '<div class="parkering-hero-label parkering-label-full">⚠️ P-huset fullt!</div>';
     } else {
-      html += '<div class="parkering-hero-label parkering-label-full">⚠️ Överfullt — ' + carsIn + ' bilar på ' + PARK_MAX_SPOTS + ' platser</div>';
+      var freeSpots = PARK_MAX_SPOTS - carsIn;
+      html += '<div class="parkering-hero-label">' + freeSpots + ' lediga platser just nu</div>';
     }
-  } else if (isToday) {
-    var freeSpots = PARK_MAX_SPOTS - carsIn;
-    html += '<div class="parkering-hero-label">' + freeSpots + ' lediga platser just nu</div>';
   } else {
     html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
   }
