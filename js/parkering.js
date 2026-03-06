@@ -578,50 +578,109 @@ function renderParkeringPage() {
   html += '</div>';
 
   // ── Person list ──
-  var carsInList = status.filter(function(s) { return s.carIn; });
-
-  // "Ej parkerad": only persons who have NO carIn entry at all
-  var namesWithCarIn = {};
-  for (var ni = 0; ni < carsInList.length; ni++) {
-    namesWithCarIn[carsInList[ni].name] = true;
-  }
-  var carsOutList = [];
-  var outSeen = {};
-  for (var oi = 0; oi < status.length; oi++) {
-    var oEntry = status[oi];
-    if (!namesWithCarIn[oEntry.name] && !outSeen[oEntry.name]) {
-      carsOutList.push(oEntry);
-      outSeen[oEntry.name] = true;
-    }
-  }
-
-  carsInList.sort(function(a, b) {
-    // Yesterday entries first (already parked from night before)
-    var aIsYesterday = a.source === 'yesterday' ? 0 : 1;
-    var bIsYesterday = b.source === 'yesterday' ? 0 : 1;
-    if (aIsYesterday !== bIsYesterday) return aIsYesterday - bIsYesterday;
-    // Within same group: sort by startMin
-    var aStart = a.startMin >= 0 ? a.startMin : 9999;
-    var bStart = b.startMin >= 0 ? b.startMin : 9999;
-    return aStart - bStart;
-  });
-
-  carsOutList.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
-
-  // Detail list — always visible
   html += '<div class="parkering-detail-list">';
 
-  if (carsInList.length > 0) {
-    html += '<div class="parkering-section-label">🚗 Parkerad (' + carsInList.length + ')</div>';
-    for (var ci = 0; ci < carsInList.length; ci++) {
-      html += _renderParkCard(carsInList[ci], nowMin, true, isToday, ci + 1);
-    }
-  }
+  if (isToday) {
+    // TODAY: 3 groups — only people who work (have a source)
+    var parkedNow = [];   // carIn = true (currently in parking)
+    var arriving = [];    // has shift but not arrived yet (nowMin < startMin)
+    var leftAlready = []; // had shift but already left (nowMin >= endMin)
 
-  if (carsOutList.length > 0) {
-    html += '<div class="parkering-section-label parkering-section-out">Ej parkerad (' + carsOutList.length + ')</div>';
-    for (var co = 0; co < carsOutList.length; co++) {
-      html += _renderParkCard(carsOutList[co], nowMin, false, isToday, co + 1);
+    for (var ti = 0; ti < status.length; ti++) {
+      var te = status[ti];
+      if (!te.source) continue; // skip people who don't work today
+
+      if (te.carIn) {
+        parkedNow.push(te);
+      } else if (te.source === 'day' && te.startMin >= 0 && nowMin < te.startMin) {
+        arriving.push(te);
+      } else if (te.startMin >= 0 && te.endMin >= 0) {
+        leftAlready.push(te);
+      }
+    }
+
+    // Sort: parked — yesterday first, then by startMin
+    parkedNow.sort(function(a, b) {
+      var aY = a.source === 'yesterday' ? 0 : 1;
+      var bY = b.source === 'yesterday' ? 0 : 1;
+      if (aY !== bY) return aY - bY;
+      var aS = a.startMin >= 0 ? a.startMin : 9999;
+      var bS = b.startMin >= 0 ? b.startMin : 9999;
+      return aS - bS;
+    });
+
+    // Sort: arriving — by startMin (next to arrive first)
+    arriving.sort(function(a, b) {
+      return (a.startMin >= 0 ? a.startMin : 9999) - (b.startMin >= 0 ? b.startMin : 9999);
+    });
+
+    // Sort: left — by endMin
+    leftAlready.sort(function(a, b) {
+      return (a.endMin >= 0 ? a.endMin : 0) - (b.endMin >= 0 ? b.endMin : 0);
+    });
+
+    if (parkedNow.length > 0) {
+      html += '<div class="parkering-section-label">🚗 Parkerad (' + parkedNow.length + ')</div>';
+      for (var pi = 0; pi < parkedNow.length; pi++) {
+        html += _renderParkCard(parkedNow[pi], nowMin, true, isToday, pi + 1);
+      }
+    }
+
+    if (arriving.length > 0) {
+      html += '<div class="parkering-section-label parkering-section-arriving">⏳ Kommer (' + arriving.length + ')</div>';
+      for (var ai = 0; ai < arriving.length; ai++) {
+        html += _renderParkCard(arriving[ai], nowMin, false, isToday, ai + 1);
+      }
+    }
+
+    if (leftAlready.length > 0) {
+      html += '<div class="parkering-section-label parkering-section-out">✅ Kört ut (' + leftAlready.length + ')</div>';
+      for (var li = 0; li < leftAlready.length; li++) {
+        html += _renderParkCard(leftAlready[li], nowMin, false, isToday, li + 1);
+      }
+    }
+
+  } else {
+    // OTHER DAYS: 2 groups — Parkerad / Ej parkerad
+    var carsInList = status.filter(function(s) { return s.carIn; });
+
+    var namesWithCarIn = {};
+    for (var ni = 0; ni < carsInList.length; ni++) {
+      namesWithCarIn[carsInList[ni].name] = true;
+    }
+    var carsOutList = [];
+    var outSeen = {};
+    for (var oi = 0; oi < status.length; oi++) {
+      var oEntry = status[oi];
+      if (!namesWithCarIn[oEntry.name] && !outSeen[oEntry.name]) {
+        carsOutList.push(oEntry);
+        outSeen[oEntry.name] = true;
+      }
+    }
+
+    carsInList.sort(function(a, b) {
+      var aY = a.source === 'yesterday' ? 0 : 1;
+      var bY = b.source === 'yesterday' ? 0 : 1;
+      if (aY !== bY) return aY - bY;
+      var aS = a.startMin >= 0 ? a.startMin : 9999;
+      var bS = b.startMin >= 0 ? b.startMin : 9999;
+      return aS - bS;
+    });
+
+    carsOutList.sort(function(a, b) { return a.name.localeCompare(b.name, 'sv'); });
+
+    if (carsInList.length > 0) {
+      html += '<div class="parkering-section-label">🚗 Parkerad (' + carsInList.length + ')</div>';
+      for (var ci = 0; ci < carsInList.length; ci++) {
+        html += _renderParkCard(carsInList[ci], nowMin, true, isToday, ci + 1);
+      }
+    }
+
+    if (carsOutList.length > 0) {
+      html += '<div class="parkering-section-label parkering-section-out">Ej parkerad (' + carsOutList.length + ')</div>';
+      for (var co = 0; co < carsOutList.length; co++) {
+        html += _renderParkCard(carsOutList[co], nowMin, false, isToday, co + 1);
+      }
     }
   }
 
