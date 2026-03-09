@@ -91,11 +91,10 @@ function _saveDagvyChangelog() {
  * @param {string} to         New value
  */
 function _logDagvyChange(employeeId, name, dateKey, type, from, to) {
-  // Avoid duplicate logs for same change (same employee, date, type, to-value within 60s)
+  // Avoid duplicate logs: skip if same employee+date+type+to already exists
   var now = Date.now();
   for (var i = _dagvyChangelog.length - 1; i >= 0; i--) {
     var prev = _dagvyChangelog[i];
-    if (now - prev.ts > 60000) break; // only check last 60 seconds
     if (prev.employeeId === employeeId && prev.dateKey === dateKey &&
         prev.type === type && prev.to === to) {
       return; // duplicate, skip
