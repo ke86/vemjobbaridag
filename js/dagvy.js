@@ -45,12 +45,23 @@ function dagvyWriteCookie(name, value) {
 
 /**
  * Load changelog from IndexedDB. Called once at startup.
+ * Auto-removes entries older than 30 days.
  */
 function loadDagvyChangelog() {
   if (typeof loadSetting !== 'function') return Promise.resolve([]);
   return loadSetting('dagvyChangelog').then(function(val) {
     if (Array.isArray(val)) {
       _dagvyChangelog = val;
+    }
+    // Auto-cleanup: remove entries older than 30 days
+    var thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    var before = _dagvyChangelog.length;
+    _dagvyChangelog = _dagvyChangelog.filter(function(entry) {
+      return entry.ts >= thirtyDaysAgo;
+    });
+    if (_dagvyChangelog.length < before) {
+      console.log('[DAGVY-CHANGELOG] Auto-rensade ' + (before - _dagvyChangelog.length) + ' poster äldre än 30 dagar');
+      _saveDagvyChangelog();
     }
     _dagvyChangelogLoaded = true;
     return _dagvyChangelog;
