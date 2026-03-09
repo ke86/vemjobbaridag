@@ -266,6 +266,18 @@ function setupEventListeners() {
     });
   }
 
+  // Ändringshistorik subsection (collapsible inside Data)
+  const changelogSubHeader = document.getElementById('changelogSubHeader');
+  const changelogSubsection = document.getElementById('changelogSubsection');
+  if (changelogSubHeader && changelogSubsection) {
+    changelogSubHeader.addEventListener('click', function() {
+      changelogSubsection.classList.toggle('expanded');
+      if (changelogSubsection.classList.contains('expanded')) {
+        _updateChangelogSettingsCount();
+      }
+    });
+  }
+
   // Radera data subsection (collapsible inside Data)
   const deleteSubHeader = document.getElementById('deleteSubHeader');
   const deleteSubsection = document.getElementById('deleteSubsection');

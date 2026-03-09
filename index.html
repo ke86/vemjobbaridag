@@ -814,6 +814,18 @@
             </div>
           </div>
 
+          <!-- Ändringshistorik (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="changelogSubsection">
+            <div class="subsection-header" id="changelogSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">📋 Ändringshistorik</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="changelogSubContent">
+              <p class="settings-desc" id="changelogCount">Laddar…</p>
+              <button class="settings-danger-btn" id="clearChangelogBtn" onclick="clearDagvyChangelogUI()">Rensa all historik</button>
+            </div>
+          </div>
+
           <!-- Radera data (collapsible) -->
           <div class="settings-subsection collapsible-sub" id="deleteSubsection">
             <div class="subsection-header" id="deleteSubHeader">
@@ -834,7 +846,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.90</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v5.93</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

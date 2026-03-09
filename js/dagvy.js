@@ -20,6 +20,10 @@ let dagvyCurrentName = '';
 // Latest known dagvy scrapedAt timestamp
 let dagvyLatestScrapedAt = null;
 
+// ── Changelog — persistent change history ──
+var _dagvyChangelog = [];
+var _dagvyChangelogLoaded = false;
+
 // Cookie keys for persisting toggle states
 const DAGVY_MODE_COOKIE = 'dagvy_mode';   // "enkel" | "allt"
 const DAGVY_CREW_COOKIE = 'dagvy_crew';   // "med" | "alla"
@@ -34,6 +38,79 @@ function dagvyWriteCookie(name, value) {
   const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString();
   document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=Lax';
 }
+
+// ==========================================
+// CHANGELOG — Persistent change history (IndexedDB)
+// ==========================================
+
+/**
+ * Load changelog from IndexedDB. Called once at startup.
+ */
+function loadDagvyChangelog() {
+  if (typeof loadSetting !== 'function') return Promise.resolve([]);
+  return loadSetting('dagvyChangelog').then(function(val) {
+    if (Array.isArray(val)) {
+      _dagvyChangelog = val;
+    }
+    _dagvyChangelogLoaded = true;
+    return _dagvyChangelog;
+  }).catch(function() {
+    _dagvyChangelogLoaded = true;
+    return _dagvyChangelog;
+  });
+}
+
+/**
+ * Save changelog to IndexedDB.
+ */
+function _saveDagvyChangelog() {
+  if (typeof saveSetting !== 'function') return;
+  saveSetting('dagvyChangelog', _dagvyChangelog).catch(function(err) {
+    console.log('[DAGVY-CHANGELOG] Save error: ' + (err.message || err));
+  });
+}
+
+/**
+ * Log a schedule change.
+ * @param {string} employeeId
+ * @param {string} name       Employee display name
+ * @param {string} dateKey    YYYY-MM-DD the change applies to
+ * @param {string} type       'tur' | 'tid' | 'tillagd' | 'konflikt'
+ * @param {string} from       Old value (empty string for new entries)
+ * @param {string} to         New value
+ */
+function _logDagvyChange(employeeId, name, dateKey, type, from, to) {
+  // Avoid duplicate logs for same change (same employee, date, type, to-value within 60s)
+  var now = Date.now();
+  for (var i = _dagvyChangelog.length - 1; i >= 0; i--) {
+    var prev = _dagvyChangelog[i];
+    if (now - prev.ts > 60000) break; // only check last 60 seconds
+    if (prev.employeeId === employeeId && prev.dateKey === dateKey &&
+        prev.type === type && prev.to === to) {
+      return; // duplicate, skip
+    }
+  }
+
+  _dagvyChangelog.push({
+    ts: now,
+    employeeId: employeeId,
+    name: name,
+    dateKey: dateKey,
+    type: type,
+    from: from || '',
+    to: to || ''
+  });
+
+  // Keep max 500 entries (trim oldest)
+  if (_dagvyChangelog.length > 500) {
+    _dagvyChangelog = _dagvyChangelog.slice(-500);
+  }
+
+  _saveDagvyChangelog();
+}
+
+// Load changelog on startup
+loadDagvyChangelog();
 
 // ==========================================
 // DAGVY LOCALSTORAGE CACHE
@@ -335,9 +412,14 @@ async function showDagvyPopup(employeeId) {
       </div>
     </div>
     <div class="dagvy-bottom-bar">
-      <button class="dagvy-btn dagvy-btn-schedule" onclick="closeDagvy(); goToPersonSchedule('${employeeId}')">
-        📅 Visa schema
-      </button>
+      <div class="dagvy-bottom-btns">
+        <button class="dagvy-btn dagvy-btn-schedule" onclick="closeDagvy(); goToPersonSchedule('${employeeId}')">
+          📅 Schema
+        </button>
+        <button class="dagvy-btn dagvy-btn-changelog" id="dagvyChangelogBtn" onclick="showDagvyChangelog('${employeeId}')">
+          📋 Ändringar <span class="dagvy-changelog-badge" id="dagvyChangelogBadge"></span>
+        </button>
+      </div>
     </div>
   `;
 
@@ -425,6 +507,9 @@ async function showDagvyPopup(employeeId) {
   // Build the dagvy content
   contentEl.innerHTML = buildDagvyContent(todayDagvy, emp.name, dagvySimpleMode);
   dagvyScrollToCurrent();
+
+  // Update changelog badge count
+  _updateDagvyChangelogBadge(employeeId);
 }
 
 /**
@@ -467,8 +552,10 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
       shift.dagvyConflictTurn = dagvyTurnCheck;
       var dvTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
       shift.dagvyConflictTime = dvTimeValid ? dayData.start + '-' + dayData.end : '';
-      console.log('[DAGVY-CONFLICT] ' + (registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : employeeId) +
+      var conflictName = registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : employeeId;
+      console.log('[DAGVY-CONFLICT] ' + conflictName +
         ' has ' + shift.badge + ' but dagvy shows tur=' + dagvyTurnCheck);
+      _logDagvyChange(employeeId, conflictName, dateKey, 'konflikt', shift.badge.toUpperCase(), dagvyTurnCheck);
       renderEmployees();
     }
     return;
@@ -503,8 +590,9 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
     shift.originalTime = currentTime;
   }
 
-  // Update the shift data
+  // Update the shift data + log changes
   if (turnChanged) {
+    _logDagvyChange(employeeId, empName, dateKey, 'tur', currentTurn, dagvyTurn);
     shift.badgeText = dagvyTurn;
     // If dagvy didn't provide a new time, look up from TIL_TURN_TIMES / TIL_SHIFT_TIMES
     if (!timeChanged && dagvyTurn) {
@@ -513,12 +601,14 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
         if (!shift.hasOwnProperty('originalTime')) {
           shift.originalTime = currentTime;
         }
+        _logDagvyChange(employeeId, empName, dateKey, 'tid', currentTime, lookupTime);
         shift.time = lookupTime;
         console.log('[DAGVY-LOOKUP] ' + empName + ' turn ' + dagvyTurn + ' → time from lookup: ' + lookupTime);
       }
     }
   }
   if (timeChanged) {
+    _logDagvyChange(employeeId, empName, dateKey, 'tid', currentTime, dagvyTime);
     shift.time = dagvyTime;
   }
   shift.updatedFromDagvy = true;
@@ -581,6 +671,7 @@ function applyDagvyToSchedule(empName, dagvyData) {
         updatedFromDagvy: true
       };
       allShifts.push(virtualShift);
+      _logDagvyChange(employeeId, empName, dateKey, 'tillagd', '', dagvyTurn + ' ' + virtualTime);
       console.log('[DAGVY-VIRTUAL] Created virtual shift for ' + empName +
         ' | tur=' + dagvyTurn + ' | tid=' + dagvyTime);
       renderEmployees();
@@ -634,6 +725,7 @@ function reapplyDagvyCorrections() {
     if (!shift) {
       if (dagvyTurn) {
         var virtualTime = dagvyTime || lookupTurnTime(dagvyTurn) || '-';
+        var empDisplayName = registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : normalizedName;
         allShifts.push({
           employeeId: employeeId,
           badge: '',
@@ -643,6 +735,7 @@ function reapplyDagvyCorrections() {
           updatedFromDagvy: true
         });
         appliedAny = true;
+        _logDagvyChange(employeeId, empDisplayName, dateKey, 'tillagd', '', dagvyTurn + ' ' + virtualTime);
         console.log('[DAGVY-REAPPLY-VIRTUAL] Created virtual shift for ' + normalizedName +
           ' | tur=' + dagvyTurn + ' | tid=' + dagvyTime);
       }
@@ -655,6 +748,8 @@ function reapplyDagvyCorrections() {
         shift.dagvyConflictTurn = dagvyTurn;
         shift.dagvyConflictTime = dagvyTime || '';
         appliedAny = true;
+        var conflictDispName = registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : normalizedName;
+        _logDagvyChange(employeeId, conflictDispName, dateKey, 'konflikt', shift.badge.toUpperCase(), dagvyTurn);
       }
       continue;
     }
@@ -675,7 +770,9 @@ function reapplyDagvyCorrections() {
       shift.originalTime = currentTime;
     }
 
+    var reapplyName = registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : normalizedName;
     if (turnChanged) {
+      _logDagvyChange(employeeId, reapplyName, dateKey, 'tur', currentTurn, dagvyTurn);
       shift.badgeText = dagvyTurn;
       // If dagvy didn't provide a new time, look up from TIL_TURN_TIMES / TIL_SHIFT_TIMES
       if (!timeChanged && dagvyTurn) {
@@ -684,11 +781,15 @@ function reapplyDagvyCorrections() {
           if (!shift.hasOwnProperty('originalTime')) {
             shift.originalTime = currentTime;
           }
+          _logDagvyChange(employeeId, reapplyName, dateKey, 'tid', currentTime, lookupTime);
           shift.time = lookupTime;
         }
       }
     }
-    if (timeChanged) shift.time = dagvyTime;
+    if (timeChanged) {
+      _logDagvyChange(employeeId, reapplyName, dateKey, 'tid', currentTime, dagvyTime);
+      shift.time = dagvyTime;
+    }
     shift.updatedFromDagvy = true;
     appliedAny = true;
   }
@@ -1092,4 +1193,226 @@ function closeDagvy() {
 
   // Re-show schedule page
   schedulePage.classList.add('active');
+}
+
+// =============================================
+// CHANGELOG — Badge + placeholder view
+// =============================================
+
+/**
+ * Count changelog entries for a specific employee.
+ * Safe fallback: returns 0 if _dagvyChangelog is not yet defined (Del 1).
+ */
+function _getDagvyChangeCount(employeeId) {
+  if (typeof _dagvyChangelog === 'undefined' || !Array.isArray(_dagvyChangelog)) return 0;
+  var count = 0;
+  for (var i = 0; i < _dagvyChangelog.length; i++) {
+    if (_dagvyChangelog[i].employeeId === employeeId) count++;
+  }
+  return count;
+}
+
+/**
+ * Update the changelog badge in the dagvy bottom bar.
+ */
+function _updateDagvyChangelogBadge(employeeId) {
+  var badge = document.getElementById('dagvyChangelogBadge');
+  var btn = document.getElementById('dagvyChangelogBtn');
+  if (!badge || !btn) return;
+
+  var count = _getDagvyChangeCount(employeeId);
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = '';
+    btn.classList.add('dagvy-btn-changelog-active');
+  } else {
+    badge.textContent = '';
+    badge.style.display = 'none';
+    btn.classList.remove('dagvy-btn-changelog-active');
+  }
+}
+
+/**
+ * Show changelog view for a specific employee.
+ * Replaces dagvy content with a grouped, chronological changelog.
+ */
+function showDagvyChangelog(employeeId) {
+  var contentEl = document.getElementById('dagvyContent');
+  if (!contentEl) return;
+
+  var count = _getDagvyChangeCount(employeeId);
+
+  if (count === 0) {
+    contentEl.innerHTML =
+      '<div class="dagvy-changelog-list">' +
+        '<div class="dagvy-changelog-back" onclick="_dagvyChangelogBack(\'' + employeeId + '\')">' +
+          '← Tillbaka till dagvy' +
+        '</div>' +
+        '<div class="dagvy-empty" style="padding-top:32px;">' +
+          '<div class="dagvy-empty-icon">📋</div>' +
+          '<p>Inga ändringar registrerade</p>' +
+          '<p class="dagvy-empty-sub">Ändringar loggas när dagvy uppdaterar schemat</p>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  // Collect changes for this employee
+  var changes = [];
+  for (var i = 0; i < _dagvyChangelog.length; i++) {
+    if (_dagvyChangelog[i].employeeId === employeeId) {
+      changes.push(_dagvyChangelog[i]);
+    }
+  }
+
+  // Sort newest first
+  changes.sort(function(a, b) { return b.ts - a.ts; });
+
+  var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+
+  var html = '<div class="dagvy-changelog-list">';
+  html += '<div class="dagvy-changelog-back" onclick="_dagvyChangelogBack(\'' + employeeId + '\')">' +
+    '← Tillbaka till dagvy</div>';
+  html += '<div class="dagvy-changelog-header">📋 Ändringar (' + changes.length + ')</div>';
+
+  var lastDateLabel = '';
+  for (var c = 0; c < changes.length; c++) {
+    var ch = changes[c];
+    var d = new Date(ch.ts);
+    var dateLabel = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    var dayName = dayNames[d.getDay()];
+    var timeLabel = String(d.getHours()).padStart(2, '0') + ':' +
+      String(d.getMinutes()).padStart(2, '0');
+
+    // Group header by detection date
+    if (dateLabel !== lastDateLabel) {
+      html += '<div class="dagvy-changelog-date">' + dayName + ' ' + dateLabel + '</div>';
+      lastDateLabel = dateLabel;
+    }
+
+    // Icon + description per type
+    var icon = '';
+    var desc = '';
+    var entryClass = 'dagvy-changelog-entry';
+    if (ch.type === 'tur') {
+      icon = '🔄';
+      desc = '<span class="dagvy-cl-label">Tur</span> ' +
+        '<span class="dagvy-cl-from">' + ch.from + '</span>' +
+        ' <span class="dagvy-cl-arrow">→</span> ' +
+        '<span class="dagvy-cl-to">' + ch.to + '</span>';
+    } else if (ch.type === 'tid') {
+      icon = '🕐';
+      desc = '<span class="dagvy-cl-label">Tid</span> ' +
+        '<span class="dagvy-cl-from">' + ch.from + '</span>' +
+        ' <span class="dagvy-cl-arrow">→</span> ' +
+        '<span class="dagvy-cl-to">' + ch.to + '</span>';
+    } else if (ch.type === 'tillagd') {
+      icon = '➕';
+      desc = '<span class="dagvy-cl-label">Nytt pass</span> ' +
+        '<span class="dagvy-cl-to">' + ch.to + '</span>';
+      entryClass += ' dagvy-changelog-added';
+    } else if (ch.type === 'konflikt') {
+      icon = '⚠️';
+      desc = '<span class="dagvy-cl-label">Konflikt</span> ' +
+        '<span class="dagvy-cl-from">' + ch.from + '</span>' +
+        ' men dagvy visar <span class="dagvy-cl-to">' + ch.to + '</span>';
+      entryClass += ' dagvy-changelog-conflict';
+    } else {
+      icon = '📝';
+      desc = ch.type + ': ' + ch.from + ' → ' + ch.to;
+    }
+
+    // Show which date the change applies to (if different from detection date)
+    var appliesTo = '';
+    if (ch.dateKey && ch.dateKey !== dateLabel) {
+      appliesTo = '<span class="dagvy-cl-applies">gäller ' + ch.dateKey + '</span>';
+    }
+
+    html += '<div class="' + entryClass + '">' +
+      '<span class="dagvy-changelog-icon">' + icon + '</span>' +
+      '<div class="dagvy-changelog-content">' +
+        '<div class="dagvy-changelog-desc">' + desc + '</div>' +
+        '<div class="dagvy-changelog-meta">' +
+          '<span class="dagvy-changelog-time">' + timeLabel + '</span>' +
+          appliesTo +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  html += '</div>';
+  contentEl.innerHTML = html;
+}
+
+/**
+ * Return from changelog view to dagvy content.
+ */
+function _dagvyChangelogBack(employeeId) {
+  if (dagvyCurrentData) {
+    var contentEl = document.getElementById('dagvyContent');
+    if (contentEl) {
+      contentEl.innerHTML = buildDagvyContent(dagvyCurrentData, dagvyCurrentName, dagvySimpleMode);
+      dagvyScrollToCurrent();
+    }
+  }
+}
+
+/**
+ * Clear all changelog entries. Called from Settings.
+ */
+function clearDagvyChangelog() {
+  _dagvyChangelog = [];
+  _saveDagvyChangelog();
+}
+
+/**
+ * Update the count text in Settings → Ändringshistorik.
+ */
+function _updateChangelogSettingsCount() {
+  var el = document.getElementById('changelogCount');
+  if (!el) return;
+  var count = _dagvyChangelog.length;
+  if (count === 0) {
+    el.textContent = 'Ingen historik sparad.';
+  } else {
+    el.textContent = count + ' ändringar sparade.';
+  }
+}
+
+/**
+ * Clear changelog from Settings UI (with confirmation).
+ */
+function clearDagvyChangelogUI() {
+  var count = _dagvyChangelog.length;
+  if (count === 0) return;
+
+  // Show inline confirmation
+  var btn = document.getElementById('clearChangelogBtn');
+  if (!btn) return;
+
+  if (btn.dataset.confirming === 'true') {
+    // Second click — actually clear
+    clearDagvyChangelog();
+    _updateChangelogSettingsCount();
+    btn.textContent = 'Rensa all historik';
+    btn.dataset.confirming = '';
+    btn.classList.remove('settings-danger-btn-confirm');
+    return;
+  }
+
+  // First click — ask to confirm
+  btn.textContent = 'Tryck igen för att rensa ' + count + ' ändringar';
+  btn.dataset.confirming = 'true';
+  btn.classList.add('settings-danger-btn-confirm');
+
+  // Reset after 3 seconds
+  setTimeout(function() {
+    if (btn.dataset.confirming === 'true') {
+      btn.textContent = 'Rensa all historik';
+      btn.dataset.confirming = '';
+      btn.classList.remove('settings-danger-btn-confirm');
+    }
+  }, 3000);
 }
