@@ -652,7 +652,8 @@ function buildPosCard(p) {
 
   var html = '<div class="pos-card ' + rollClass + (flags.isNow ? ' pos-card-now' : '') + '"' +
     (isExpandable ? ' data-expandable="1"' : '') +
-    (p.namn ? ' data-person="' + escPosAttr(p.namn) + '"' : '') + '>';
+    (p.namn ? ' data-person="' + escPosAttr(p.namn) + '"' : '') +
+    (p.anstNr ? ' data-anstnr="' + escPosAttr(p.anstNr) + '"' : '') + '>';
 
   // Left: role badge
   html += '<span class="pos-card-icon">' + rollLabel + '</span>';
@@ -712,7 +713,7 @@ function buildPosCard(p) {
 /**
  * Build a compact schedule list for a person across all available dates.
  */
-function buildPersonSchedule(personName) {
+function buildPersonSchedule(personName, anstNr) {
   if (!_posCache || !_posCache.data || !_posCache.data.dagar) return '';
   var dagar = _posCache.data.dagar;
   var today = getTodayStr();
@@ -754,10 +755,14 @@ function buildPersonSchedule(personName) {
     var isCurrent = dateStr === _posCurrentDate;
     var isOld = dateStr < yesterday;
 
-    // Find person in this day
+    // Find person in this day (match by anstNr if available, fallback to name)
     var found = null;
     for (var pi = 0; pi < dayArr.length; pi++) {
-      if ((dayArr[pi].namn || '').toLowerCase() === nameLower) {
+      if (anstNr && dayArr[pi].anstNr === anstNr) {
+        found = dayArr[pi];
+        break;
+      }
+      if (!anstNr && (dayArr[pi].namn || '').toLowerCase() === nameLower) {
         found = dayArr[pi];
         break;
       }
@@ -862,10 +867,11 @@ function initPosListeners() {
 
       // Build and inject schedule on-demand
       var personName = this.getAttribute('data-person');
+      var anstNr = this.getAttribute('data-anstnr') || '';
       if (personName && _posAvailDates.length > 1) {
         var trainsDiv = this.querySelector('.pos-card-trains');
         if (trainsDiv) {
-          trainsDiv.insertAdjacentHTML('beforeend', buildPersonSchedule(personName));
+          trainsDiv.insertAdjacentHTML('beforeend', buildPersonSchedule(personName, anstNr));
         }
       }
     });
