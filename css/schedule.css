@@ -387,6 +387,11 @@ html.dark .holiday-cell {
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
+.schedule-day.komp {
+  background: rgba(20, 184, 166, 0.2);
+  border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
 .schedule-day.reserv {
   background: rgba(245, 158, 11, 0.2);
   border: 1px solid rgba(245, 158, 11, 0.3);
@@ -650,6 +655,11 @@ html.dark .detail-ob-total {
 .schedule-list-item.afd {
   background: rgba(139, 92, 246, 0.1);
   border-left: 3px solid #8b5cf6;
+}
+
+.schedule-list-item.komp {
+  background: rgba(20, 184, 166, 0.1);
+  border-left: 3px solid #14b8a6;
 }
 
 .schedule-list-item.reserv {

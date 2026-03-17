@@ -403,6 +403,13 @@ html.dark .finished-label {
   color: #a78bfa;
 }
 
+/* Komp - Teal */
+.badge.komp-badge {
+  background: rgba(20, 184, 166, 0.15);
+  border-color: rgba(20, 184, 166, 0.3);
+  color: #14b8a6;
+}
+
 /* VAB - Korall */
 .badge.vab-badge {
   background: rgba(251, 146, 60, 0.15);

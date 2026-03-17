@@ -37,7 +37,7 @@ const dayNamesShort = ['Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör', 'Sön'];
 const dayNamesFull = ['Måndag', 'Tisdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lördag', 'Söndag'];
 
 // Non-working shift types - these show "Ledig" in time field
-const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'sjuk'];
+const nonWorkingTypes = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'komp', 'vab', 'sjuk'];
 
 // Birthdays - loaded from Firestore at startup
 // Format: { "Name": "YYYY-MM-DD", ... }

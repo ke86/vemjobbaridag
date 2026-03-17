@@ -803,6 +803,78 @@
   color: #777;
 }
 
+.dagvy-empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.dagvy-empty-dates {
+  margin-top: 16px !important;
+}
+
+/* --- Ledig chips in dagvy empty state --- */
+.dagvy-ledig-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 0 8px;
+}
+
+.dagvy-ledig-chip {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 48px;
+  text-align: center;
+}
+
+.dagvy-ledig-chip:hover {
+  border-color: var(--accent-blue);
+  background: var(--bg-secondary);
+}
+
+.dagvy-ledig-chip:active {
+  transform: scale(0.95);
+}
+
+.dagvy-ledig-chip:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+}
+
+.dagvy-ledig-chip.dagvy-ledig-selected {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+  opacity: 1;
+}
+
+.dark .dagvy-ledig-chip {
+  background: var(--bg-secondary);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.dark .dagvy-ledig-chip:hover {
+  border-color: var(--accent-blue);
+}
+
+.dark .dagvy-ledig-chip.dagvy-ledig-selected {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+}
+
 /* ==========================================
    DANISH STOPS SECTION (inside train segment)
    ========================================== */

@@ -457,14 +457,44 @@ async function showDagvyPopup(employeeId) {
 
   if (!todayDagvy || todayDagvy.notFound) {
     if (turnEl) turnEl.textContent = 'Ingen tur denna dag';
-    const availDates = data.days ? data.days.map(function(d) { return d.date; }).join(', ') : 'inga';
-    contentEl.innerHTML = `
-      <div class="dagvy-empty">
-        <div class="dagvy-empty-icon">📋</div>
-        <p>Ingen turdata för ${formatDate(currentDate)}</p>
-        <p class="dagvy-empty-sub">Tillgängliga dagar: ${availDates}</p>
-      </div>
-    `;
+
+    // Check if person has a scheduled working shift (not already ledig)
+    var schedShift = (employeesData[dateKey] || []).find(function(s) { return s.employeeId === employeeId; });
+    var hasWorkingShift = schedShift && !nonWorkingTypes.includes(schedShift.badge);
+
+    var emptyHtml = '<div class="dagvy-empty">';
+    emptyHtml += '<div class="dagvy-empty-icon">📋</div>';
+
+    if (hasWorkingShift) {
+      emptyHtml += '<p class="dagvy-empty-title">Inget arbetspass hittat</p>';
+      emptyHtml += '<p class="dagvy-empty-sub">Ledig? Välj typ nedan</p>';
+      emptyHtml += '<div class="dagvy-ledig-chips">';
+      var ledigTypes = [
+        { type: 'fp', label: 'FP' },
+        { type: 'fpv', label: 'FPV' },
+        { type: 'semester', label: 'Sem' },
+        { type: 'foraldraledighet', label: 'FL' },
+        { type: 'sjuk', label: 'Sjuk' },
+        { type: 'vab', label: 'VAB' },
+        { type: 'komp', label: 'Komp' },
+        { type: 'afd', label: 'AFD' },
+        { type: 'ffu', label: 'FFU' }
+      ];
+      for (var li = 0; li < ledigTypes.length; li++) {
+        var lt = ledigTypes[li];
+        emptyHtml += '<button class="dagvy-ledig-chip" data-ledig-type="' + lt.type + '" ' +
+          'onclick="dagvySetLedig(\'' + employeeId + '\',\'' + dateKey + '\',\'' + lt.type + '\',this)">' +
+          lt.label + '</button>';
+      }
+      emptyHtml += '</div>';
+    } else {
+      emptyHtml += '<p>Ingen turdata för ' + formatDate(currentDate) + '</p>';
+    }
+
+    var availDates = data.days ? data.days.map(function(d) { return d.date; }).join(', ') : 'inga';
+    emptyHtml += '<p class="dagvy-empty-sub dagvy-empty-dates">Tillgängliga dagar: ' + availDates + '</p>';
+    emptyHtml += '</div>';
+    contentEl.innerHTML = emptyHtml;
     return;
   }
 
@@ -1183,6 +1213,70 @@ function buildDagvyContent(dayData, employeeName, simpleMode) {
   }
 
   return html;
+}
+
+/**
+ * Set a ledig type from the dagvy "not found" suggestion.
+ * Saves the leave type to the schedule and updates UI.
+ */
+async function dagvySetLedig(employeeId, dateKey, ledigType, btnEl) {
+  // Visual feedback: highlight selected chip, dim others
+  var allChips = document.querySelectorAll('.dagvy-ledig-chip');
+  for (var i = 0; i < allChips.length; i++) {
+    allChips[i].classList.remove('dagvy-ledig-selected');
+    allChips[i].disabled = true;
+  }
+  if (btnEl) btnEl.classList.add('dagvy-ledig-selected');
+
+  // Build shift entry
+  var badgeText = '';
+  var typeMap = {
+    'fp': 'FP', 'fpv': 'FPV', 'semester': 'Semester',
+    'foraldraledighet': 'Föräldraledighet', 'sjuk': 'Sjuk',
+    'vab': 'VAB', 'komp': 'Komp', 'afd': 'AFD', 'ffu': 'FFU'
+  };
+  badgeText = typeMap[ledigType] || ledigType.toUpperCase();
+
+  var newShift = {
+    employeeId: employeeId,
+    badge: ledigType,
+    badgeText: badgeText,
+    time: '-',
+    edited: true
+  };
+
+  try {
+    // Save to Firebase
+    if (typeof saveDayEditToFirebase === 'function') {
+      await saveDayEditToFirebase(dateKey, employeeId, newShift);
+    }
+
+    // Update local data
+    if (!employeesData[dateKey]) employeesData[dateKey] = [];
+    employeesData[dateKey] = employeesData[dateKey].filter(function(s) { return s.employeeId !== employeeId; });
+    employeesData[dateKey].push(newShift);
+
+    // Refresh main view
+    if (typeof renderEmployees === 'function') renderEmployees();
+
+    // Show confirmation in dagvy
+    var emptyEl = document.querySelector('.dagvy-empty');
+    if (emptyEl) {
+      emptyEl.innerHTML =
+        '<div class="dagvy-empty-icon">✅</div>' +
+        '<p>Ändrad till <strong>' + badgeText + '</strong></p>' +
+        '<p class="dagvy-empty-sub">Schemat är uppdaterat</p>';
+    }
+
+    if (typeof showToast === 'function') showToast('Satt som ' + badgeText, 'success');
+  } catch (err) {
+    console.error('[DAGVY] Error setting ledig:', err);
+    if (typeof showToast === 'function') showToast('Kunde inte spara: ' + err.message, 'error');
+    // Re-enable chips on error
+    for (var j = 0; j < allChips.length; j++) {
+      allChips[j].disabled = false;
+    }
+  }
 }
 
 /**

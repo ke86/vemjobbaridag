@@ -252,7 +252,7 @@ function openDayEditor(dateKey, employeeId) {
     if (chip) {
       chip.classList.add('selected');
       // Clear time fields for special types
-      if (['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab'].includes(chipType)) {
+      if (['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab', 'komp', 'afd'].includes(chipType)) {
         dayEditorStartTime.value = '';
         dayEditorEndTime.value = '';
       }
@@ -287,16 +287,65 @@ function selectDayType(chip) {
   } else {
     // Remove selection from all chips
     document.querySelectorAll('.day-editor-chip').forEach(c => c.classList.remove('selected'));
-    // Select this chip (unless it's "clear")
+
+    // Ångra: restore from dagvy data
+    if (type === 'undo') {
+      _restoreFromDagvy();
+      return;
+    }
+
+    // Select this chip
     if (type !== '') {
       chip.classList.add('selected');
       // Clear time and turn for special types
-      if (['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab'].includes(type)) {
+      if (['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab', 'komp', 'afd'].includes(type)) {
         dayEditorStartTime.value = '';
         dayEditorEndTime.value = '';
         dayEditorTurn.value = '';
       }
     }
+  }
+}
+
+/**
+ * Restore fields from dagvy data for current editing day.
+ * Looks up dagvyAllData by employee name + dateKey.
+ */
+function _restoreFromDagvy() {
+  if (!currentEditingDay) return;
+
+  var employeeId = currentEditingDay.employeeId;
+  var dateKey = currentEditingDay.dateKey;
+
+  // Find employee name
+  var empName = '';
+  if (typeof registeredEmployees !== 'undefined' && registeredEmployees[employeeId]) {
+    empName = registeredEmployees[employeeId].name;
+  }
+
+  // Look up dagvy data
+  var dagvyDay = null;
+  if (empName && typeof dagvyAllData !== 'undefined' && typeof normalizeName === 'function') {
+    var normalized = normalizeName(empName);
+    var dagvyDoc = dagvyAllData[normalized];
+    if (dagvyDoc && dagvyDoc.days) {
+      dagvyDay = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+      if (dagvyDay && dagvyDay.notFound) dagvyDay = null;
+    }
+  }
+
+  if (dagvyDay && dagvyDay.turnr) {
+    // Restore from dagvy
+    dayEditorTurn.value = dagvyDay.turnr || '';
+    dayEditorStartTime.value = (dagvyDay.start && dagvyDay.start !== '-') ? dagvyDay.start : '';
+    dayEditorEndTime.value = (dagvyDay.end && dagvyDay.end !== '-') ? dagvyDay.end : '';
+    if (typeof showToast === 'function') showToast('Återställd från dagvy', 'success');
+  } else {
+    // No dagvy data — clear fields
+    dayEditorTurn.value = '';
+    dayEditorStartTime.value = '';
+    dayEditorEndTime.value = '';
+    if (typeof showToast === 'function') showToast('Ingen dagvy-data hittades', 'info');
   }
 }
 
@@ -309,7 +358,7 @@ function restoreOriginalFields() {
   const shift = currentEditingDay.shift;
 
   // If no original shift or it was a special type, clear fields
-  if (!shift || ['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab'].includes(shift.badge)) {
+  if (!shift || ['fp', 'fpv', 'semester', 'foraldraledighet', 'sjuk', 'ffu', 'vab', 'komp', 'afd'].includes(shift.badge)) {
     dayEditorStartTime.value = '';
     dayEditorEndTime.value = '';
     dayEditorTurn.value = '';
@@ -345,7 +394,9 @@ function getTypeBadgeText(type) {
     'foraldraledighet': 'Föräldraledighet',
     'sjuk': 'Sjuk',
     'ffu': 'FFU',
-    'vab': 'VAB'
+    'vab': 'VAB',
+    'komp': 'Komp',
+    'afd': 'AFD'
   };
   return typeMap[type] || type.toUpperCase();
 }

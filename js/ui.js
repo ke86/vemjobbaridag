@@ -1599,7 +1599,7 @@ function renderBadgeWithToggle(shift) {
   const trainMode = showNextTrainCheckbox ? showNextTrainCheckbox.checked : false;
 
   // Special badge types - always the same regardless of mode
-  const specialBadges = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'vab', 'ffu', 'seko', 'sjuk'];
+  const specialBadges = ['fp', 'fpv', 'semester', 'franvarande', 'foraldraledighet', 'afd', 'komp', 'vab', 'ffu', 'seko', 'sjuk'];
 
   if (specialBadges.includes(shift.badge)) {
     let badgeHtml = '';
@@ -1610,6 +1610,7 @@ function renderBadgeWithToggle(shift) {
       case 'franvarande': badgeHtml = '<span class="badge franvarande-badge">Frånv.</span>'; break;
       case 'foraldraledighet': badgeHtml = '<span class="badge foraldraledighet-badge">Föräldr.</span>'; break;
       case 'afd': badgeHtml = '<span class="badge afd-badge">AFD</span>'; break;
+      case 'komp': badgeHtml = '<span class="badge komp-badge">Komp</span>'; break;
       case 'vab': badgeHtml = '<span class="badge vab-badge">VAB</span>'; break;
       case 'ffu': badgeHtml = '<span class="badge ffu-badge">FFU</span>'; break;
       case 'seko': badgeHtml = `<span class="badge seko-badge">${shift.badgeText}</span>`; break;
@@ -2388,6 +2389,7 @@ function getShiftTypeClass(badgeText) {
   if (serviceUpper === 'FRÅNVARANDE') return 'franvarande';
   if (serviceUpper.includes('FÖRÄLDRALEDIGHET')) return 'foraldraledighet';
   if (serviceUpper === 'AFD') return 'afd';
+  if (serviceUpper === 'KOMP') return 'komp';
   if (serviceUpper === 'RESERV' || serviceUpper === 'RESERVSTAM') return 'reserv';
   if (badgeText) return 'working';
   return 'off';
@@ -2401,6 +2403,7 @@ function getShiftDisplayText(shift) {
   if (serviceUpper === 'FRÅNVARANDE') return 'Frånv.';
   if (serviceUpper.includes('FÖRÄLDRALEDIGHET')) return 'Föräldr.';
   if (serviceUpper === 'AFD') return 'AFD';
+  if (serviceUpper === 'KOMP') return 'Komp';
   if (serviceUpper === 'RESERV' || serviceUpper === 'RESERVSTAM') {
     return shift.time && shift.time !== '-' ? shift.time : serviceUpper.substring(0, 6);
   }
@@ -2462,6 +2465,7 @@ function getShortLabel(badgeText) {
   if (serviceUpper === 'FRÅNVARANDE') return 'Frånv';
   if (serviceUpper.includes('FÖRÄLDRALEDIGHET')) return 'Föräld';
   if (serviceUpper === 'AFD') return 'AFD';
+  if (serviceUpper === 'KOMP') return 'Komp';
   if (serviceUpper === 'RESERV' || serviceUpper === 'RESERVSTAM') return 'Res';
   return '';
 }
@@ -2607,7 +2611,7 @@ function expandDayCell(el, dayNum, dateKey, badgeText, timeStr, overlayBadge, sh
   const specialLabels = {
     fp: 'Fridag (FP)', fpv: 'Fridag Vakanslista (FPV)',
     semester: 'Semester', franvarande: 'Frånvarande',
-    foraldraledighet: 'Föräldraledighet', afd: 'AFD', vab: 'VAB', sjuk: 'Sjuk'
+    foraldraledighet: 'Föräldraledighet', afd: 'AFD', komp: 'Kompledighet', vab: 'VAB', sjuk: 'Sjuk'
   };
   if (specialLabels[shiftBadge]) {
     typeLabel = `<div class="detail-type">${specialLabels[shiftBadge]}</div>`;

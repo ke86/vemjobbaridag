@@ -341,6 +341,9 @@ function importScheduleData(data) {
     } else if (serviceUpper === 'AFD') {
       shiftEntry.badge = 'afd';
       shiftEntry.badgeText = 'AFD';
+    } else if (serviceUpper === 'KOMP' || serviceUpper === 'KOMPLEDIGHET') {
+      shiftEntry.badge = 'komp';
+      shiftEntry.badgeText = 'Komp';
     } else if (serviceUpper === 'VAB' || serviceUpper.includes('VÅRD AV SJUKT BARN')) {
       shiftEntry.badge = 'vab';
       shiftEntry.badgeText = 'VAB';
