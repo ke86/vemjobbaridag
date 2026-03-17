@@ -687,6 +687,38 @@ html.dark .sidebar-sync-btn:hover {
   background: rgba(59, 130, 246, 0.12);
 }
 
+/* Scrape status text */
+.scrape-status {
+  font-size: 12px;
+  margin-top: 8px;
+  font-weight: 600;
+  min-height: 18px;
+}
+
+.scrape-status-active {
+  color: var(--accent-blue);
+}
+
+.scrape-status-done {
+  color: #22c55e;
+}
+
+.scrape-status-error {
+  color: #ef4444;
+}
+
+.dark .scrape-status-active {
+  color: #60a5fa;
+}
+
+.dark .scrape-status-done {
+  color: #4ade80;
+}
+
+.dark .scrape-status-error {
+  color: #f87171;
+}
+
 /* ==========================================
    EMPTY STATE
    ========================================== */

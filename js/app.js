@@ -308,6 +308,15 @@ function setupEventListeners() {
     });
   }
 
+  // Manuell uppdatering subsection (collapsible inside Data)
+  const scrapeSubHeader = document.getElementById('scrapeSubHeader');
+  const scrapeSubsection = document.getElementById('scrapeSubsection');
+  if (scrapeSubHeader && scrapeSubsection) {
+    scrapeSubHeader.addEventListener('click', function() {
+      scrapeSubsection.classList.toggle('expanded');
+    });
+  }
+
   // Dagvy file upload listeners
   initDagvyUpload();
 

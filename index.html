@@ -784,6 +784,22 @@
             </div>
           </div>
 
+          <!-- Manuell uppdatering (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="scrapeSubsection">
+            <div class="subsection-header" id="scrapeSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">🔄 Manuell uppdatering</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="scrapeSubContent">
+              <p class="settings-desc">Hämtar ny data från källan utöver de 4 automatiska uppdateringarna per dag.</p>
+              <button class="sidebar-sync-btn" id="scrapeBtn" onclick="triggerManualScrape()">
+                <span class="sidebar-sync-icon" id="scrapeIcon">🔄</span>
+                <span class="sidebar-sync-text" id="scrapeText">Uppdatera nu</span>
+              </button>
+              <div class="scrape-status" id="scrapeStatus"></div>
+            </div>
+          </div>
+
           <!-- Fridagsnyckel (collapsible) -->
           <div class="settings-subsection collapsible-sub" id="fridagsSubsection">
             <div class="subsection-header" id="fridagsSubHeader">
@@ -847,7 +863,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v5.99</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.00</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

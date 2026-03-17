@@ -601,6 +601,163 @@ function updateSyncTimestamp() {
   el.textContent = 'Senast synkad ' + hh + ':' + mm;
 }
 
+// =============================================
+// MANUAL SCRAPE (trigger + poll status)
+// =============================================
+var SCRAPE_WORKER = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
+var SCRAPE_PIN = '8612';
+var _scrapePolling = false;
+var _scrapeTimer = null;
+
+/**
+ * Trigger a manual scrape and start polling for status.
+ */
+async function triggerManualScrape() {
+  var btn = document.getElementById('scrapeBtn');
+  var icon = document.getElementById('scrapeIcon');
+  var textEl = document.getElementById('scrapeText');
+  var statusEl = document.getElementById('scrapeStatus');
+
+  if (_scrapePolling) return; // Already running
+
+  try {
+    if (btn) btn.disabled = true;
+    if (icon) icon.textContent = '⏳';
+    if (textEl) textEl.textContent = 'Startar...';
+    if (statusEl) statusEl.textContent = '';
+
+    var res = await fetch(SCRAPE_WORKER + '/trigger-scrape', {
+      method: 'POST',
+      headers: { 'X-PIN': SCRAPE_PIN }
+    });
+
+    if (!res.ok) {
+      var errData = {};
+      try { errData = await res.json(); } catch (e) { /* ignore */ }
+      throw new Error(errData.error || 'HTTP ' + res.status);
+    }
+
+    if (icon) icon.textContent = '🔄';
+    if (textEl) textEl.textContent = 'Uppdatering pågår...';
+    if (statusEl) {
+      statusEl.textContent = '⏳ Väntar i kö...';
+      statusEl.className = 'scrape-status scrape-status-active';
+    }
+
+    // Start polling
+    _scrapePolling = true;
+    _pollScrapeStatus();
+
+  } catch (err) {
+    console.error('[SCRAPE] Trigger error:', err);
+    if (icon) icon.textContent = '❌';
+    if (textEl) textEl.textContent = 'Kunde inte starta';
+    if (statusEl) {
+      statusEl.textContent = '❌ ' + (err.message || 'Okänt fel');
+      statusEl.className = 'scrape-status scrape-status-error';
+    }
+    if (btn) btn.disabled = false;
+    setTimeout(function() { _scrapeResetBtn(); }, 5000);
+  }
+}
+
+/**
+ * Poll scrape status every 10 seconds.
+ */
+function _pollScrapeStatus() {
+  if (!_scrapePolling) return;
+
+  fetch(SCRAPE_WORKER + '/scrape-status', {
+    headers: { 'X-PIN': SCRAPE_PIN }
+  })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.runs || data.runs.length === 0) {
+        _scrapeFinish('⏳ Ingen körning hittad...', false);
+        return;
+      }
+
+      // Find latest manual run (workflow_dispatch) or any in_progress/queued
+      var run = null;
+      for (var i = 0; i < data.runs.length; i++) {
+        var r = data.runs[i];
+        if (r.status === 'in_progress' || r.status === 'queued') {
+          run = r;
+          break;
+        }
+      }
+      // If none running, take the first (latest completed)
+      if (!run) run = data.runs[0];
+
+      var statusEl = document.getElementById('scrapeStatus');
+      var textEl = document.getElementById('scrapeText');
+
+      if (run.status === 'queued') {
+        if (statusEl) statusEl.textContent = '⏳ Väntar i kö...';
+        _scrapeTimer = setTimeout(_pollScrapeStatus, 10000);
+      } else if (run.status === 'in_progress') {
+        var elapsed = run.elapsed ? Math.round(run.elapsed) + 's' : '';
+        if (statusEl) statusEl.textContent = '🔄 Kör...' + (elapsed ? ' (' + elapsed + ')' : '');
+        if (textEl) textEl.textContent = 'Uppdatering pågår...';
+        _scrapeTimer = setTimeout(_pollScrapeStatus, 10000);
+      } else if (run.conclusion === 'success') {
+        var mins = run.elapsed ? Math.round(run.elapsed / 60) : '?';
+        _scrapeFinish('✅ Klar! (' + mins + ' min)', true);
+      } else if (run.conclusion === 'failure') {
+        _scrapeFinish('❌ Misslyckades', false);
+      } else if (run.conclusion === 'cancelled') {
+        _scrapeFinish('⚠️ Avbruten', false);
+      } else {
+        // Unknown state, keep polling
+        _scrapeTimer = setTimeout(_pollScrapeStatus, 10000);
+      }
+    })
+    .catch(function(err) {
+      console.error('[SCRAPE] Poll error:', err);
+      _scrapeFinish('❌ Kunde inte hämta status', false);
+    });
+}
+
+/**
+ * Finish polling and update UI.
+ */
+function _scrapeFinish(message, success) {
+  _scrapePolling = false;
+  if (_scrapeTimer) { clearTimeout(_scrapeTimer); _scrapeTimer = null; }
+
+  var statusEl = document.getElementById('scrapeStatus');
+  var icon = document.getElementById('scrapeIcon');
+  var textEl = document.getElementById('scrapeText');
+
+  if (statusEl) {
+    statusEl.textContent = message;
+    statusEl.className = 'scrape-status ' + (success ? 'scrape-status-done' : 'scrape-status-error');
+  }
+  if (icon) icon.textContent = success ? '✅' : '❌';
+  if (textEl) textEl.textContent = success ? 'Uppdatering klar' : 'Uppdatera nu';
+
+  // Reset button after delay
+  setTimeout(_scrapeResetBtn, success ? 10000 : 5000);
+
+  // If success, auto-sync to get the new data
+  if (success && typeof fetchAllData === 'function') {
+    fetchAllData('post-scrape');
+  }
+}
+
+/**
+ * Reset scrape button to default state.
+ */
+function _scrapeResetBtn() {
+  var btn = document.getElementById('scrapeBtn');
+  var icon = document.getElementById('scrapeIcon');
+  var textEl = document.getElementById('scrapeText');
+
+  if (btn) btn.disabled = false;
+  if (icon) icon.textContent = '🔄';
+  if (textEl) textEl.textContent = 'Uppdatera nu';
+}
+
 /**
  * Load initial data from Firebase.
  * Now delegates to fetchScheduleFromFirebase (parallel fetch + cache).
