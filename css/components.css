@@ -184,7 +184,7 @@ html.dark .finished-label {
   margin-left: 4px;
   font-size: 14px;
   vertical-align: middle;
-  cursor: help;
+  cursor: pointer;
   animation: dagvyUpdatedPulse 0.4s ease-out;
 }
 

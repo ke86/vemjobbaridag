@@ -629,17 +629,90 @@
 .dagvy-conflict-notice {
   width: 100%;
   margin-top: 8px;
-  padding: 5px 10px;
+  padding: 8px 12px;
   font-size: 12px;
   font-weight: 600;
   color: #991b1b;
   background: #fee2e2;
-  border-radius: 6px;
+  border-radius: 8px;
   text-align: center;
 }
 .dark .dagvy-conflict-notice {
   color: #fca5a5;
   background: rgba(252, 165, 165, 0.15);
+}
+
+.dagvy-conflict-text {
+  margin-bottom: 8px;
+}
+
+.dagvy-conflict-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.dagvy-conflict-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.dagvy-conflict-btn:active {
+  transform: scale(0.96);
+}
+
+.dagvy-conflict-accept {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
+
+.dagvy-conflict-accept:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.dagvy-conflict-keep {
+  background: transparent;
+  color: #991b1b;
+  border-color: #991b1b;
+}
+
+.dagvy-conflict-keep:hover {
+  background: rgba(153, 27, 27, 0.1);
+}
+
+.dark .dagvy-conflict-accept {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.dark .dagvy-conflict-keep {
+  color: #fca5a5;
+  border-color: #fca5a5;
+}
+
+.dark .dagvy-conflict-keep:hover {
+  background: rgba(252, 165, 165, 0.1);
+}
+
+.dagvy-conflict-resolved {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.dagvy-conflict-resolved .dagvy-conflict-text {
+  margin-bottom: 0;
+}
+
+.dark .dagvy-conflict-resolved {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.15);
 }
 
 /* ==========================================

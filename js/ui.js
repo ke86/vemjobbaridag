@@ -1886,18 +1886,15 @@ function renderEmployees() {
     // Build badge HTML with icon toggle support
     const badgeHtml = (shift.isBirthdayOnly || shift.isNameDayOnly) ? '' : renderBadgeWithToggle(shift);
 
-    // "DAGVY" badge if shift was created from dagvy (no original schedule entry)
-    // "UPD" badge if existing schedule was updated from dagvy
-    // "⚠️" conflict badge if non-working type has dagvy data
+    // "UPD" badge if shift was created or updated from dagvy
+    // "⚠️" conflict badge if non-working type has dagvy data (clickable → opens dagvy)
     let updatedBadge = '';
     if (shift.dagvyConflict) {
       updatedBadge = '<span class="dagvy-conflict-badge" title="Har dagvy: Tur ' +
         (shift.dagvyConflictTurn || '?') +
         (shift.dagvyConflictTime ? ' ' + shift.dagvyConflictTime : '') +
-        '">⚠️</span>';
-    } else if (shift.addedFromDagvy) {
-      updatedBadge = '<span class="dagvy-added-badge">DAGVY</span>';
-    } else if (shift.updatedFromDagvy) {
+        '" onclick="event.stopPropagation(); showDagvyPopup(\'' + shift.employeeId + '\')">⚠️</span>';
+    } else if (shift.addedFromDagvy || shift.updatedFromDagvy) {
       updatedBadge = '<span class="dagvy-updated-badge">UPD</span>';
     }
 

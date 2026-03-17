@@ -531,11 +531,17 @@ async function showDagvyPopup(employeeId) {
   var conflictShift = (employeesData[dateKey] || []).find(function(s) { return s.employeeId === employeeId; });
   if (conflictShift && conflictShift.dagvyConflict) {
     var badgeLabel = conflictShift.badge || 'ledig';
-    var conflictBadge = document.createElement('div');
-    conflictBadge.className = 'dagvy-conflict-notice';
-    conflictBadge.textContent = '⚠️ Schemalagd som ' + badgeLabel.toUpperCase() + ' men har dagvy';
+    var conflictNotice = document.createElement('div');
+    conflictNotice.className = 'dagvy-conflict-notice';
+    conflictNotice.id = 'dagvyConflictNotice';
+    conflictNotice.innerHTML =
+      '<div class="dagvy-conflict-text">⚠️ Schemalagd som <strong>' + badgeLabel.toUpperCase() + '</strong> men dagvy visar arbetspass</div>' +
+      '<div class="dagvy-conflict-actions">' +
+        '<button class="dagvy-conflict-btn dagvy-conflict-accept" onclick="dagvyAcceptConflict(\'' + employeeId + '\',\'' + dateKey + '\')">✓ Godkänn dagvy</button>' +
+        '<button class="dagvy-conflict-btn dagvy-conflict-keep" onclick="dagvyKeepLedig(\'' + employeeId + '\',\'' + dateKey + '\')">Behåll ' + badgeLabel.toUpperCase() + '</button>' +
+      '</div>';
     var pBar = dagvyPage.querySelector('.dagvy-person-bar');
-    if (pBar) pBar.appendChild(conflictBadge);
+    if (pBar) pBar.appendChild(conflictNotice);
   }
 
   // Store for re-render on mode toggle
@@ -1277,6 +1283,86 @@ async function dagvySetLedig(employeeId, dateKey, ledigType, btnEl) {
       allChips[j].disabled = false;
     }
   }
+}
+
+/**
+ * Accept dagvy conflict: replace the ledig shift with the dagvy working shift.
+ */
+async function dagvyAcceptConflict(employeeId, dateKey) {
+  var shift = (employeesData[dateKey] || []).find(function(s) { return s.employeeId === employeeId; });
+  if (!shift) return;
+
+  // Get dagvy data for this person
+  var empName = registeredEmployees[employeeId] ? registeredEmployees[employeeId].name : '';
+  var normalized = normalizeName(empName);
+  var dagvyDoc = dagvyAllData[normalized];
+  if (!dagvyDoc || !dagvyDoc.days) return;
+
+  var dayData = dagvyDoc.days.find(function(d) { return d.date === dateKey; });
+  if (!dayData || !dayData.turnr) return;
+
+  var dagvyTurn = (dayData.turnr || '').trim();
+  var dagvyTimeValid = dayData.start && dayData.start !== '-' && dayData.end && dayData.end !== '-';
+  var dagvyTime = dagvyTimeValid ? dayData.start + '-' + dayData.end : (lookupTurnTime(dagvyTurn) || '-');
+
+  // Build new working shift
+  var newShift = {
+    employeeId: employeeId,
+    badge: 'dag',
+    badgeText: dagvyTurn,
+    time: dagvyTime,
+    edited: true,
+    updatedFromDagvy: true
+  };
+
+  try {
+    if (typeof saveDayEditToFirebase === 'function') {
+      await saveDayEditToFirebase(dateKey, employeeId, newShift);
+    }
+
+    // Update local data
+    employeesData[dateKey] = employeesData[dateKey].filter(function(s) { return s.employeeId !== employeeId; });
+    employeesData[dateKey].push(newShift);
+
+    // Log change
+    _logDagvyChange(employeeId, empName, dateKey, 'konflikt löst', shift.badge.toUpperCase(), dagvyTurn + ' ' + dagvyTime);
+
+    // Update conflict notice
+    var notice = document.getElementById('dagvyConflictNotice');
+    if (notice) {
+      notice.innerHTML = '<div class="dagvy-conflict-text">✅ Dagvy godkänd — ändrad till <strong>' + dagvyTurn + '</strong></div>';
+      notice.className = 'dagvy-conflict-notice dagvy-conflict-resolved';
+    }
+
+    if (typeof renderEmployees === 'function') renderEmployees();
+    if (typeof showToast === 'function') showToast('Dagvy godkänd', 'success');
+  } catch (err) {
+    console.error('[DAGVY] Error accepting conflict:', err);
+    if (typeof showToast === 'function') showToast('Kunde inte spara: ' + err.message, 'error');
+  }
+}
+
+/**
+ * Keep the ledig status and dismiss the conflict warning.
+ */
+function dagvyKeepLedig(employeeId, dateKey) {
+  var shift = (employeesData[dateKey] || []).find(function(s) { return s.employeeId === employeeId; });
+  if (shift) {
+    // Remove conflict flags so ⚠️ doesn't show again
+    delete shift.dagvyConflict;
+    delete shift.dagvyConflictTurn;
+    delete shift.dagvyConflictTime;
+  }
+
+  // Update notice
+  var notice = document.getElementById('dagvyConflictNotice');
+  if (notice) {
+    notice.innerHTML = '<div class="dagvy-conflict-text">✓ Behållen som ledig</div>';
+    notice.className = 'dagvy-conflict-notice dagvy-conflict-resolved';
+  }
+
+  if (typeof renderEmployees === 'function') renderEmployees();
+  if (typeof showToast === 'function') showToast('Behållen som ledig', 'success');
 }
 
 /**
