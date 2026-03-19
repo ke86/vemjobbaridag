@@ -1023,6 +1023,10 @@ var DOC_TF120126_TOC = [
 // DOCUMENT REGISTRY
 // =============================================
 var DOC_REGISTRY = {
+  srlathund: {
+    url: 'https://pfst.cf2.poecdn.net/base/application/56db22c4116610b90f4db2af3c8c6bb0c85ae118b25331e4ce5d09dda7efdd2b',
+    toc: null
+  },
   kollektivavtal: {
     url: 'docs/Kollektivavtal.pdf',
     toc: DOC_KOLLEKTIVAVTAL_TOC
