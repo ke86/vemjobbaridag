@@ -194,30 +194,39 @@
   font-size: 16px;
 }
 
-/* Predicted cells (future) */
+/* Predicted cells (future, unconfirmed) */
 .shadow-cell-predicted {
   position: relative;
 }
 
-.shadow-cell-predicted .shadow-cell-turn {
-  background: rgba(139, 92, 246, 0.15);
-  color: #8b5cf6;
-  border: 1px dashed rgba(139, 92, 246, 0.3);
-}
-
-html.dark .shadow-cell-predicted .shadow-cell-turn {
-  color: #a78bfa;
-  background: rgba(139, 92, 246, 0.2);
-  border-color: rgba(139, 92, 246, 0.4);
-}
-
 .shadow-cell-predicted .shadow-cell-time {
   color: #8b5cf6;
-  opacity: 0.7;
+  opacity: 0.8;
+  font-size: 10px;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px dashed rgba(139, 92, 246, 0.3);
 }
 
 html.dark .shadow-cell-predicted .shadow-cell-time {
   color: #a78bfa;
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+/* Confirmed predicted cells (green — seen more than once) */
+.shadow-cell-confirmed .shadow-cell-time {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-style: solid;
+}
+
+html.dark .shadow-cell-confirmed .shadow-cell-time {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.4);
 }
 
 /* FP/FPV cells in shadow */
@@ -283,6 +292,11 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
   border: 1px dashed rgba(139, 92, 246, 0.4);
 }
 
+.shadow-legend-dot.confirmed {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.5);
+}
+
 .shadow-legend-dot.fp {
   background: rgba(34, 197, 94, 0.2);
   border: 1px solid rgba(34, 197, 94, 0.4);
@@ -338,6 +352,11 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
     font-size: 8px;
   }
 
+  .shadow-cell-predicted .shadow-cell-time {
+    font-size: 8px;
+    padding: 2px 3px;
+  }
+
   .shadow-legend {
     gap: 10px;
     padding: 10px;
@@ -361,6 +380,11 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 
   .shadow-cell-time {
     font-size: 7px;
+  }
+
+  .shadow-cell-predicted .shadow-cell-time {
+    font-size: 7px;
+    padding: 1px 2px;
   }
 }
 

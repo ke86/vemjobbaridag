@@ -138,31 +138,21 @@ function getCycleWeekNumber(date, cycleLength) {
 }
 
 /**
- * Get all weeks in the display range for shadow schedule
- * Shows from FRIDAG_START_DATE to end of current + next full cycle
+ * Get all weeks in the display range for shadow schedule.
+ * Always shows the full year period: March 2, 2026 → Feb 28, 2027.
  * Returns array of { mondayDate, weekNum (ISO), cycleWeek }
  */
 function getShadowWeeks(cycleLength) {
   const weeks = [];
   const startDate = new Date(2026, 2, 2); // March 2, 2026 (first Monday)
   startDate.setHours(0, 0, 0, 0);
+  const endDate = new Date(2027, 1, 28); // Feb 28, 2027
+  endDate.setHours(0, 0, 0, 0);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // Calculate total weeks in the full period
+  const totalWeeks = Math.ceil((endDate.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
 
-  // Calculate how many complete cycles from start to today
-  const todayMonday = getMondayOfWeek(today);
-  const diffMs = todayMonday.getTime() - startDate.getTime();
-  const diffWeeks = Math.max(0, Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)));
-  const currentCycleIndex = Math.floor(diffWeeks / cycleLength);
-
-  // Show from start, through current cycle + 1 more full cycle
-  const totalWeeksToShow = (currentCycleIndex + 2) * cycleLength;
-
-  // But cap at a reasonable max (e.g., 52 weeks / 1 year)
-  const maxWeeks = Math.min(totalWeeksToShow, 52);
-
-  for (let i = 0; i < maxWeeks; i++) {
+  for (let i = 0; i < totalWeeks; i++) {
     const monday = new Date(startDate);
     monday.setDate(monday.getDate() + (i * 7));
 
@@ -243,12 +233,180 @@ function getEmployeeWeekShifts(employeeId, mondayDate) {
 }
 
 // ==========================================
+// SHADOW SCHEDULE - Combined Reference Cycle
+// ==========================================
+
+/**
+ * Parse a time string like "06:00-14:30" into { start, end }
+ * Returns null if not a valid working time
+ */
+function _parseShadowTime(timeStr) {
+  if (!timeStr || timeStr === '-' || timeStr === '') return null;
+  const parts = timeStr.split('-');
+  if (parts.length !== 2) return null;
+  const start = parts[0].trim();
+  const end = parts[1].trim();
+  if (!start || !end) return null;
+  // Validate HH:MM format
+  if (!/^\d{1,2}:\d{2}$/.test(start) || !/^\d{1,2}:\d{2}$/.test(end)) return null;
+  return { start, end };
+}
+
+/**
+ * Round time to nearest 30 minutes for grouping similar times
+ * "06:12" -> "06:00", "06:18" -> "06:30"
+ */
+function _roundTime30(timeStr) {
+  const parts = timeStr.split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const rounded = m < 15 ? '00' : m < 45 ? '30' : '00';
+  const rh = (m >= 45 ? h + 1 : h) % 24;
+  return String(rh).padStart(2, '0') + ':' + rounded;
+}
+
+/**
+ * Build a combined reference cycle by cross-referencing ALL employees
+ * that share the same fridagsnyckel.
+ *
+ * Each person with the same key has the same repeating schedule but
+ * offset by their fridagsrad. By combining everyone's actual data,
+ * we build a more complete picture of what each cycle position looks like.
+ *
+ * Returns: reference[patternRow][dayIndex] = { start, end, count, confirmed }
+ *   - patternRow: 1..cycleLength
+ *   - dayIndex: 0=Mon .. 6=Sun
+ *   - start/end: most common approximate times
+ *   - count: how many times this time was observed
+ *   - confirmed: true if count > 1 (multiple observations = green)
+ */
+function buildCombinedReferenceCycle(fridagsnyckel, cycleLength) {
+  // Find ALL employees with the same fridagsnyckel
+  const peers = [];
+  for (const [empId, emp] of Object.entries(registeredEmployees)) {
+    if (emp.fridagsnyckel === fridagsnyckel && emp.fridagsrad) {
+      peers.push({ employeeId: empId, rad: parseInt(emp.fridagsrad, 10) });
+    }
+  }
+
+  if (peers.length === 0) return null;
+
+  // Collect time observations: timeData[patternRow][dayIndex] = [ { start, end, roundedKey }, ... ]
+  const timeData = {};
+  for (let r = 1; r <= cycleLength; r++) {
+    timeData[r] = {};
+    for (let d = 0; d < 7; d++) {
+      timeData[r][d] = [];
+    }
+  }
+
+  // Walk through all weeks in the period for each peer
+  const periodStart = new Date(2026, 2, 2); // March 2, 2026 (first Monday)
+  periodStart.setHours(0, 0, 0, 0);
+  const periodEnd = new Date(2027, 1, 28); // Feb 28, 2027
+  periodEnd.setHours(0, 0, 0, 0);
+
+  // Calculate total weeks in period
+  const totalWeeks = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+
+  for (const peer of peers) {
+    for (let wi = 0; wi < totalWeeks; wi++) {
+      // What pattern row is this peer on during week wi?
+      // Week 0: peer is at their fridagsrad
+      // Week 1: fridagsrad + 1, etc. (wrapping)
+      const patternRow = ((wi + peer.rad - 1) % cycleLength) + 1;
+
+      // Monday of this week
+      const monday = new Date(periodStart);
+      monday.setDate(monday.getDate() + (wi * 7));
+
+      // Get actual shifts for this peer this week
+      for (let d = 0; d < 7; d++) {
+        const date = new Date(monday);
+        date.setDate(date.getDate() + d);
+        const dateKey = getDateKey(date);
+        const dayShifts = employeesData[dateKey] || [];
+
+        // Find working shift for this peer (skip FP, FPV, leave types)
+        const empShifts = dayShifts.filter(s => s.employeeId === peer.employeeId);
+        const workShift = empShifts.find(s =>
+          s.badge !== 'fp' && s.badge !== 'fpv' &&
+          s.badge !== 'semester' && s.badge !== 'franvarande' &&
+          s.badge !== 'foraldraledighet' && s.badge !== 'afd' &&
+          s.badge !== 'komp' && s.badge !== 'vab' && s.badge !== 'sjuk'
+        );
+
+        if (workShift && workShift.time) {
+          const parsed = _parseShadowTime(workShift.time);
+          if (parsed) {
+            // Create a rounded key for grouping similar times
+            const roundedKey = _roundTime30(parsed.start) + '-' + _roundTime30(parsed.end);
+            timeData[patternRow][d].push({
+              start: parsed.start,
+              end: parsed.end,
+              roundedKey: roundedKey
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Build reference: for each position, find the most common time
+  const reference = {};
+  for (let r = 1; r <= cycleLength; r++) {
+    reference[r] = {};
+    for (let d = 0; d < 7; d++) {
+      const observations = timeData[r][d];
+      if (observations.length === 0) {
+        reference[r][d] = null;
+        continue;
+      }
+
+      // Group by rounded time key and count
+      const groups = {};
+      for (const obs of observations) {
+        if (!groups[obs.roundedKey]) {
+          groups[obs.roundedKey] = { start: obs.start, end: obs.end, count: 0 };
+        }
+        groups[obs.roundedKey].count++;
+        // Keep the latest exact time (overwrite with each new observation)
+        groups[obs.roundedKey].start = obs.start;
+        groups[obs.roundedKey].end = obs.end;
+      }
+
+      // Pick the group with the highest count
+      let best = null;
+      for (const key of Object.keys(groups)) {
+        if (!best || groups[key].count > best.count) {
+          best = groups[key];
+        }
+      }
+
+      reference[r][d] = {
+        start: best.start,
+        end: best.end,
+        count: best.count,
+        confirmed: best.count > 1
+      };
+    }
+  }
+
+  console.log('[SHADOW] Built combined reference cycle for ' + fridagsnyckel +
+    ' using ' + peers.length + ' peers, cycle=' + cycleLength);
+
+  return reference;
+}
+
+// ==========================================
 // SHADOW SCHEDULE - Build & Render
 // ==========================================
 
 /**
  * Build the shadow schedule data structure
- * Collects actual shifts and predicts future ones based on cycle repetition
+ * Collects actual shifts and predicts future ones based on cycle repetition.
+ * Uses cross-referenced data from all employees with the same fridagsnyckel.
+ * Predictions work per-day (not per-week) so partial weeks get filled in.
  */
 function buildShadowData(employeeId) {
   const emp = registeredEmployees[employeeId];
@@ -258,16 +416,20 @@ function buildShadowData(employeeId) {
   if (!keyData) return null;
 
   const cycleLength = keyData.cycle;
+  const empRad = parseInt(emp.fridagsrad, 10);
   const weeks = getShadowWeeks(cycleLength);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Build the combined reference cycle from all peers
+  const combinedRef = buildCombinedReferenceCycle(emp.fridagsnyckel, cycleLength);
+
   // Phase 1: Collect actual data for each week
-  const weekData = weeks.map(week => {
+  const weekData = weeks.map((week, wi) => {
     const shifts = getEmployeeWeekShifts(employeeId, week.mondayDate);
 
-    // Determine if this week has any actual data
-    const hasActualData = shifts.some(s => s.hasData);
+    // What pattern row is this employee on during this week?
+    const patternRow = ((wi + empRad - 1) % cycleLength) + 1;
 
     // Is this week in the past or present?
     const weekEnd = new Date(week.mondayDate);
@@ -278,44 +440,36 @@ function buildShadowData(employeeId) {
     return {
       ...week,
       shifts: shifts,
-      hasActualData: hasActualData,
+      patternRow: patternRow,
       isPast: isPast,
-      isCurrent: isCurrent,
-      isPredicted: false
+      isCurrent: isCurrent
     };
   });
 
-  // Phase 2: Build a "reference cycle" from the first cycle that has the most data
-  // Collect shift patterns per cycleWeek
-  const cyclePatterns = {};
-  for (let cw = 1; cw <= cycleLength; cw++) {
-    cyclePatterns[cw] = [];
-  }
-
-  // Gather all weeks with actual data
+  // Phase 2: Per-day prediction — fill in individual days that lack data
   for (const wd of weekData) {
-    if (wd.hasActualData) {
-      cyclePatterns[wd.cycleWeek].push(wd.shifts);
-    }
-  }
+    for (let d = 0; d < 7; d++) {
+      const shift = wd.shifts[d];
+      const dayDate = new Date(wd.mondayDate);
+      dayDate.setDate(dayDate.getDate() + d);
 
-  // Build reference: use the latest data for each cycle week
-  const referenceCycle = {};
-  for (let cw = 1; cw <= cycleLength; cw++) {
-    const candidates = cyclePatterns[cw];
-    if (candidates.length > 0) {
-      // Use the last (most recent) entry
-      referenceCycle[cw] = candidates[candidates.length - 1];
-    }
-  }
-
-  // Phase 3: Fill in predicted data for future weeks without actual data
-  for (const wd of weekData) {
-    if (!wd.hasActualData && !wd.isPast) {
-      const ref = referenceCycle[wd.cycleWeek];
-      if (ref) {
-        wd.shifts = ref.map(s => ({ ...s }));
-        wd.isPredicted = true;
+      // Only predict for days without actual data and not in the past
+      if (!shift.hasData && dayDate >= today && combinedRef) {
+        const ref = combinedRef[wd.patternRow] ? combinedRef[wd.patternRow][d] : null;
+        if (ref) {
+          // Fill in predicted time from combined reference
+          wd.shifts[d] = {
+            turn: '',
+            time: ref.start + '-' + ref.end,
+            badge: '',
+            hasFP: false,
+            fpType: null,
+            hasData: false,
+            predicted: true,
+            confirmedTime: ref.confirmed,
+            predictionCount: ref.count
+          };
+        }
       }
     }
   }
@@ -324,14 +478,15 @@ function buildShadowData(employeeId) {
     cycleLength: cycleLength,
     keyId: emp.fridagsnyckel,
     keyName: keyData.name,
-    row: emp.fridagsrad,
+    row: empRad,
     weeks: weekData,
-    referenceCycle: referenceCycle
+    combinedRef: combinedRef
   };
 }
 
 /**
- * Render the full shadow schedule
+ * Render the full shadow schedule.
+ * Uses per-day predicted/confirmed flags for cell styling.
  */
 function renderShadowSchedule(employeeId) {
   const container = document.getElementById('shadowTableContainer');
@@ -366,7 +521,7 @@ function renderShadowSchedule(employeeId) {
   for (let i = 0; i < shadowData.weeks.length; i++) {
     const week = shadowData.weeks[i];
     const isCurrentWeek = week.isCurrent;
-    const isCycleLast = week.cycleWeek === shadowData.cycleLength;
+    const isCycleLast = week.patternRow === shadowData.cycleLength;
     const trClass = [
       isCurrentWeek ? 'shadow-current-week' : '',
       isCycleLast ? 'shadow-cycle-separator' : ''
@@ -381,23 +536,37 @@ function renderShadowSchedule(employeeId) {
     for (let d = 0; d < 7; d++) {
       const shift = week.shifts[d];
 
-      if (!shift || (!shift.hasData && !week.isPredicted)) {
+      if (!shift || (!shift.hasData && !shift.predicted)) {
+        // No data and no prediction
         tableHTML += `<td><div class="shadow-cell"><span class="shadow-cell-empty">·</span></div></td>`;
+      } else if (shift.predicted) {
+        // Predicted cell — show only time (no turn number)
+        const cellClass = [
+          'shadow-cell',
+          'shadow-cell-predicted',
+          shift.confirmedTime ? 'shadow-cell-confirmed' : ''
+        ].filter(Boolean).join(' ');
+
+        const timeDisplay = shift.time || '';
+        if (timeDisplay) {
+          tableHTML += `<td><div class="${cellClass}">`;
+          tableHTML += `<span class="shadow-cell-time">${timeDisplay}</span>`;
+          tableHTML += `</div></td>`;
+        } else {
+          tableHTML += `<td><div class="shadow-cell"><span class="shadow-cell-empty">·</span></div></td>`;
+        }
       } else {
+        // Actual data cell — show turn + time as before
         const isFP = shift.badge === 'fp' || shift.badge === 'fpv';
         const cellClass = [
           'shadow-cell',
-          week.isPredicted ? 'shadow-cell-predicted' : '',
           isFP ? 'shadow-cell-fp' : ''
         ].filter(Boolean).join(' ');
 
-        // Display turn (shortened if needed)
         let turnDisplay = shift.turn || '';
         if (turnDisplay.length > 8) {
           turnDisplay = turnDisplay.substring(0, 7) + '…';
         }
-
-        // Display time
         const timeDisplay = shift.time && shift.time !== '-' ? shift.time : '';
 
         if (turnDisplay || timeDisplay) {
@@ -425,11 +594,15 @@ function renderShadowSchedule(employeeId) {
     <div class="shadow-legend">
       <div class="shadow-legend-item">
         <span class="shadow-legend-dot actual"></span>
-        <span>Faktisk tur</span>
+        <span>Faktiskt pass</span>
       </div>
       <div class="shadow-legend-item">
         <span class="shadow-legend-dot predicted"></span>
-        <span>Förutsagd tur</span>
+        <span>Skuggad tid</span>
+      </div>
+      <div class="shadow-legend-item">
+        <span class="shadow-legend-dot confirmed"></span>
+        <span>Bekräftad tid</span>
       </div>
       <div class="shadow-legend-item">
         <span class="shadow-legend-dot fp"></span>
