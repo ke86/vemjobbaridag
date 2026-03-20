@@ -446,11 +446,11 @@
     <div class="doc-container" id="docContainer">
       <!-- Document list view (shown first) -->
       <div class="doc-list-view" id="docListView">
-        <div class="doc-card" data-doc="srlathund">
+        <div class="doc-card" onclick="showLathundList()">
           <span class="doc-card-icon">📖</span>
           <div class="doc-card-info">
-            <span class="doc-card-title">Lathund</span>
-            <span class="doc-card-sub">SR – Snabbreferens</span>
+            <span class="doc-card-title">Lathundar</span>
+            <span class="doc-card-sub">Snabbreferenser</span>
           </div>
           <span class="doc-card-arrow">›</span>
         </div>
@@ -501,6 +501,16 @@
             <span class="doc-card-sub">Øresundståg</span>
           </div>
           <span class="doc-card-arrow">›</span>
+        </div>
+      </div>
+      <!-- Lathund list view (shown when Lathundar is clicked) -->
+      <div class="doc-lathund-view" id="docLathundView" style="display:none;">
+        <div class="doc-zip-toolbar">
+          <button class="doc-back-btn" id="docLathundBackBtn">← Tillbaka</button>
+          <span class="doc-zip-title">Lathundar</span>
+        </div>
+        <div class="lathund-list" id="lathundList">
+          <!-- Rendered by JS -->
         </div>
       </div>
       <!-- ZIP file list view (shown when a remote ZIP doc is opened) -->
@@ -876,7 +886,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.03</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.04</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

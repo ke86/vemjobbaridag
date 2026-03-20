@@ -244,8 +244,10 @@ function onDocumentsPageShow() {
   var listView = document.getElementById('docListView');
   var pdfView = document.getElementById('docPdfView');
   var zipView = document.getElementById('docZipView');
+  var lathundView = document.getElementById('docLathundView');
   if (listView) listView.style.display = '';
   if (pdfView) pdfView.style.display = 'none';
+  if (lathundView) lathundView.style.display = 'none';
   if (zipView) zipView.style.display = 'none';
   _docNavDepth = 'list';
 
@@ -378,11 +380,17 @@ function initDocuments() {
         var zipView = document.getElementById('docZipView');
         if (zipView) zipView.style.display = '';
         _docNavDepth = 'zip';
+      } else if (_docNavDepth === 'pdf' && _lathundNavActive) {
+        // Came from lathund list → go back to lathund list
+        var lathundView = document.getElementById('docLathundView');
+        if (lathundView) lathundView.style.display = '';
+        _docNavDepth = 'lathund';
       } else {
         // Came from main list → go back to main list
         var listView = document.getElementById('docListView');
         if (listView) listView.style.display = '';
         _remoteZipActiveId = null;
+        _lathundNavActive = false;
         _docNavDepth = 'list';
       }
     });
@@ -1046,6 +1054,127 @@ var DOC_REGISTRY = {
 };
 
 var _docCurrentId = null;
+
+// =============================================
+// LATHUND REGISTRY & FUNCTIONS
+// =============================================
+var LATHUND_REGISTRY = [
+  {
+    id: 'srlathund',
+    title: 'SR – Snabbreferens',
+    sub: 'Lathund för signalreglemente',
+    icon: '📖',
+    url: 'https://pfst.cf2.poecdn.net/base/application/56db22c4116610b90f4db2af3c8c6bb0c85ae118b25331e4ce5d09dda7efdd2b'
+  }
+];
+
+var _lathundNavActive = false;
+
+/**
+ * Show the lathund list view
+ */
+function showLathundList() {
+  var listView = document.getElementById('docListView');
+  var lathundView = document.getElementById('docLathundView');
+  if (listView) listView.style.display = 'none';
+  if (lathundView) lathundView.style.display = '';
+  _lathundNavActive = true;
+  _docNavDepth = 'lathund';
+
+  renderLathundList();
+
+  // Back button
+  var backBtn = document.getElementById('docLathundBackBtn');
+  if (backBtn) {
+    backBtn.onclick = function() {
+      if (lathundView) lathundView.style.display = 'none';
+      if (listView) listView.style.display = '';
+      _lathundNavActive = false;
+      _docNavDepth = 'list';
+    };
+  }
+}
+
+/**
+ * Render the list of lathund documents
+ */
+function renderLathundList() {
+  var listEl = document.getElementById('lathundList');
+  if (!listEl) return;
+
+  var html = '';
+  for (var i = 0; i < LATHUND_REGISTRY.length; i++) {
+    var item = LATHUND_REGISTRY[i];
+    html += '<div class="lathund-item" onclick="openLathundPdf(\'' + item.id + '\')">';
+    html += '  <span class="lathund-item-icon">' + item.icon + '</span>';
+    html += '  <div class="lathund-item-info">';
+    html += '    <span class="lathund-item-title">' + item.title + '</span>';
+    html += '    <span class="lathund-item-sub">' + item.sub + '</span>';
+    html += '  </div>';
+    html += '  <a class="lathund-download-btn" href="' + item.url + '" download="' + item.title + '.pdf" onclick="event.stopPropagation()" title="Ladda ner">';
+    html += '    ⬇';
+    html += '  </a>';
+    html += '</div>';
+  }
+  listEl.innerHTML = html;
+}
+
+/**
+ * Open a lathund PDF in the viewer
+ */
+function openLathundPdf(lathundId) {
+  // Find in registry
+  var item = null;
+  for (var i = 0; i < LATHUND_REGISTRY.length; i++) {
+    if (LATHUND_REGISTRY[i].id === lathundId) { item = LATHUND_REGISTRY[i]; break; }
+  }
+  if (!item) return;
+
+  // Make sure it's in DOC_REGISTRY so openDocPdf can handle it
+  if (!DOC_REGISTRY[lathundId]) {
+    DOC_REGISTRY[lathundId] = { url: item.url, toc: null };
+  }
+
+  // Hide lathund list, show PDF
+  var lathundView = document.getElementById('docLathundView');
+  var pdfView = document.getElementById('docPdfView');
+  if (lathundView) lathundView.style.display = 'none';
+  if (pdfView) pdfView.style.display = '';
+
+  _docNavDepth = 'pdf';
+
+  // Open the PDF
+  var doc = DOC_REGISTRY[lathundId];
+  if (_docCurrentId !== lathundId) {
+    _docCurrentId = lathundId;
+    _docPdfLoaded = false;
+    _docPdfDoc = null;
+    _docTextExtracted = false;
+    _docTextCache = [];
+    _docPageCanvases = [];
+    clearDocHighlights();
+
+    // No TOC for lathunds
+    var tocPanel = document.getElementById('docTocPanel');
+    var tocBtn = document.getElementById('docTocBtn');
+    if (tocPanel) tocPanel.style.display = 'none';
+    if (tocBtn) { tocBtn.style.display = 'none'; tocBtn.classList.remove('doc-toc-btn-active'); }
+
+    // Reset search
+    var searchPanel = document.getElementById('docSearchPanel');
+    var searchBtn = document.getElementById('docSearchBtn');
+    if (searchPanel) searchPanel.style.display = 'none';
+    if (searchBtn) searchBtn.classList.remove('doc-search-btn-active');
+    var searchInput = document.getElementById('docSearchInput');
+    if (searchInput) searchInput.value = '';
+    var searchResults = document.getElementById('docSearchResults');
+    if (searchResults) searchResults.innerHTML = '';
+    var searchStatus = document.getElementById('docSearchStatus');
+    if (searchStatus) searchStatus.textContent = '';
+
+    loadDocPdf(doc.url);
+  }
+}
 
 // =============================================
 // OPEN PDF
