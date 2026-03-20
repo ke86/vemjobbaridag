@@ -265,8 +265,13 @@
           <span class="shadow-cycle-badge" id="shadowCycleBadge"></span>
         </div>
       </div>
-      <div class="shadow-table-container" id="shadowTableContainer">
-        <!-- Shadow schedule table rendered here -->
+      <div class="shadow-month-picker">
+        <button class="shadow-month-btn" id="shadowPrevMonth">‹</button>
+        <span class="shadow-month-display" id="shadowMonthDisplay"></span>
+        <button class="shadow-month-btn" id="shadowNextMonth">›</button>
+      </div>
+      <div class="shadow-calendar-container" id="shadowCalendarContainer">
+        <!-- Shadow calendar grid rendered here -->
       </div>
     </div>
   </main>
@@ -871,7 +876,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.02</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.03</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

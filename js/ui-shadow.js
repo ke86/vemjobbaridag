@@ -12,6 +12,9 @@
 
 // Shadow schedule state
 let selectedShadowEmployeeId = null;
+let shadowViewYear = null;
+let shadowViewMonth = null;
+let _shadowDataCache = null;
 
 /**
  * Show the person selector, hide the schedule view
@@ -92,8 +95,37 @@ function showShadowScheduleView(employeeId) {
     cycleEl.textContent = `${emp.fridagsnyckel} · ${keyData.cycle}v cykel · Rad ${emp.fridagsrad}`;
   }
 
-  // Render shadow schedule
-  renderShadowSchedule(employeeId);
+  // Start on current month
+  const now = new Date();
+  shadowViewYear = now.getFullYear();
+  shadowViewMonth = now.getMonth();
+
+  // Build shadow data once (covers full year)
+  _shadowDataCache = buildShadowData(employeeId);
+
+  // Setup month navigation
+  const prevBtn = document.getElementById('shadowPrevMonth');
+  const nextBtn = document.getElementById('shadowNextMonth');
+  if (prevBtn) prevBtn.onclick = function() { shadowChangeMonth(-1); };
+  if (nextBtn) nextBtn.onclick = function() { shadowChangeMonth(1); };
+
+  // Render calendar
+  renderShadowCalendar();
+}
+
+/**
+ * Navigate shadow schedule months
+ */
+function shadowChangeMonth(delta) {
+  shadowViewMonth += delta;
+  if (shadowViewMonth > 11) {
+    shadowViewMonth = 0;
+    shadowViewYear++;
+  } else if (shadowViewMonth < 0) {
+    shadowViewMonth = 11;
+    shadowViewYear--;
+  }
+  renderShadowCalendar();
 }
 
 // ==========================================
@@ -485,112 +517,137 @@ function buildShadowData(employeeId) {
 }
 
 /**
- * Render the full shadow schedule.
- * Uses per-day predicted/confirmed flags for cell styling.
+ * Build a lookup map from shadow data: dateKey → shift object
  */
-function renderShadowSchedule(employeeId) {
-  const container = document.getElementById('shadowTableContainer');
+function _buildShadowDayMap(shadowData) {
+  const map = {};
+  if (!shadowData || !shadowData.weeks) return map;
+
+  for (const week of shadowData.weeks) {
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(week.mondayDate);
+      date.setDate(date.getDate() + d);
+      const dateKey = getDateKey(date);
+      map[dateKey] = week.shifts[d];
+    }
+  }
+  return map;
+}
+
+/**
+ * Render the shadow schedule as a calendar grid (like the Schema page).
+ * Shows one month at a time with month navigation.
+ */
+function renderShadowCalendar() {
+  const container = document.getElementById('shadowCalendarContainer');
+  const monthDisplay = document.getElementById('shadowMonthDisplay');
   if (!container) return;
 
-  const emp = registeredEmployees[employeeId];
-  if (!emp || !emp.fridagsnyckel) {
-    container.innerHTML = '<p class="shadow-no-data">Ingen fridagsnyckel tilldelad.</p>';
-    return;
-  }
-
-  const shadowData = buildShadowData(employeeId);
-  if (!shadowData || shadowData.weeks.length === 0) {
+  if (!_shadowDataCache) {
     container.innerHTML = '<p class="shadow-no-data">Kunde inte bygga skuggschema.</p>';
     return;
   }
 
-  // Build table
-  const dayHeaders = dayNamesShort; // Mån, Tis, Ons, Tor, Fre, Lör, Sön
-
-  let tableHTML = `
-    <table class="shadow-table">
-      <thead>
-        <tr>
-          <th>V.</th>
-          ${dayHeaders.map(d => `<th>${d}</th>`).join('')}
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  for (let i = 0; i < shadowData.weeks.length; i++) {
-    const week = shadowData.weeks[i];
-    const isCurrentWeek = week.isCurrent;
-    const isCycleLast = week.patternRow === shadowData.cycleLength;
-    const trClass = [
-      isCurrentWeek ? 'shadow-current-week' : '',
-      isCycleLast ? 'shadow-cycle-separator' : ''
-    ].filter(Boolean).join(' ');
-
-    tableHTML += `<tr class="${trClass}">`;
-
-    // Week number cell
-    tableHTML += `<td><span class="shadow-week-num">${week.weekNum}</span></td>`;
-
-    // 7 day cells
-    for (let d = 0; d < 7; d++) {
-      const shift = week.shifts[d];
-
-      if (!shift || (!shift.hasData && !shift.predicted)) {
-        // No data and no prediction
-        tableHTML += `<td><div class="shadow-cell"><span class="shadow-cell-empty">·</span></div></td>`;
-      } else if (shift.predicted) {
-        // Predicted cell — show only time (no turn number)
-        const cellClass = [
-          'shadow-cell',
-          'shadow-cell-predicted',
-          shift.confirmedTime ? 'shadow-cell-confirmed' : ''
-        ].filter(Boolean).join(' ');
-
-        const timeDisplay = shift.time || '';
-        if (timeDisplay) {
-          tableHTML += `<td><div class="${cellClass}">`;
-          tableHTML += `<span class="shadow-cell-time">${timeDisplay}</span>`;
-          tableHTML += `</div></td>`;
-        } else {
-          tableHTML += `<td><div class="shadow-cell"><span class="shadow-cell-empty">·</span></div></td>`;
-        }
-      } else {
-        // Actual data cell — show turn + time as before
-        const isFP = shift.badge === 'fp' || shift.badge === 'fpv';
-        const cellClass = [
-          'shadow-cell',
-          isFP ? 'shadow-cell-fp' : ''
-        ].filter(Boolean).join(' ');
-
-        let turnDisplay = shift.turn || '';
-        if (turnDisplay.length > 8) {
-          turnDisplay = turnDisplay.substring(0, 7) + '…';
-        }
-        const timeDisplay = shift.time && shift.time !== '-' ? shift.time : '';
-
-        if (turnDisplay || timeDisplay) {
-          tableHTML += `<td><div class="${cellClass}">`;
-          if (turnDisplay) {
-            tableHTML += `<span class="shadow-cell-turn">${turnDisplay}</span>`;
-          }
-          if (timeDisplay) {
-            tableHTML += `<span class="shadow-cell-time">${timeDisplay}</span>`;
-          }
-          tableHTML += `</div></td>`;
-        } else {
-          tableHTML += `<td><div class="shadow-cell"><span class="shadow-cell-empty">·</span></div></td>`;
-        }
-      }
-    }
-
-    tableHTML += '</tr>';
+  // Update month display
+  if (monthDisplay) {
+    monthDisplay.textContent = monthNamesFull[shadowViewMonth] + ' ' + shadowViewYear;
   }
 
-  tableHTML += '</tbody></table>';
+  // Build day lookup: dateKey → shift
+  const dayMap = _buildShadowDayMap(_shadowDataCache);
+
+  // Calendar layout
+  const daysInMonth = new Date(shadowViewYear, shadowViewMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(shadowViewYear, shadowViewMonth, 1).getDay();
+  const startDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1; // Mon=0
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let html = '<div class="shadow-cal-card">';
+  html += '<div class="schedule-grid">';
+
+  // Header row: week number + day names
+  html += '<div class="week-header">v.</div>';
+  html += dayNamesShort.map(d => `<div class="schedule-grid-header">${d}</div>`).join('');
+
+  // First week number
+  const firstDate = new Date(shadowViewYear, shadowViewMonth, 1);
+  let weekNum = getWeekNumber(firstDate);
+  html += `<div class="week-number">${weekNum}</div>`;
+
+  // Empty cells before first day
+  let currentDayOfWeek = 0;
+  for (let i = 0; i < startDay; i++) {
+    html += '<div class="schedule-day empty"></div>';
+    currentDayOfWeek++;
+  }
+
+  // Day cells
+  let currentDay = 1;
+  while (currentDay <= daysInMonth) {
+    if (currentDayOfWeek === 7) {
+      currentDayOfWeek = 0;
+      const weekDate = new Date(shadowViewYear, shadowViewMonth, currentDay);
+      weekNum = getWeekNumber(weekDate);
+      html += `<div class="week-number">${weekNum}</div>`;
+    }
+
+    const dateKey = shadowViewYear + '-' +
+      String(shadowViewMonth + 1).padStart(2, '0') + '-' +
+      String(currentDay).padStart(2, '0');
+    const shift = dayMap[dateKey];
+
+    const isToday = today.getFullYear() === shadowViewYear &&
+      today.getMonth() === shadowViewMonth &&
+      today.getDate() === currentDay;
+    const todayClass = isToday ? 'today' : '';
+
+    // Determine cell type and content
+    if (!shift || (!shift.hasData && !shift.predicted)) {
+      // Empty day — no data, no prediction
+      html += `<div class="schedule-day off ${todayClass}">
+        <div class="day-top"><span class="day-num">${currentDay}</span></div>
+      </div>`;
+    } else if (shift.predicted) {
+      // Predicted day — show shadow time
+      const confirmedClass = shift.confirmedTime ? 'shadow-day-confirmed' : 'shadow-day-predicted';
+      const parsed = parseTime(shift.time);
+      html += `<div class="schedule-day ${confirmedClass} ${todayClass}">
+        <div class="day-top"><span class="day-num">${currentDay}</span></div>
+        ${parsed.start ? `<div class="day-times">
+          <span class="day-start">${parsed.start}</span>
+          <span class="day-end">${parsed.end}</span>
+        </div>` : ''}
+      </div>`;
+    } else {
+      // Actual data
+      const isFP = shift.badge === 'fp' || shift.badge === 'fpv';
+      const isLeave = ['semester', 'franvarande', 'foraldraledighet', 'afd', 'komp', 'vab', 'sjuk'].includes(shift.badge);
+      let typeClass = 'working';
+      if (isFP) typeClass = shift.badge;
+      else if (isLeave) typeClass = shift.badge;
+
+      const parsed = shift.time && shift.time !== '-' ? parseTime(shift.time) : { start: '', end: '' };
+      const shortLabel = (!parsed.start && shift.turn) ? shift.turn : '';
+
+      html += `<div class="schedule-day ${typeClass} ${todayClass}">
+        <div class="day-top"><span class="day-num">${currentDay}</span></div>
+        ${parsed.start ? `<div class="day-times">
+          <span class="day-start">${parsed.start}</span>
+          <span class="day-end">${parsed.end}</span>
+        </div>` : (shortLabel ? `<div class="day-times"><span class="day-start">${shortLabel}</span></div>` : '')}
+      </div>`;
+    }
+
+    currentDay++;
+    currentDayOfWeek++;
+  }
+
+  html += '</div>'; // schedule-grid
 
   // Legend
-  tableHTML += `
+  html += `
     <div class="shadow-legend">
       <div class="shadow-legend-item">
         <span class="shadow-legend-dot actual"></span>
@@ -611,5 +668,6 @@ function renderShadowSchedule(employeeId) {
     </div>
   `;
 
-  container.innerHTML = tableHTML;
+  html += '</div>'; // shadow-cal-card
+  container.innerHTML = html;
 }

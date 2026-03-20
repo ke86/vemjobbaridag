@@ -40,7 +40,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-color);
 }
@@ -89,174 +89,130 @@
   font-weight: 500;
 }
 
-/* Shadow schedule table container */
-.shadow-table-container {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Shadow schedule table */
-.shadow-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 13px;
-}
-
-.shadow-table thead th {
-  position: sticky;
-  top: 0;
-  background: var(--bg-secondary);
-  padding: 10px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  text-align: center;
-  border-bottom: 2px solid var(--border-color);
-  white-space: nowrap;
-}
-
-.shadow-table thead th:first-child {
-  text-align: left;
-  min-width: 60px;
-}
-
-.shadow-table tbody tr {
-  transition: background 0.1s;
-}
-
-.shadow-table tbody tr:hover {
-  background: rgba(59, 130, 246, 0.04);
-}
-
-.shadow-table tbody td {
-  padding: 8px 6px;
-  text-align: center;
-  border-bottom: 1px solid var(--border-color);
-  vertical-align: middle;
-}
-
-.shadow-table tbody td:first-child {
-  text-align: left;
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-/* Week number cell */
-.shadow-week-num {
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--text-primary);
-  background: var(--bg-secondary);
-  border-radius: 6px;
-  padding: 2px 6px;
-  display: inline-block;
-}
-
-/* Shadow cells - shift data */
-.shadow-cell {
+/* ==========================================
+   Month Picker
+   ========================================== */
+.shadow-month-picker {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  min-height: 36px;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.shadow-month-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 
-.shadow-cell-turn {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-primary);
-  background: rgba(59, 130, 246, 0.12);
-  padding: 2px 6px;
-  border-radius: 4px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.shadow-month-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--text-secondary);
 }
 
-.shadow-cell-time {
-  font-size: 9px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  color: var(--text-secondary);
-  white-space: nowrap;
+.shadow-month-btn:active {
+  transform: scale(0.95);
 }
 
-/* Empty cell */
-.shadow-cell-empty {
-  color: var(--text-secondary);
-  opacity: 0.3;
+.shadow-month-display {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 20px;
   font-size: 16px;
+  font-weight: 600;
+  min-width: 150px;
+  text-align: center;
+  color: var(--text-primary);
 }
 
-/* Predicted cells (future, unconfirmed) */
-.shadow-cell-predicted {
-  position: relative;
+/* ==========================================
+   Calendar Card (reuses schedule-grid from schedule.css)
+   ========================================== */
+.shadow-cal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  animation: slideIn 0.3s ease-out;
 }
 
-.shadow-cell-predicted .shadow-cell-time {
-  color: #8b5cf6;
-  opacity: 0.8;
-  font-size: 10px;
+/* ==========================================
+   Shadow-specific day cell types
+   ========================================== */
+
+/* Predicted day (unconfirmed — purple dashed) */
+.schedule-day.shadow-day-predicted {
   background: rgba(139, 92, 246, 0.1);
-  padding: 2px 5px;
-  border-radius: 4px;
-  border: 1px dashed rgba(139, 92, 246, 0.3);
+  border: 1px dashed rgba(139, 92, 246, 0.35);
 }
 
-html.dark .shadow-cell-predicted .shadow-cell-time {
-  color: #a78bfa;
+.schedule-day.shadow-day-predicted .day-start,
+.schedule-day.shadow-day-predicted .day-end {
+  color: #8b5cf6;
+}
+
+.schedule-day.shadow-day-predicted .day-num {
+  color: #8b5cf6;
+}
+
+html.dark .schedule-day.shadow-day-predicted {
   background: rgba(139, 92, 246, 0.15);
   border-color: rgba(139, 92, 246, 0.4);
 }
 
-/* Confirmed predicted cells (green — seen more than once) */
-.shadow-cell-confirmed .shadow-cell-time {
-  color: #16a34a;
-  background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-style: solid;
+html.dark .schedule-day.shadow-day-predicted .day-start,
+html.dark .schedule-day.shadow-day-predicted .day-end {
+  color: #a78bfa;
 }
 
-html.dark .shadow-cell-confirmed .shadow-cell-time {
-  color: #4ade80;
-  background: rgba(34, 197, 94, 0.18);
-  border-color: rgba(34, 197, 94, 0.4);
+html.dark .schedule-day.shadow-day-predicted .day-num {
+  color: #a78bfa;
 }
 
-/* FP/FPV cells in shadow */
-.shadow-cell-fp .shadow-cell-turn {
+/* Confirmed predicted day (green solid) */
+.schedule-day.shadow-day-confirmed {
   background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.schedule-day.shadow-day-confirmed .day-start,
+.schedule-day.shadow-day-confirmed .day-end {
   color: #16a34a;
 }
 
-html.dark .shadow-cell-fp .shadow-cell-turn {
-  background: rgba(34, 197, 94, 0.2);
+.schedule-day.shadow-day-confirmed .day-num {
+  color: #16a34a;
+}
+
+html.dark .schedule-day.shadow-day-confirmed {
+  background: rgba(34, 197, 94, 0.18);
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+html.dark .schedule-day.shadow-day-confirmed .day-start,
+html.dark .schedule-day.shadow-day-confirmed .day-end {
   color: #4ade80;
 }
 
-/* Current week highlight */
-.shadow-table tbody tr.shadow-current-week {
-  background: rgba(59, 130, 246, 0.06);
+html.dark .schedule-day.shadow-day-confirmed .day-num {
+  color: #4ade80;
 }
 
-.shadow-table tbody tr.shadow-current-week td:first-child .shadow-week-num {
-  background: var(--accent-blue);
-  color: white;
-}
-
-/* Cycle separator row */
-.shadow-table tbody tr.shadow-cycle-separator td {
-  border-bottom: 3px solid var(--accent-blue);
-  padding-bottom: 10px;
-}
-
-/* Legend */
+/* ==========================================
+   Legend
+   ========================================== */
 .shadow-legend {
   display: flex;
   gap: 16px;
@@ -334,27 +290,16 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
     font-size: 15px;
   }
 
-  .shadow-table thead th {
-    padding: 8px 4px;
-    font-size: 10px;
+  .shadow-month-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
   }
 
-  .shadow-table tbody td {
-    padding: 6px 3px;
-  }
-
-  .shadow-cell-turn {
-    font-size: 9px;
-    padding: 2px 4px;
-  }
-
-  .shadow-cell-time {
-    font-size: 8px;
-  }
-
-  .shadow-cell-predicted .shadow-cell-time {
-    font-size: 8px;
-    padding: 2px 3px;
+  .shadow-month-display {
+    padding: 8px 14px;
+    font-size: 14px;
+    min-width: 120px;
   }
 
   .shadow-legend {
@@ -364,27 +309,9 @@ html.dark .shadow-cell-fp .shadow-cell-turn {
 }
 
 @media (max-width: 380px) {
-  .shadow-table thead th {
-    padding: 6px 2px;
-    font-size: 9px;
-  }
-
-  .shadow-table tbody td {
-    padding: 4px 2px;
-  }
-
-  .shadow-cell-turn {
-    font-size: 8px;
-    padding: 1px 3px;
-  }
-
-  .shadow-cell-time {
-    font-size: 7px;
-  }
-
-  .shadow-cell-predicted .shadow-cell-time {
-    font-size: 7px;
-    padding: 1px 2px;
+  .shadow-month-display {
+    padding: 6px 10px;
+    font-size: 13px;
+    min-width: 100px;
   }
 }
-
