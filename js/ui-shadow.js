@@ -15,6 +15,7 @@ let selectedShadowEmployeeId = null;
 let shadowViewYear = null;
 let shadowViewMonth = null;
 let _shadowDataCache = null;
+let _shadowOpenedFromLinks = false;
 
 /**
  * Show the person selector, hide the schedule view
@@ -25,6 +26,34 @@ function showShadowPersonSelect() {
   if (selectEl) selectEl.style.display = 'block';
   if (viewEl) viewEl.style.display = 'none';
   selectedShadowEmployeeId = null;
+}
+
+/**
+ * Open Skuggschema from Länkar page and set flag for back button
+ */
+function openShadowFromLinks(e) {
+  e.preventDefault();
+  _shadowOpenedFromLinks = true;
+  showPage('shadow');
+}
+
+/**
+ * Handle Skuggschema back button click
+ */
+function onShadowBackClick() {
+  if (_shadowOpenedFromLinks) {
+    _shadowOpenedFromLinks = false;
+    showPage('links');
+  } else {
+    showShadowPersonSelect();
+  }
+}
+
+/**
+ * Cleanup function called when leaving shadow page
+ */
+function onShadowPageHide() {
+  _shadowOpenedFromLinks = false;
 }
 
 /**

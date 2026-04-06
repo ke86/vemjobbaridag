@@ -45,6 +45,7 @@
   <link rel="stylesheet" href="css/disruptions.css">
   <link rel="stylesheet" href="css/positions.css">
   <link rel="stylesheet" href="css/parkering.css">
+  <link rel="stylesheet" href="css/notes.css">
   <link rel="stylesheet" href="css/overtime.css">
 </head>
 <body>
@@ -98,11 +99,11 @@
       <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
       <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
       <li><a href="#" data-page="disruptions"><span class="icon">⚠️</span> Trafikstörningar</a></li>
-      <li><a href="#" data-page="shadow"><span class="icon">👻</span> Skuggschema (Test)</a></li>
       <li><a href="#" data-page="documents"><span class="icon">📄</span> Dokument</a></li>
       <li><a href="#" data-page="links"><span class="icon">🔗</span> Länkar</a></li>
       <!-- <li><a href="#" data-page="overtime"><span class="icon">⏱️</span> Övertid</a></li> PAUSAD: väntar på pre-fill aktivering -->
       <li><a href="#" data-page="parkering"><span class="icon">🅿️</span> Parkering <span class="park-menu-dot" id="parkeringMenuDot" style="display:none;"></span></a></li>
+      <li><a href="#" data-page="notes"><span class="icon">📝</span> Anteckningar</a></li>
       <li><a href="#" data-page="settings"><span class="icon">⚙️</span> Inställningar</a></li>
     </ul>
   </nav>
@@ -886,7 +887,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.04</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.06</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -901,6 +902,24 @@
   <main class="parkering-page page" id="parkeringPage">
     <div class="parkering-container" id="parkeringContainer">
       <!-- Rendered by parkering.js -->
+    </div>
+  </main>
+
+  <!-- Notes Page (Anteckningar) -->
+  <main class="page" id="notesPage">
+    <div class="notes-container">
+      <div class="notes-toolbar">
+        <button class="notes-new-btn" id="notesNewBtn">+ Ny anteckning</button>
+        <input type="text" class="notes-search" id="notesSearchInput" placeholder="Sök anteckningar...">
+      </div>
+      <div class="notes-list" id="notesList">
+        <!-- Rendered by notes.js -->
+      </div>
+      <div class="notes-empty" id="notesEmpty" style="display:none;">
+        <div class="icon">📝</div>
+        <p>Inga anteckningar än</p>
+        <span class="hint">Klicka på "Ny anteckning" för att börja</span>
+      </div>
     </div>
   </main>
 
@@ -944,6 +963,14 @@
         <div class="links-card-text">
           <span class="links-card-title">BromsaX31</span>
           <span class="links-card-desc">Bromstabeller för X31-tåg</span>
+        </div>
+        <span class="links-card-arrow">›</span>
+      </a>
+      <a href="#" onclick="openShadowFromLinks(event)" class="links-card">
+        <span class="links-card-icon">👻</span>
+        <div class="links-card-text">
+          <span class="links-card-title">Skuggschema</span>
+          <span class="links-card-desc">Se förväntade turer</span>
         </div>
         <span class="links-card-arrow">›</span>
       </a>
@@ -1359,6 +1386,7 @@
   <script src="js/disruptions.js"></script>
   <script src="js/positions.js"></script>
   <script src="js/parkering.js"></script>
+  <script src="js/notes.js"></script>
   <script src="js/overtime.js"></script>
   <script src="js/app.js"></script>
 

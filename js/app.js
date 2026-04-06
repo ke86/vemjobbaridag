@@ -228,8 +228,7 @@ function setupEventListeners() {
   const shadowBackBtn = document.getElementById('shadowBackBtn');
   if (shadowBackBtn) {
     shadowBackBtn.addEventListener('click', () => {
-      showShadowPersonSelect();
-      renderShadowPersonList();
+      onShadowBackClick();
     });
   }
 

@@ -114,6 +114,12 @@ function showPage(pageId) {
   if (pageId !== 'disruptions') {
     if (typeof onDisruptionsPageHide === 'function') onDisruptionsPageHide();
   }
+  if (pageId !== 'shadow' && pageId !== 'links') {
+    if (typeof onShadowPageHide === 'function') onShadowPageHide();
+  }
+  if (pageId !== 'notes') {
+    if (typeof onNotesPageHide === 'function') onNotesPageHide();
+  }
   if (pageId !== 'overtime') {
     if (typeof onOvertimePageHide === 'function') onOvertimePageHide();
   }
@@ -137,8 +143,8 @@ function showPage(pageId) {
   } else if (pageId === 'shadow') {
     document.getElementById('shadowPage').classList.add('active');
     headerTitle.textContent = 'Skuggschema';
-    showShadowPersonSelect();
-    renderShadowPersonList();
+    if (typeof showShadowPersonSelect === 'function') showShadowPersonSelect();
+    if (typeof renderShadowPersonList === 'function') renderShadowPersonList();
   } else if (pageId === 'departure') {
     document.getElementById('departurePage').classList.add('active');
     headerTitle.textContent = 'Avgång/Ankomst';
@@ -158,6 +164,10 @@ function showPage(pageId) {
     document.getElementById('disruptionsPage').classList.add('active');
     headerTitle.textContent = 'Trafikstörningar';
     if (typeof onDisruptionsPageShow === 'function') onDisruptionsPageShow();
+  } else if (pageId === 'notes') {
+    document.getElementById('notesPage').classList.add('active');
+    headerTitle.textContent = 'Anteckningar';
+    if (typeof onNotesPageShow === 'function') onNotesPageShow();
   } else if (pageId === 'documents') {
     document.getElementById('documentsPage').classList.add('active');
     headerTitle.textContent = 'Dokument';
