@@ -25,10 +25,7 @@ function initApp() {
   // Initialize Important Dates
   initImportantDates();
 
-  // Initialize Notes Listener (persistent, low-read cost)
-  initNotesListener();
-
-  // Initialize authentication
+  // Initialize authentication (must be before notes listener)
   initAuth();
 
   // Initialize Departure Board

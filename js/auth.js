@@ -266,6 +266,10 @@ async function initAuth() {
 
       await loadDataFromFirebase();
       setupRealtimeListeners();
+      // Initialize Notes listener after auth is ready
+      if (typeof initNotesListener === 'function') {
+        initNotesListener();
+      }
       isLoggedIn = true;
       renderEmployees();
     } catch (error) {
@@ -336,6 +340,11 @@ async function handleLogin() {
 
     // Setup realtime listeners for auto-sync
     setupRealtimeListeners();
+
+    // Initialize Notes listener after auth is ready
+    if (typeof initNotesListener === 'function') {
+      initNotesListener();
+    }
 
     // Save login state to IndexedDB
     await saveLoginState();
