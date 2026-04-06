@@ -20,43 +20,6 @@ const NOTES_MAX_CHARS = 2000;
 // NOTES - Storage (Firebase + Cache)
 // ==========================================
 
-/**
- * Load notes from Firebase and setup real-time listener
- */
-function loadNotesFromFirebase() {
-  // Only setup if user is authenticated
-  if (!firebase.auth().currentUser) {
-    console.warn('User not authenticated, skipping notes sync');
-    notesList = [];
-    return;
-  }
-
-  const userId = firebase.auth().currentUser.uid;
-
-  // Setup real-time listener
-  if (_notesUnsubscribe) {
-    _notesUnsubscribe();
-  }
-
-  _notesUnsubscribe = db.collection(NOTES_COLLECTION)
-    .where('userId', '==', userId)
-    .orderBy('lastModified', 'desc')
-    .onSnapshot(
-      (snapshot) => {
-        notesList = [];
-        snapshot.forEach((doc) => {
-          notesList.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        renderNotesList();
-      },
-      (error) => {
-        console.error('Error loading notes from Firebase:', error);
-      }
-    );
-}
 
 /**
  * Save a note to Firebase
@@ -118,29 +81,74 @@ async function deleteNoteFromFirebase(noteId) {
 }
 
 // ==========================================
+// NOTES - Initialization (Once at app start)
+// ==========================================
+
+/**
+ * Initialize notes listener once at app startup
+ * This runs ONCE and stays active to minimize Firebase reads
+ */
+function initNotesListener() {
+  // Only setup if user is authenticated
+  if (!firebase.auth().currentUser) {
+    console.warn('User not authenticated, skipping notes listener init');
+    return;
+  }
+
+  // Don't re-initialize if already active
+  if (_notesUnsubscribe) {
+    return;
+  }
+
+  const userId = firebase.auth().currentUser.uid;
+
+  // Setup persistent real-time listener (stays active until logout)
+  _notesUnsubscribe = db.collection(NOTES_COLLECTION)
+    .where('userId', '==', userId)
+    .orderBy('lastModified', 'desc')
+    .onSnapshot(
+      (snapshot) => {
+        notesList = [];
+        snapshot.forEach((doc) => {
+          notesList.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        // Only re-render if Notes page is currently visible
+        if (document.getElementById('notesPage')?.classList.contains('active')) {
+          renderNotesList();
+        }
+      },
+      (error) => {
+        console.error('Error loading notes from Firebase:', error);
+      }
+    );
+}
+
+// ==========================================
 // NOTES - Page Lifecycle
 // ==========================================
 
 /**
  * Called when Notes page is shown
+ * Just renders UI - listener is already active from app startup
  */
 function onNotesPageShow() {
-  loadNotesFromFirebase();
+  // Listener is already active from initNotesListener()
   renderNotesList();
   setupNotesEventListeners();
 }
 
 /**
  * Called when Notes page is hidden
+ * Listener stays active to sync in background
  */
 function onNotesPageHide() {
   _editingNoteId = null;
   _currentSearchQuery = '';
   closeNotesModal();
-  if (_notesUnsubscribe) {
-    _notesUnsubscribe();
-    _notesUnsubscribe = null;
-  }
+  // NOTE: Do NOT unsubscribe here - keep listener active for sync
 }
 
 /**
