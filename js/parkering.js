@@ -9,20 +9,24 @@
  *  - Night shifts (start > end): car in from start, stays overnight until end next morning
  *  - 11 parking spots: 0-10 = green (OK), 11+ = red (full)
  *
- * Storage: IndexedDB via saveSetting('parkering', [...names])
+ * Storage: Firebase Firestore (primary) + IndexedDB (offline fallback)
+ *          Persistent onSnapshot listener → 1 read at app start, 0 extra on page nav
  */
 
 // =============================================
 // CONSTANTS
 // =============================================
 var PARK_MAX_SPOTS = 11;
+var PARK_FIRESTORE_DOC = 'settings/parkering';
 
 // =============================================
 // STATE
 // =============================================
 var _parkeringList = [];        // Array of name strings
-var _parkeringLoaded = false;   // Has data been loaded from IndexedDB?
+var _parkeringLoaded = false;   // Has data been loaded?
 var _parkDate = new Date();      // Currently viewed date
+var _parkeringUnsubscribe = null; // Firebase listener unsubscribe fn
+var _parkeringFirebaseReady = false; // Has Firebase data arrived?
 
 var _parkeringDefaults = [
   'Petter Tegnér Sjöstrand',
@@ -49,34 +53,136 @@ var _parkeringDefaults = [
 ];
 
 // =============================================
-// PERSISTENCE (IndexedDB)
+// PERSISTENCE (Firebase primary + IndexedDB fallback)
 // =============================================
 
-function loadParkeringList() {
-  if (typeof loadSetting !== 'function') return Promise.resolve([]);
+/**
+ * Initialize persistent Firebase listener for parking list.
+ * Called ONCE at app start (after auth). Stays active entire session.
+ * Cost: 1 read at startup, then only on remote changes.
+ */
+function initParkeringListener() {
+  // Don't re-initialize
+  if (_parkeringUnsubscribe) return;
+
+  // Check Firebase is available
+  if (typeof db === 'undefined' || !firebase.auth().currentUser) {
+    console.warn('[PARKERING] Firebase not ready, using IndexedDB fallback');
+    loadParkeringFromIndexedDB();
+    return;
+  }
+
+  _parkeringUnsubscribe = db.doc(PARK_FIRESTORE_DOC).onSnapshot(
+    function(doc) {
+      _parkeringFirebaseReady = true;
+      if (doc.exists) {
+        var data = doc.data();
+        if (Array.isArray(data.names) && data.names.length > 0) {
+          _parkeringList = data.names;
+        } else {
+          _parkeringList = _parkeringDefaults.slice();
+        }
+      } else {
+        // First time — seed Firebase with defaults
+        _parkeringList = _parkeringDefaults.slice();
+        saveParkeringToFirebase();
+      }
+      _parkeringLoaded = true;
+
+      // Also cache to IndexedDB for offline use
+      saveParkeringToIndexedDB();
+
+      // Re-render if parking page is visible
+      if (document.getElementById('parkeringPage') &&
+          document.getElementById('parkeringPage').classList.contains('active')) {
+        renderParkeringPage();
+      }
+
+      // Update menu indicator
+      if (typeof updateParkeringMenuIndicator === 'function') {
+        updateParkeringMenuIndicator();
+      }
+    },
+    function(error) {
+      console.error('[PARKERING] Firebase listener error:', error);
+      // Fallback to IndexedDB
+      if (!_parkeringLoaded) {
+        loadParkeringFromIndexedDB();
+      }
+    }
+  );
+}
+
+/**
+ * Save parking list to Firebase (primary storage)
+ * Cost: 1 write per change
+ */
+function saveParkeringToFirebase() {
+  if (typeof db === 'undefined' || !firebase.auth().currentUser) {
+    // Offline — save to IndexedDB only
+    saveParkeringToIndexedDB();
+    return Promise.resolve();
+  }
+
+  return db.doc(PARK_FIRESTORE_DOC).set({
+    names: _parkeringList,
+    lastModified: new Date().toISOString()
+  }).then(function() {
+    if (typeof updateSyncStatus === 'function') updateSyncStatus('syncing');
+  }).catch(function(err) {
+    console.error('[PARKERING] Firebase save error:', err);
+    // Fallback: save locally
+    saveParkeringToIndexedDB();
+  });
+}
+
+/**
+ * Load from IndexedDB (offline fallback only)
+ */
+function loadParkeringFromIndexedDB() {
+  if (typeof loadSetting !== 'function') {
+    _parkeringList = _parkeringDefaults.slice();
+    _parkeringLoaded = true;
+    return Promise.resolve(_parkeringList);
+  }
   return loadSetting('parkering').then(function(val) {
     if (Array.isArray(val) && val.length > 0) {
       _parkeringList = val;
     } else {
-      // First time — seed with defaults
       _parkeringList = _parkeringDefaults.slice();
-      saveParkeringList();
     }
     _parkeringLoaded = true;
     return _parkeringList;
   }).catch(function() {
     _parkeringList = _parkeringDefaults.slice();
     _parkeringLoaded = true;
-    saveParkeringList();
     return _parkeringList;
   });
 }
 
-function saveParkeringList() {
+/**
+ * Save to IndexedDB (cache for offline use)
+ */
+function saveParkeringToIndexedDB() {
   if (typeof saveSetting !== 'function') return Promise.resolve();
   return saveSetting('parkering', _parkeringList).catch(function(err) {
-    console.log('[PARKERING] Save error: ' + (err.message || err));
+    console.log('[PARKERING] IndexedDB save error: ' + (err.message || err));
   });
+}
+
+// Legacy wrappers for existing code
+function loadParkeringList() {
+  if (_parkeringFirebaseReady || _parkeringLoaded) {
+    return Promise.resolve(_parkeringList);
+  }
+  // If Firebase listener hasn't fired yet, load from IndexedDB as temp
+  return loadParkeringFromIndexedDB();
+}
+
+function saveParkeringList() {
+  saveParkeringToFirebase();
+  saveParkeringToIndexedDB();
+  return Promise.resolve();
 }
 
 // =============================================
@@ -271,7 +377,6 @@ function buildParkingStatus(dateStr) {
     }
 
     // 2. Check day before for overnight shifts ending this morning
-    //    This can create a SECOND entry for the same person
     var dayBeforeMatch = _parkFindPerson(name, dayBeforePos);
     if (dayBeforeMatch) {
       var yt = _parkGetTimes(dayBeforeMatch);
@@ -548,7 +653,7 @@ function renderParkeringPage() {
   html += '<span class="parkering-hero-total">' + PARK_MAX_SPOTS + '</span>';
   html += '</div>';
 
-  // Label — full/red only for today (real-time), other days just show count
+  // Label
   if (isToday) {
     if (isFull) {
       html += '<div class="parkering-hero-label parkering-label-full">⚠️ P-huset fullt!</div>';
@@ -560,7 +665,7 @@ function renderParkeringPage() {
     html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
   }
 
-  // Time analysis — show periods where parking is full
+  // Time analysis
   var fullPeriods = _parkAnalyzeDay(dateStr);
   if (fullPeriods.length > 0) {
     var periodsStr = fullPeriods.map(function(p) {
@@ -581,14 +686,13 @@ function renderParkeringPage() {
   html += '<div class="parkering-detail-list">';
 
   if (isToday) {
-    // TODAY: 3 groups — only people who work (have a source)
-    var parkedNow = [];   // carIn = true (currently in parking)
-    var arriving = [];    // has shift but not arrived yet (nowMin < startMin)
-    var leftAlready = []; // had shift but already left (nowMin >= endMin)
+    var parkedNow = [];
+    var arriving = [];
+    var leftAlready = [];
 
     for (var ti = 0; ti < status.length; ti++) {
       var te = status[ti];
-      if (!te.source) continue; // skip people who don't work today
+      if (!te.source) continue;
 
       if (te.carIn) {
         parkedNow.push(te);
@@ -599,7 +703,6 @@ function renderParkeringPage() {
       }
     }
 
-    // Sort: parked — yesterday first, then by startMin
     parkedNow.sort(function(a, b) {
       var aY = a.source === 'yesterday' ? 0 : 1;
       var bY = b.source === 'yesterday' ? 0 : 1;
@@ -609,12 +712,10 @@ function renderParkeringPage() {
       return aS - bS;
     });
 
-    // Sort: arriving — by startMin (next to arrive first)
     arriving.sort(function(a, b) {
       return (a.startMin >= 0 ? a.startMin : 9999) - (b.startMin >= 0 ? b.startMin : 9999);
     });
 
-    // Sort: left — by endMin
     leftAlready.sort(function(a, b) {
       return (a.endMin >= 0 ? a.endMin : 0) - (b.endMin >= 0 ? b.endMin : 0);
     });
@@ -641,7 +742,6 @@ function renderParkeringPage() {
     }
 
   } else {
-    // OTHER DAYS: 2 groups — Parkerad / Ej parkerad
     var carsInList = status.filter(function(s) { return s.carIn; });
 
     var namesWithCarIn = {};

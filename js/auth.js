@@ -270,6 +270,10 @@ async function initAuth() {
       if (typeof initNotesListener === 'function') {
         initNotesListener();
       }
+      // Initialize Parkering listener after auth is ready
+      if (typeof initParkeringListener === 'function') {
+        initParkeringListener();
+      }
       isLoggedIn = true;
       renderEmployees();
     } catch (error) {
@@ -344,6 +348,11 @@ async function handleLogin() {
     // Initialize Notes listener after auth is ready
     if (typeof initNotesListener === 'function') {
       initNotesListener();
+    }
+
+    // Initialize Parkering listener after auth is ready
+    if (typeof initParkeringListener === 'function') {
+      initParkeringListener();
     }
 
     // Save login state to IndexedDB
