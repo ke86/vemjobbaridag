@@ -1065,6 +1065,13 @@ var LATHUND_REGISTRY = [
     sub: 'Lathund för signalreglemente',
     icon: '📖',
     url: 'https://pfst.cf2.poecdn.net/base/application/56db22c4116610b90f4db2af3c8c6bb0c85ae118b25331e4ce5d09dda7efdd2b'
+  },
+  {
+    id: 'quickchart',
+    title: 'Quickchart Fordon 1.4.1.1',
+    sub: 'Snabbreferens för fordonstyper',
+    icon: '🚆',
+    url: 'https://pfst.cf2.poecdn.net/base/application/ef59dee3e9f5ea6c1e1d9d505e44eaceb703a1ff03a2f2be63bf21f7d0214a4d'
   }
 ];
 
