@@ -77,7 +77,7 @@ function initParkeringListener() {
       _parkeringFirebaseReady = true;
       if (doc.exists) {
         var data = doc.data();
-        if (Array.isArray(data.names) && data.names.length > 0) {
+        if (Array.isArray(data.names)) {
           _parkeringList = data.names;
         } else {
           _parkeringList = _parkeringDefaults.slice();
@@ -377,6 +377,7 @@ function buildParkingStatus(dateStr) {
     }
 
     // 2. Check day before for overnight shifts ending this morning
+    //    This can create a SECOND entry for the same person
     var dayBeforeMatch = _parkFindPerson(name, dayBeforePos);
     if (dayBeforeMatch) {
       var yt = _parkGetTimes(dayBeforeMatch);
@@ -653,7 +654,7 @@ function renderParkeringPage() {
   html += '<span class="parkering-hero-total">' + PARK_MAX_SPOTS + '</span>';
   html += '</div>';
 
-  // Label
+  // Label — full/red only for today (real-time), other days just show count
   if (isToday) {
     if (isFull) {
       html += '<div class="parkering-hero-label parkering-label-full">⚠️ P-huset fullt!</div>';
@@ -665,7 +666,7 @@ function renderParkeringPage() {
     html += '<div class="parkering-hero-label">' + carsIn + ' bilar parkerar denna dag</div>';
   }
 
-  // Time analysis
+  // Time analysis — show periods where parking is full
   var fullPeriods = _parkAnalyzeDay(dateStr);
   if (fullPeriods.length > 0) {
     var periodsStr = fullPeriods.map(function(p) {
@@ -686,13 +687,14 @@ function renderParkeringPage() {
   html += '<div class="parkering-detail-list">';
 
   if (isToday) {
-    var parkedNow = [];
-    var arriving = [];
-    var leftAlready = [];
+    // TODAY: 3 groups — only people who work (have a source)
+    var parkedNow = [];   // carIn = true (currently in parking)
+    var arriving = [];    // has shift but not arrived yet (nowMin < startMin)
+    var leftAlready = []; // had shift but already left (nowMin >= endMin)
 
     for (var ti = 0; ti < status.length; ti++) {
       var te = status[ti];
-      if (!te.source) continue;
+      if (!te.source) continue; // skip people who don't work today
 
       if (te.carIn) {
         parkedNow.push(te);
@@ -703,6 +705,7 @@ function renderParkeringPage() {
       }
     }
 
+    // Sort: parked — yesterday first, then by startMin
     parkedNow.sort(function(a, b) {
       var aY = a.source === 'yesterday' ? 0 : 1;
       var bY = b.source === 'yesterday' ? 0 : 1;
@@ -712,10 +715,12 @@ function renderParkeringPage() {
       return aS - bS;
     });
 
+    // Sort: arriving — by startMin (next to arrive first)
     arriving.sort(function(a, b) {
       return (a.startMin >= 0 ? a.startMin : 9999) - (b.startMin >= 0 ? b.startMin : 9999);
     });
 
+    // Sort: left — by endMin
     leftAlready.sort(function(a, b) {
       return (a.endMin >= 0 ? a.endMin : 0) - (b.endMin >= 0 ? b.endMin : 0);
     });
@@ -742,6 +747,7 @@ function renderParkeringPage() {
     }
 
   } else {
+    // OTHER DAYS: 2 groups — Parkerad / Ej parkerad
     var carsInList = status.filter(function(s) { return s.carIn; });
 
     var namesWithCarIn = {};

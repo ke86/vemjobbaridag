@@ -380,7 +380,7 @@ async function fetchDagvyFromFirebase(source) {
     }
 
     // Mark this time-window as checked
-    var wk = dagvyWindowKey();
+    var wk = autoCheckWindowKey();
     if (wk) dagvyLastCheckWindow = wk;
 
     console.log('[DAGVY-SYNC] Done (' + source + '): ' + snapshot.size + ' from Firebase + ' + kept.length + ' kept from previous');
