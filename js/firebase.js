@@ -211,20 +211,20 @@ var lastAutoCheckWindow = null; // e.g. "2026-02-13_06" or "2026-02-13_12"
 
 /**
  * Determine current auto-check window key.
- * Returns e.g. "2026-02-13_06" if hour is 06–07, "2026-02-13_12" if 12–13, else null.
+ * Returns e.g. "2026-02-13_06" if hour is 07–08, "2026-02-13_12" if 12–13, else null.
  */
 function autoCheckWindowKey() {
   var now = new Date();
   var h = now.getHours();
   var d = now.toISOString().slice(0, 10);
-  if (h === 6 || h === 7) return d + '_06';
+  if (h === 7 || h === 8) return d + '_07';
   if (h === 12 || h === 13) return d + '_12';
   return null;
 }
 
 /**
  * Check if an automatic sync should run.
- * Returns true if inside 06–07 or 12–13 AND not checked this window yet.
+ * Returns true if inside 07–08 or 12–13 AND not checked this window yet.
  */
 function shouldAutoCheck() {
   var key = autoCheckWindowKey();
@@ -393,7 +393,7 @@ async function fetchDagvyFromFirebase(source) {
 
 /**
  * Start the auto-check timer.
- * Checks every 10 minutes — if inside 06–07 or 12–13 window,
+ * Checks every 10 minutes — if inside 07–08 or 12–13 window,
  * writes sync signal (which triggers ALL connected apps to fetch).
  */
 function startAutoCheckTimer() {
@@ -404,7 +404,32 @@ function startAutoCheckTimer() {
       writeSyncSignal();
     }
   }, 10 * 60 * 1000); // every 10 min
-  console.log('[AUTO-CHECK] Timer started (06:00 & 12:00 windows)');
+  console.log('[AUTO-CHECK] Timer started (07:00 & 12:00 windows)');
+}
+
+/**
+ * "Wake sync" — when the app becomes visible again after being in background,
+ * check if the date has changed. If yes, fetch fresh data.
+ * Cost: max 2 reads per user per day (only on date change).
+ */
+var _lastVisibleDate = new Date().toISOString().slice(0, 10);
+
+function setupVisibilitySync() {
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState !== 'visible') return;
+
+    var today = new Date().toISOString().slice(0, 10);
+    if (today === _lastVisibleDate) return; // same date — do nothing
+
+    console.log('[WAKE-SYNC] New date detected: ' + _lastVisibleDate + ' → ' + today);
+    _lastVisibleDate = today;
+
+    // Fetch fresh schedule + dagvy
+    if (typeof fetchAllData === 'function') {
+      fetchAllData('wake-sync');
+    }
+  });
+  console.log('[WAKE-SYNC] Visibility listener active');
 }
 
 /**
@@ -831,10 +856,13 @@ function setupRealtimeListeners() {
     // Start sync-signal listener (push from other users — 1 tiny doc)
     startSyncSignalListener();
 
-    // Start auto-check timer (writes sync-signal at 06:00 & 12:00)
+    // Start auto-check timer (writes sync-signal at 07:00 & 12:00)
     startAutoCheckTimer();
 
-    console.log('Sync system active (signal listener + auto-check 06:00 & 12:00)');
+    // Start wake-sync (fetch on date change when app becomes visible)
+    setupVisibilitySync();
+
+    console.log('Sync system active (signal listener + auto-check 07:00 & 12:00 + wake-sync)');
   } catch (error) {
     console.error('Failed to setup realtime listeners:', error);
     updateSyncStatus('offline');
