@@ -455,7 +455,7 @@ function getPosTime(p) {
   var start = p.start;
   var slut = p.slut;
   if ((!start || start === '-') && p.turnr) {
-    var key = p.turnr.trim();
+    var key = p.turnr.trim().split('-')[0];  // Strip suffix (e.g. "15281-R" → "15281")
     var keyUpper = key.toUpperCase();
     // Check TIL shift codes first (PL1, DK2, etc.)
     if (TIL_SHIFT_TIMES[keyUpper]) {
