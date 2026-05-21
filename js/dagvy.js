@@ -564,7 +564,7 @@ async function showDagvyPopup(employeeId) {
  */
 function lookupTurnTime(turnr) {
   if (!turnr) return null;
-  var key = turnr.trim();
+  var key = turnr.trim().split('-')[0];  // Strip suffix (e.g. "15281-R" → "15281")
   var keyUpper = key.toUpperCase();
   var match = null;
   if (typeof TIL_SHIFT_TIMES !== 'undefined' && TIL_SHIFT_TIMES[keyUpper]) {
