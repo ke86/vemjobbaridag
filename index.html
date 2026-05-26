@@ -115,6 +115,14 @@
     <button class="follow-train-btn" id="followTrainBtn">Följ tåg</button>
   </header>
 
+  <!-- Pull-to-Refresh Indicator -->
+  <div class="pull-to-refresh-indicator" id="pullToRefreshIndicator">
+    <div class="ptr-content">
+      <div class="ptr-spinner"></div>
+      <span class="ptr-text" id="ptrText">Uppdaterar data...</span>
+    </div>
+  </div>
+
   <!-- Main Content - Schedule Page -->
   <main class="main-content page active" id="schedulePage">
     <!-- Date Picker -->
@@ -887,7 +895,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.13</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.15</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -1388,6 +1396,7 @@
   <script src="js/parkering.js"></script>
   <script src="js/notes.js"></script>
   <script src="js/overtime.js"></script>
+  <script src="js/pull-to-refresh.js"></script>
   <script src="js/app.js"></script>
 
   <!-- Service Worker Registration -->

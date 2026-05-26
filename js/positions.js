@@ -454,7 +454,17 @@ var TIL_TURN_TIMES = {
 function getPosTime(p) {
   var start = p.start;
   var slut = p.slut;
-  if ((!start || start === '-') && p.turnr) {
+
+  // Debug: Log reserve turns with suffix
+  if (p.turnr && p.turnr.includes('-R')) {
+    console.log('[POS-DEBUG] Reserve turn:', p.turnr, 'start:', JSON.stringify(start), 'slut:', JSON.stringify(slut), 'namn:', p.namn);
+  }
+
+  // Normalize empty/invalid start times to trigger lookup
+  var startTrimmed = start ? String(start).trim() : '';
+  var isStartInvalid = !startTrimmed || startTrimmed === '-';
+
+  if (isStartInvalid && p.turnr) {
     var key = p.turnr.trim().split('-')[0];  // Strip suffix (e.g. "15281-R" → "15281")
     var keyUpper = key.toUpperCase();
     // Check TIL shift codes first (PL1, DK2, etc.)
@@ -466,6 +476,11 @@ function getPosTime(p) {
       var match = TIL_TURN_TIMES[key] || TIL_TURN_TIMES[keyUpper];
       start = match[0];
       slut = match[1];
+    } else {
+      // Debug: log when turn time is not found
+      if (p.turnr && p.turnr.match(/^[0-9]/)) {
+        console.log('[POS] Time not found for turn:', p.turnr, 'key:', key, 'keyUpper:', keyUpper);
+      }
     }
   }
   return { start: start, slut: slut };

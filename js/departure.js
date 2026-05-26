@@ -883,7 +883,7 @@ async function loadDepartures() {
   depLastLocationField = departureType === 'Avgang' ? 'ToLocation' : 'FromLocation';
   var xml = '<REQUEST>'
     + '<LOGIN authenticationkey="' + TRAFIKVERKET_API_KEY + '" />'
-    + '<QUERY objecttype="TrainAnnouncement" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
+    + '<QUERY objecttype="TrainAnnouncement" namespace="rail.trafficinfo" schemaversion="1.9" orderby="AdvertisedTimeAtLocation">'
     + '<FILTER>'
     + '<AND>'
     + '<EQ name="LocationSignature" value="' + stationSig + '" />'
