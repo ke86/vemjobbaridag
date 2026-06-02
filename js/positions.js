@@ -455,17 +455,12 @@ function getPosTime(p) {
   var start = p.start;
   var slut = p.slut;
 
-  // Debug: Log reserve turns with suffix
-  if (p.turnr && p.turnr.includes('-R')) {
-    console.log('[POS-DEBUG] Reserve turn:', p.turnr, 'start:', JSON.stringify(start), 'slut:', JSON.stringify(slut), 'namn:', p.namn);
-  }
-
   // Normalize empty/invalid start times to trigger lookup
   var startTrimmed = start ? String(start).trim() : '';
   var isStartInvalid = !startTrimmed || startTrimmed === '-';
 
   if (isStartInvalid && p.turnr) {
-    var key = p.turnr.trim().split('-')[0];  // Strip suffix (e.g. "15281-R" → "15281")
+    var key = normalizeTurnNumber(p.turnr);  // Strip suffix (e.g. "15281-R" → "15281")
     var keyUpper = key.toUpperCase();
     // Check TIL shift codes first (PL1, DK2, etc.)
     if (TIL_SHIFT_TIMES[keyUpper]) {
@@ -493,7 +488,7 @@ function getPosTime(p) {
 function classifyPosFlags(p) {
   var flags = { isRes: false, isSE: false, isDK: false, isAdm: false, isUtb: false, isInsutb: false, isTP: false, isNow: false, isTil: false, tag: '', tagClass: '' };
   var turnr = p.turnr || '';
-  var t = turnr.toUpperCase().trim();
+  var t = normalizeTurnNumber(turnr).toUpperCase().trim();  // Normalize to remove suffixes
   var rollStr = (p.roll || '').toLowerCase();
 
   // Working now? Only on today's date (use getPosTime for TIL fallback)

@@ -15,20 +15,32 @@ const ptr_fetchFunctions = [];
  * Initialize pull-to-refresh functionality
  */
 function initPullToRefresh() {
+  console.log('[PTR] Initializing pull-to-refresh...');
+
   // Register all fetch functions
-  registerPullToRefreshFetcher('positions', fetchPositions);
+  if (typeof fetchPositions === 'function') {
+    registerPullToRefreshFetcher('positions', fetchPositions);
+    console.log('[PTR] Registered: fetchPositions');
+  } else {
+    console.warn('[PTR] fetchPositions not found');
+  }
 
   // Fetch all data from Firebase (schedule, dagvy, etc.)
   if (typeof fetchAllData === 'function') {
     registerPullToRefreshFetcher('firebase', () => fetchAllData('ptr'));
+    console.log('[PTR] Registered: fetchAllData');
+  } else {
+    console.warn('[PTR] fetchAllData not found');
   }
+
+  console.log('[PTR] Registered', ptr_fetchFunctions.length, 'fetch functions');
 
   // Touch events
   document.addEventListener('touchstart', ptr_handleTouchStart, false);
   document.addEventListener('touchmove', ptr_handleTouchMove, false);
   document.addEventListener('touchend', ptr_handleTouchEnd, false);
 
-  console.log('[PTR] Pull-to-refresh initialized');
+  console.log('[PTR] Pull-to-refresh initialized successfully ✓');
 }
 
 /**
@@ -83,9 +95,14 @@ function ptr_handleTouchEnd(e) {
   const currentY = e.changedTouches ? e.changedTouches[0].clientY : 0;
   const pullDistance = currentY - ptr_touchStartY;
 
+  console.log('[PTR] Touch end - pullDistance:', pullDistance, 'scrollY:', window.scrollY);
+
   // Require at least 100px pull to refresh
   if (pullDistance > 100) {
+    console.log('[PTR] Pull detected! Triggering refresh...');
     ptr_executeRefresh();
+  } else if (pullDistance > 0) {
+    console.log('[PTR] Pulled', pullDistance, 'px - need 100px to refresh');
   }
 
   ptr_touchStartY = 0;

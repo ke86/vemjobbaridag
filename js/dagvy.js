@@ -613,8 +613,12 @@ function updateScheduleFromDagvy(employeeId, dayData, dateKey) {
   const currentTurn = (shift.badgeText || '').trim();
   const currentTime = (shift.time || '').trim();
 
+  // Normalize turn numbers (remove suffixes like -N, -R, etc.)
+  const normalizedDagvyTurn = normalizeTurnNumber(dagvyTurn);
+  const normalizedCurrentTurn = normalizeTurnNumber(currentTurn);
+
   // Update turn if dagvy has one and it differs (or current is missing)
-  const turnChanged = dagvyTurn && dagvyTurn !== currentTurn;
+  const turnChanged = normalizedDagvyTurn && normalizedDagvyTurn !== normalizedCurrentTurn;
   // Update time if dagvy has valid times and they differ (or current is missing)
   const timeChanged = dagvyTime && dagvyTime !== currentTime;
 
