@@ -21,11 +21,12 @@ function openOneVRLoginPopup() {
     onevrPopup.close();
   }
 
-  // Open popup with smaller size (360x600) so main app is visible
+  // Open popup with smaller size (360x600) with visible toolbar and address bar
+  // User needs to be able to paste bookmarklet code in address bar
   onevrPopup = window.open(
     ONEVR_LOGIN_URL,
     'OneVRLogin',
-    'width=360,height=600,top=50,left=50,menubar=no,toolbar=no,location=yes'
+    'width=360,height=600,top=50,left=50,menubar=yes,toolbar=yes,location=yes'
   );
 
   if (!onevrPopup) {
