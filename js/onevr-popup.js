@@ -65,29 +65,38 @@ function waitForOneVRLocalStorage() {
           try {
             const popupLocalStorage = onevrPopup.localStorage;
 
+            // Debug logging every 30 seconds
+            if (elapsedTime % 30000 === 0 && elapsedTime > 0) {
+              console.log('[ONEVR] Debug check: popup exists=' + !!onevrPopup + ', localStorage=' + (popupLocalStorage ? 'YES' : 'NO') + ', length=' + (popupLocalStorage ? popupLocalStorage.length : 'N/A'));
+            }
+
             // Check if user appears to be logged in
             // Look for typical OneVR session tokens
             if (popupLocalStorage && popupLocalStorage.length > 0) {
-              console.log('[ONEVR] Found localStorage in popup!');
+              console.log('[ONEVR] ✓ Found localStorage in popup! Length: ' + popupLocalStorage.length);
 
               // Extract localStorage as JSON
               const storageData = {};
+              const keys = [];
               for (let i = 0; i < popupLocalStorage.length; i++) {
                 const key = popupLocalStorage.key(i);
+                keys.push(key);
                 storageData[key] = popupLocalStorage.getItem(key);
               }
 
+              console.log('[ONEVR] Keys found:', keys.join(', '));
+
               // Check if it looks like valid OneVR data
-              // (should have some auth-related keys)
               const hasAuthData =
                 storageData['auth_token'] ||
                 storageData['access_token'] ||
                 storageData['session'] ||
+                storageData['token'] ||
                 Object.keys(storageData).length > 5; // At least some data
 
               if (hasAuthData || Object.keys(storageData).length > 0) {
                 clearInterval(onevrCheckInterval);
-                console.log('[ONEVR] Successfully extracted localStorage:', Object.keys(storageData));
+                console.log('[ONEVR] ✓ Successfully extracted localStorage with ' + Object.keys(storageData).length + ' keys');
 
                 // Close popup
                 try {
@@ -101,8 +110,10 @@ function waitForOneVRLocalStorage() {
               }
             }
           } catch (e) {
-            // Same-origin error or other issue - continue checking
-            if (elapsedTime > 5000 && elapsedTime < 10000) {
+            // Same-origin error or other issue - log it
+            if (elapsedTime % 30000 === 0 && elapsedTime > 0) {
+              console.log('[ONEVR] Error accessing popup localStorage:', e.message);
+            } else if (elapsedTime > 5000 && elapsedTime < 10000) {
               console.log('[ONEVR] Waiting for login... (popup may show login form)');
             }
           }
