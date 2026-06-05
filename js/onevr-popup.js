@@ -233,3 +233,18 @@ function hideOneVRNextStepButton() {
     btn.remove();
   }
 }
+
+/**
+ * Copy bookmarklet code to clipboard
+ */
+function copyBookmarkletCode() {
+  const bookmarkletCode = `javascript:(function(){const d={};for(let k in localStorage){if(localStorage.hasOwnProperty(k))d[k]=localStorage[k];}window.opener.postMessage({type:"ONEVR_LOCALSTORAGE",success:true,data:d},"*");window.close();})();`;
+
+  navigator.clipboard.writeText(bookmarkletCode).then(() => {
+    console.log('[ONEVR] Bookmarklet code copied to clipboard');
+    showStatus('bookmarkletStatus', '✓ Bookmarklet-kod kopierad! Spara som bokmärke i din browser.', 'success');
+  }).catch(err => {
+    console.error('[ONEVR] Error copying to clipboard:', err);
+    showStatus('bookmarkletStatus', '✗ Kunde inte kopiera. Försök manuellt eller använd F12-metoden.', 'error');
+  });
+}

@@ -12,6 +12,7 @@ function initGitHubTokenUI() {
   const loginBtn = document.getElementById('openOneVRLoginBtn');
   const uploadBtn = document.getElementById('uploadStorageBtn');
   const storageInput = document.getElementById('storageDataInput');
+  const bookmarkletBtn = document.getElementById('copyBookmarkletBtn');
 
   if (!uploadBtn || !loginBtn) {
     console.log('[UI-GTM] GitHub token UI elements not found');
@@ -20,6 +21,14 @@ function initGitHubTokenUI() {
 
   // Update last upload info on init
   updateLastUploadInfo();
+
+  // Copy bookmarklet code to clipboard
+  if (bookmarkletBtn) {
+    bookmarkletBtn.addEventListener('click', () => {
+      console.log('[UI-GTM] Copying bookmarklet code...');
+      copyBookmarkletCode();
+    });
+  }
 
   // Open OneVR login popup
   loginBtn.addEventListener('click', async () => {
