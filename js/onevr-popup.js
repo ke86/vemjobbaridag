@@ -21,11 +21,11 @@ function openOneVRLoginPopup() {
     onevrPopup.close();
   }
 
-  // Open popup
+  // Open popup with smaller size (360x600) so main app is visible
   onevrPopup = window.open(
     ONEVR_LOGIN_URL,
     'OneVRLogin',
-    'width=600,height=700,menubar=no,toolbar=no,location=yes'
+    'width=360,height=600,top=50,left=50,menubar=no,toolbar=no,location=yes'
   );
 
   if (!onevrPopup) {
@@ -41,6 +41,9 @@ function openOneVRLoginPopup() {
   }
 
   console.log('[ONEVR] Popup opened, waiting for user to login and click "Nästa steg"...');
+
+  // Show floating "Nästa steg" button
+  showOneVRNextStepButton();
 
   // Wait for user to manually navigate popup to callback
   return waitForOneVRCallback();
@@ -76,14 +79,17 @@ function waitForOneVRCallback() {
 }
 
 /**
- * Handle postMessage from Worker callback
+ * Handle postMessage from localStorage extraction (popup or Worker)
  */
 function handleOneVRCallback(event) {
-  // Verify message is from our Worker
+  // Verify message is from our OneVR extraction
   if (event.data && event.data.type === 'ONEVR_LOCALSTORAGE') {
     clearTimeout(onevrCallbackTimer);
 
-    console.log('[ONEVR] Received callback from Worker');
+    console.log('[ONEVR] Received localStorage from popup');
+
+    // Hide next step button
+    hideOneVRNextStepButton();
 
     // Close popup
     try {
@@ -145,4 +151,85 @@ function closeOneVRPopup() {
  */
 function isOneVRPopupOpen() {
   return onevrPopup && !onevrPopup.closed;
+}
+
+/**
+ * Show floating "Nästa steg" button over popup
+ */
+function showOneVRNextStepButton() {
+  // Remove existing button if any
+  const existing = document.getElementById('onevrNextStepBtn');
+  if (existing) {
+    existing.remove();
+  }
+
+  // Create floating button
+  const btn = document.createElement('button');
+  btn.id = 'onevrNextStepBtn';
+  btn.className = 'onevr-next-step-btn';
+  btn.innerHTML = '✓ Nästa steg';
+  btn.onclick = executeOneVRNextStep;
+
+  document.body.appendChild(btn);
+  console.log('[ONEVR] Next step button shown');
+}
+
+/**
+ * Execute "Nästa steg" - extract localStorage from popup
+ */
+function executeOneVRNextStep() {
+  if (!onevrPopup || onevrPopup.closed) {
+    console.error('[ONEVR] Popup is closed!');
+    showStatus('loginStatus', '✗ Popup är stängd. Försök igen.', 'error');
+    return;
+  }
+
+  console.log('[ONEVR] Extracting localStorage from popup...');
+
+  // Navigate popup to JavaScript URL that extracts localStorage
+  const extractCode = `
+    (function(){
+      const storageData = {};
+      for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+          storageData[key] = localStorage[key];
+        }
+      }
+
+      if (Object.keys(storageData).length === 0) {
+        window.opener.postMessage({
+          type: 'ONEVR_LOCALSTORAGE',
+          success: false,
+          error: 'Ingen data hittades i localStorage'
+        }, '*');
+      } else {
+        window.opener.postMessage({
+          type: 'ONEVR_LOCALSTORAGE',
+          success: true,
+          data: storageData,
+          timestamp: new Date().toISOString()
+        }, '*');
+      }
+
+      window.close();
+    })();
+  `;
+
+  try {
+    onevrPopup.location = 'javascript:' + extractCode;
+    console.log('[ONEVR] JavaScript URL sent to popup');
+  } catch (e) {
+    console.error('[ONEVR] Error navigating popup:', e);
+    showStatus('loginStatus', '✗ Kunde inte navigera popup: ' + e.message, 'error');
+  }
+}
+
+/**
+ * Hide OneVR next step button
+ */
+function hideOneVRNextStepButton() {
+  const btn = document.getElementById('onevrNextStepBtn');
+  if (btn) {
+    btn.remove();
+  }
 }

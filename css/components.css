@@ -2066,3 +2066,44 @@ html.dark .profile-select {
   font-size: 18px;
 }
 
+/* ==========================================
+   OneVR Popup - Floating "Nästa steg" Button
+   ========================================== */
+.onevr-next-step-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.onevr-next-step-btn:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+  transform: translateY(-2px);
+}
+
+.onevr-next-step-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.dark .onevr-next-step-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.dark .onevr-next-step-btn:hover {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
