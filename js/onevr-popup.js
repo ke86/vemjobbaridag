@@ -4,8 +4,8 @@
  */
 
 const ONEVR_LOGIN_URL = 'https://launcher.onevr.vrse.cloud/';
-const ONEVR_POPUP_CHECK_INTERVAL = 1000; // 1 second
-const ONEVR_POPUP_TIMEOUT = 60000; // 60 seconds max wait
+const ONEVR_POPUP_CHECK_INTERVAL = 2000; // 2 seconds
+const ONEVR_POPUP_TIMEOUT = 180000; // 180 seconds (3 minutes) max wait
 
 let onevrPopup = null;
 let onevrCheckInterval = null;
@@ -115,7 +115,7 @@ function waitForOneVRLocalStorage() {
           }
         }
 
-        // Timeout after 60 seconds
+        // Timeout after 180 seconds
         if (elapsedTime > ONEVR_POPUP_TIMEOUT) {
           clearInterval(onevrCheckInterval);
           try {
@@ -123,7 +123,12 @@ function waitForOneVRLocalStorage() {
           } catch (e) {
             // Ignore
           }
-          reject(new Error('Timeout: Kunde inte läsa localStorage inom 60 sekunder'));
+          reject(new Error('Timeout: Kunde inte läsa localStorage inom 3 minuter. Stängde popup. Försök igen.'));
+        }
+
+        // Log progress every 10 seconds
+        if (elapsedTime % 10000 === 0 && elapsedTime > 0) {
+          console.log('[ONEVR] Waiting... ' + (elapsedTime / 1000) + 's elapsed');
         }
       } catch (error) {
         console.error('[ONEVR] Error checking popup:', error.message);

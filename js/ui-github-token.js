@@ -24,7 +24,7 @@ function initGitHubTokenUI() {
   // Open OneVR login popup
   loginBtn.addEventListener('click', async () => {
     loginBtn.disabled = true;
-    showStatus('loginStatus', 'Öppnar OneVR...', 'loading');
+    showStatus('loginStatus', '⏳ Öppnar OneVR popup... Väntar på login (max 3 minuter)', 'loading');
 
     try {
       console.log('[UI-GTM] Opening OneVR login popup...');
@@ -37,7 +37,7 @@ function initGitHubTokenUI() {
       showStatus('loginStatus', '✓ localStorage hämtad! Klicka "Ladda upp" för att spara.', 'success');
       console.log('[UI-GTM] localStorage extracted from OneVR popup');
     } catch (error) {
-      showStatus('loginStatus', '✗ Fel: ' + error.message, 'error');
+      showStatus('loginStatus', '✗ Fel: ' + error.message + ' (Stängde popup)', 'error');
       console.error('[UI-GTM] Error opening OneVR popup:', error);
     } finally {
       loginBtn.disabled = false;
