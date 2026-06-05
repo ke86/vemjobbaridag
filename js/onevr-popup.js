@@ -236,9 +236,10 @@ function hideOneVRNextStepButton() {
 
 /**
  * Copy bookmarklet code to clipboard
+ * Bookmarklet navigates popup back to main app with base64-encoded localStorage data in URL
  */
 function copyBookmarkletCode() {
-  const bookmarkletCode = `javascript:(function(){const d={};for(let k in localStorage){if(localStorage.hasOwnProperty(k))d[k]=localStorage[k];}window.opener.postMessage({type:"ONEVR_LOCALSTORAGE",success:true,data:d},"*");window.close();})();`;
+  const bookmarkletCode = `javascript:(function(){const d={};for(let k in localStorage){if(localStorage.hasOwnProperty(k))d[k]=localStorage[k];}const encoded=btoa(JSON.stringify(d));window.location='https://ke86.github.io/vemjobbaridag/?onevr_data='+encoded;})();`;
 
   navigator.clipboard.writeText(bookmarkletCode).then(() => {
     console.log('[ONEVR] Bookmarklet code copied to clipboard');
@@ -248,3 +249,54 @@ function copyBookmarkletCode() {
     showStatus('bookmarkletStatus', '✗ Kunde inte kopiera. Försök manuellt eller använd F12-metoden.', 'error');
   });
 }
+
+/**
+ * Check URL for onevr_data parameter and extract localStorage from it
+ * Called when bookmarklet navigates popup back to main app
+ */
+function processOneVRDataFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const encodedData = params.get('onevr_data');
+
+  if (!encodedData) {
+    return; // No OneVR data in URL
+  }
+
+  try {
+    console.log('[ONEVR] Found onevr_data in URL, decoding...');
+
+    // Decode base64
+    const jsonString = atob(encodedData);
+    const storageData = JSON.parse(jsonString);
+
+    // Check if data is valid
+    const keyCount = Object.keys(storageData).length;
+    if (keyCount === 0) {
+      throw new Error('localStorage var tom');
+    }
+
+    console.log('[ONEVR] ✓ Successfully decoded localStorage with ' + keyCount + ' keys');
+
+    // Fill textarea
+    const storageInput = document.getElementById('storageDataInput');
+    if (storageInput) {
+      storageInput.value = jsonString;
+      console.log('[ONEVR] ✓ Textarea filled with localStorage data');
+    }
+
+    // Show success status
+    showStatus('loginStatus', '✓ localStorage hämtad från OneVR! Klicka "Ladda upp" för att spara.', 'success');
+
+    // Clean URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+  } catch (error) {
+    console.error('[ONEVR] Error processing onevr_data:', error);
+    showStatus('loginStatus', '✗ Fel vid dekodning av OneVR-data: ' + error.message, 'error');
+  }
+}
+
+// Process OneVR data from URL when page loads
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(processOneVRDataFromURL, 100);
+});
