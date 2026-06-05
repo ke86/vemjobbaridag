@@ -3,7 +3,7 @@
  * Handles caching and automatic updates
  */
 
-const CACHE_VERSION = 'v6.17';
+const CACHE_VERSION = 'v6.21';
 const CACHE_NAME = `vemjobbar-${CACHE_VERSION}`;
 
 // Files to cache (relative paths for GitHub Pages compatibility)
@@ -55,6 +55,9 @@ const FILES_TO_CACHE = [
   './js/parkering.js',
   './js/notes.js',
   './js/overtime.js',
+  './js/github-token-manager.js',
+  './js/onevr-popup.js',
+  './js/ui-github-token.js',
   './js/pull-to-refresh.js',
   './js/app.js',
   // Assets

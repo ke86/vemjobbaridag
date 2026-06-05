@@ -875,6 +875,46 @@
             </div>
           </div>
 
+          <!-- OneVR Scraper Uppdatering (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="onevrSubsection">
+            <div class="subsection-header" id="onevrSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">🔑 OneVR Scraper Uppdatering</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="onevrSubContent">
+              <p class="settings-desc">Logga in på OneVR och uppdatera scraper-tokens automatiskt när de expirerar.</p>
+
+              <!-- Login Button -->
+              <button class="settings-btn primary large" id="openOneVRLoginBtn">
+                <span class="btn-icon">🔓</span> Logga in på OneVR
+              </button>
+              <small class="settings-hint">
+                Klicka här för att logga in på OneVR via popup. Efter inloggning hämtar vi tokens automatiskt.
+              </small>
+              <div class="settings-status" id="loginStatus"></div>
+
+              <!-- localStorage Data Input -->
+              <div style="margin-top: 16px;">
+                <label>OneVR localStorage-data</label>
+                <textarea class="settings-textarea" id="storageDataInput" placeholder='Hämtas automatiskt efter OneVR login, eller klistra in manuellt'></textarea>
+                <small class="settings-hint">
+                  Du kan även manuellt logga in på <a href="https://launcher.onevr.vrse.cloud" target="_blank">OneVR</a>,
+                  öppna F12 → Console och köra: <code>copy(JSON.stringify(localStorage))</code>
+                </small>
+                <button class="settings-btn primary" id="uploadStorageBtn">📤 Ladda upp till GitHub</button>
+                <div class="settings-status" id="uploadStatus"></div>
+              </div>
+
+              <!-- Last Upload Info -->
+              <div style="margin-top: 12px;">
+                <label>Senaste uppdatering</label>
+                <div class="token-info" id="tokenInfo">
+                  <span id="lastUploadTime">Läser...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Radera data (collapsible) -->
           <div class="settings-subsection collapsible-sub" id="deleteSubsection">
             <div class="subsection-header" id="deleteSubHeader">
@@ -895,7 +935,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.17</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.21</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -1397,6 +1437,9 @@
   <script src="js/parkering.js"></script>
   <script src="js/notes.js"></script>
   <script src="js/overtime.js"></script>
+  <script src="js/github-token-manager.js"></script>
+  <script src="js/onevr-popup.js"></script>
+  <script src="js/ui-github-token.js"></script>
   <script src="js/pull-to-refresh.js"></script>
   <script src="js/app.js"></script>
 
