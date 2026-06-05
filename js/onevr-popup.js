@@ -1,17 +1,17 @@
 /**
  * onevr-popup.js
- * Handles OneVR login popup and localStorage extraction
+ * Handles OneVR login popup and localStorage extraction via Cloudflare Worker
  */
 
 const ONEVR_LOGIN_URL = 'https://launcher.onevr.vrse.cloud/';
-const ONEVR_POPUP_CHECK_INTERVAL = 2000; // 2 seconds
+const ONEVR_CALLBACK_URL = 'https://vemjobbar-onevr-handler.kenny-eriksson1986.workers.dev/callback';
 const ONEVR_POPUP_TIMEOUT = 180000; // 180 seconds (3 minutes) max wait
 
 let onevrPopup = null;
-let onevrCheckInterval = null;
+let onevrCallbackTimer = null;
 
 /**
- * Open OneVR login popup and wait for localStorage
+ * Open OneVR login popup with instruction for next step
  */
 function openOneVRLoginPopup() {
   console.log('[ONEVR] Opening OneVR login popup...');
@@ -30,7 +30,7 @@ function openOneVRLoginPopup() {
 
   if (!onevrPopup) {
     console.error('[ONEVR] Popup blocked! Tillåt popups för denna sida.');
-    throw new Error('Popup blockerad. Tillåt popups i webbläsaren.');
+    throw new Error('Popup blockerad. Tillåt popups i webbläsären.');
   }
 
   // Try to focus popup
@@ -40,122 +40,89 @@ function openOneVRLoginPopup() {
     // Ignore focus errors
   }
 
-  console.log('[ONEVR] Popup opened, listening for localStorage...');
+  console.log('[ONEVR] Popup opened, waiting for user to login and click "Nästa steg"...');
 
-  // Start checking for localStorage in popup
-  return waitForOneVRLocalStorage();
+  // Wait for user to manually navigate popup to callback
+  return waitForOneVRCallback();
 }
 
 /**
- * Wait for OneVR popup to have localStorage data
+ * Wait for OneVR callback from Worker
+ * User must click "Nästa steg" button in popup to navigate to Worker URL
  */
-function waitForOneVRLocalStorage() {
+function waitForOneVRCallback() {
   return new Promise((resolve, reject) => {
-    let elapsedTime = 0;
+    // Store resolve/reject for callback handler
+    window._onevrPromiseResolve = resolve;
+    window._onevrPromiseReject = reject;
 
-    onevrCheckInterval = setInterval(() => {
-      elapsedTime += ONEVR_POPUP_CHECK_INTERVAL;
-
+    // Timeout after 3 minutes
+    onevrCallbackTimer = setTimeout(() => {
       try {
-        // Try to access popup's localStorage
-        // This will only work if popup is same-origin (it is: launcher.onevr.vrse.cloud)
-        if (onevrPopup && !onevrPopup.closed) {
-          // Try to read localStorage from popup
-          // We use a try-catch because of potential security restrictions
-          try {
-            const popupLocalStorage = onevrPopup.localStorage;
-
-            // Debug logging every 30 seconds
-            if (elapsedTime % 30000 === 0 && elapsedTime > 0) {
-              console.log('[ONEVR] Debug check: popup exists=' + !!onevrPopup + ', localStorage=' + (popupLocalStorage ? 'YES' : 'NO') + ', length=' + (popupLocalStorage ? popupLocalStorage.length : 'N/A'));
-            }
-
-            // Check if user appears to be logged in
-            // Look for typical OneVR session tokens
-            if (popupLocalStorage && popupLocalStorage.length > 0) {
-              console.log('[ONEVR] ✓ Found localStorage in popup! Length: ' + popupLocalStorage.length);
-
-              // Extract localStorage as JSON
-              const storageData = {};
-              const keys = [];
-              for (let i = 0; i < popupLocalStorage.length; i++) {
-                const key = popupLocalStorage.key(i);
-                keys.push(key);
-                storageData[key] = popupLocalStorage.getItem(key);
-              }
-
-              console.log('[ONEVR] Keys found:', keys.join(', '));
-
-              // Check if it looks like valid OneVR data
-              const hasAuthData =
-                storageData['auth_token'] ||
-                storageData['access_token'] ||
-                storageData['session'] ||
-                storageData['token'] ||
-                Object.keys(storageData).length > 5; // At least some data
-
-              if (hasAuthData || Object.keys(storageData).length > 0) {
-                clearInterval(onevrCheckInterval);
-                console.log('[ONEVR] ✓ Successfully extracted localStorage with ' + Object.keys(storageData).length + ' keys');
-
-                // Close popup
-                try {
-                  onevrPopup.close();
-                } catch (e) {
-                  // Ignore close errors
-                }
-
-                resolve(storageData);
-                return;
-              }
-            }
-          } catch (e) {
-            // Same-origin error or other issue - log it
-            if (elapsedTime % 30000 === 0 && elapsedTime > 0) {
-              console.log('[ONEVR] Error accessing popup localStorage:', e.message);
-            } else if (elapsedTime > 5000 && elapsedTime < 10000) {
-              console.log('[ONEVR] Waiting for login... (popup may show login form)');
-            }
-          }
-        } else {
-          // Popup closed
-          if (elapsedTime < 5000) {
-            console.log('[ONEVR] Popup closed before login');
-            clearInterval(onevrCheckInterval);
-            reject(new Error('Popup stängdes innan login var klar'));
-          }
-        }
-
-        // Timeout after 180 seconds
-        if (elapsedTime > ONEVR_POPUP_TIMEOUT) {
-          clearInterval(onevrCheckInterval);
-          try {
-            onevrPopup.close();
-          } catch (e) {
-            // Ignore
-          }
-          reject(new Error('Timeout: Kunde inte läsa localStorage inom 3 minuter. Stängde popup. Försök igen.'));
-        }
-
-        // Log progress every 10 seconds
-        if (elapsedTime % 10000 === 0 && elapsedTime > 0) {
-          console.log('[ONEVR] Waiting... ' + (elapsedTime / 1000) + 's elapsed');
-        }
-      } catch (error) {
-        console.error('[ONEVR] Error checking popup:', error.message);
-        // Continue trying
+        onevrPopup.close();
+      } catch (e) {
+        // Ignore
       }
-    }, ONEVR_POPUP_CHECK_INTERVAL);
+
+      // Clean up promise handlers
+      delete window._onevrPromiseResolve;
+      delete window._onevrPromiseReject;
+
+      reject(new Error('Timeout: Du klickade inte "Nästa steg" inom 3 minuter. Försök igen.'));
+    }, ONEVR_POPUP_TIMEOUT);
+
+    console.log('[ONEVR] Waiting for callback from Worker...');
   });
 }
+
+/**
+ * Handle postMessage from Worker callback
+ */
+function handleOneVRCallback(event) {
+  // Verify message is from our Worker
+  if (event.data && event.data.type === 'ONEVR_LOCALSTORAGE') {
+    clearTimeout(onevrCallbackTimer);
+
+    console.log('[ONEVR] Received callback from Worker');
+
+    // Close popup
+    try {
+      if (onevrPopup && !onevrPopup.closed) {
+        onevrPopup.close();
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    if (event.data.success) {
+      console.log('[ONEVR] ✓ Successfully received localStorage with ' + Object.keys(event.data.data).length + ' keys');
+      // Resolve with the data
+      if (window._onevrPromiseResolve) {
+        window._onevrPromiseResolve(event.data.data);
+        delete window._onevrPromiseResolve;
+        delete window._onevrPromiseReject;
+      }
+    } else {
+      console.error('[ONEVR] Callback error:', event.data.error);
+      if (window._onevrPromiseReject) {
+        window._onevrPromiseReject(new Error(event.data.error));
+        delete window._onevrPromiseResolve;
+        delete window._onevrPromiseReject;
+      }
+    }
+  }
+}
+
+// Listen for messages from Worker callback
+window.addEventListener('message', handleOneVRCallback);
 
 /**
  * Close OneVR popup if it's open
  */
 function closeOneVRPopup() {
-  if (onevrCheckInterval) {
-    clearInterval(onevrCheckInterval);
-    onevrCheckInterval = null;
+  if (onevrCallbackTimer) {
+    clearTimeout(onevrCallbackTimer);
+    onevrCallbackTimer = null;
   }
 
   if (onevrPopup && !onevrPopup.closed) {
@@ -165,6 +132,10 @@ function closeOneVRPopup() {
       // Ignore
     }
   }
+
+  // Clean up promise handlers
+  delete window._onevrPromiseResolve;
+  delete window._onevrPromiseReject;
 
   onevrPopup = null;
 }
