@@ -237,10 +237,10 @@ function hideOneVRNextStepButton() {
 
 /**
  * Copy bookmarklet code to clipboard
- * Bookmarklet navigates popup back to main app with base64-encoded localStorage data in URL
+ * Bookmarklet opens main app in new window with base64-encoded localStorage data in URL
  */
 function copyBookmarkletCode() {
-  const bookmarkletCode = `javascript:(function(){const d={};for(let k in localStorage){if(localStorage.hasOwnProperty(k))d[k]=localStorage[k];}const encoded=btoa(JSON.stringify(d));window.location='https://ke86.github.io/vemjobbaridag/?onevr_data='+encoded;})();`;
+  const bookmarkletCode = `javascript:(function(){const d={};for(let k in localStorage){if(localStorage.hasOwnProperty(k))d[k]=localStorage[k];}const encoded=btoa(JSON.stringify(d));window.open('https://ke86.github.io/vemjobbaridag/?onevr_data='+encoded);})();`;
 
   navigator.clipboard.writeText(bookmarkletCode).then(() => {
     console.log('[ONEVR] Bookmarklet code copied to clipboard');

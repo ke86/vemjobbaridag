@@ -898,10 +898,11 @@
                 <label>Bookmarklet för iPhone/Mobil</label>
                 <p class="settings-hint" style="margin-bottom: 12px;">
                   <strong>Steg-för-steg:</strong><br>
-                  1. Klicka "Kopiera bookmarklet-kod"<br>
+                  1. Klicka "Kopiera bookmarklet-kod" (lagras i clipboard)<br>
                   2. Klicka "Logga in på OneVR" och logga in<br>
-                  3. I OneVR popup: Klicka i adressbar, tömma den, pasta koden<br>
-                  4. Tryck ENTER - localStorage hämtas automatiskt ✓
+                  3. I OneVR popup: Öppna en notes-app, todo-app, eller någon text-input<br>
+                  4. Paste koden och klicka på den (eller klistra i Safari-adressbar)<br>
+                  5. ✓ Denna app öppnas automatiskt med localStorage fylld!
                 </p>
                 <button class="settings-btn" id="copyBookmarkletBtn">📋 Kopiera bookmarklet-kod</button>
                 <div class="settings-status" id="bookmarkletStatus"></div>
@@ -949,7 +950,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.28</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v6.29</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
