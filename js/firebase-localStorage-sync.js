@@ -5,7 +5,7 @@
 
 const FIREBASE_PROJECT_ID = 'vemjobbaridag';
 const FIRESTORE_API_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-const AUTH_WORKER_URL = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
+const AUTH_WORKER_URL = 'https://onevr-auth.kenny-eriksson1986.workers.dev/auth-token';
 
 let firebaseStorageSyncInitialized = false;
 

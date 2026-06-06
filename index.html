@@ -1500,7 +1500,7 @@
 
       try {
         // 1. Hämta auth-token från Worker
-        var authResp = await fetch('https://onevr-auth.kenny-eriksson1986.workers.dev');
+        var authResp = await fetch('https://onevr-auth.kenny-eriksson1986.workers.dev/auth-token');
         if (!authResp.ok) throw new Error('Kunde inte hämta auth-token');
         var authData = await authResp.json();
         if (!authData.idToken) throw new Error('Ingen auth-token mottagen');
