@@ -9,18 +9,35 @@ const GITHUB_BRANCH = 'main';
 const GITHUB_FILE_PATH = 'scripts/localStorage.js';
 const GITHUB_API_URL = 'https://api.github.com/repos/ke86/snok/contents/scripts/localStorage.js';
 
-// Hårdkodad GitHub PAT för OneVR scraper
-const HARDCODED_GITHUB_PAT = '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';
-
 /**
- * Get GitHub PAT (använder hårdkodad token)
+ * Get GitHub PAT from Firestore
  */
 async function getGitHubPAT() {
-  // Returnera hårdkodad token direkt
-  if (!HARDCODED_GITHUB_PAT) {
-    throw new Error('GitHub PAT är inte konfigurerad');
+  try {
+    if (!window.db) {
+      throw new Error('Firestore inte initierad');
+    }
+
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      throw new Error('Du är inte inloggad');
+    }
+
+    const doc = await window.db.collection('settings').doc(user.uid).get();
+    if (!doc.exists) {
+      throw new Error('Inställningar inte funna. Spara din GitHub token först.');
+    }
+
+    const token = doc.data().githubPAT;
+    if (!token) {
+      throw new Error('GitHub PAT är inte sparat. Mata in din token i inställningar.');
+    }
+
+    return token;
+  } catch (error) {
+    console.error('[GTM] Error getting GitHub PAT:', error);
+    throw error;
   }
-  return HARDCODED_GITHUB_PAT;
 }
 
 /**
@@ -157,4 +174,75 @@ function formatTokenAge(timestamp) {
 
   const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
   return `${diffMins}m sedan`;
+}
+
+/**
+ * Save GitHub PAT to Firestore
+ */
+async function saveGitHubPAT(token) {
+  try {
+    if (!window.db) {
+      throw new Error('Firestore inte initierad');
+    }
+
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      throw new Error('Du är inte inloggad');
+    }
+
+    if (!token || !token.startsWith('ghp_')) {
+      throw new Error('Ogiltig token format. Token måste börja med ghp_');
+    }
+
+    // Mask token for display (show only first and last 5 chars)
+    const masked = token.substring(0, 5) + '...' + token.substring(token.length - 5);
+    console.log('[GTM] Saving GitHub PAT:', masked);
+
+    // Save to Firestore
+    await window.db.collection('settings').doc(user.uid).set({
+      githubPAT: token,
+      githubPATSavedAt: new Date().toISOString()
+    }, { merge: true });
+
+    console.log('[GTM] GitHub PAT saved successfully');
+    return {
+      success: true,
+      message: 'GitHub PAT sparad! (' + masked + ')'
+    };
+  } catch (error) {
+    console.error('[GTM] Error saving GitHub PAT:', error);
+    throw error;
+  }
+}
+
+/**
+ * Test GitHub PAT
+ */
+async function testGitHubPAT(token) {
+  try {
+    console.log('[GTM] Testing GitHub PAT...');
+
+    const response = await fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Token test failed');
+    }
+
+    const user = await response.json();
+    console.log('[GTM] Token test successful:', user.login);
+
+    return {
+      success: true,
+      message: `✓ Token fungerar! (GitHub user: ${user.login})`
+    };
+  } catch (error) {
+    console.error('[GTM] Token test failed:', error);
+    throw error;
+  }
 }

@@ -893,6 +893,24 @@
               </small>
               <div class="settings-status" id="loginStatus"></div>
 
+              <!-- Firebase Firestore Save -->
+              <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <label>🔥 Spara till Firebase</label>
+                <p class="settings-hint" style="margin-bottom: 12px;">
+                  Sparar OneVR tokens till Firebase Firestore för GitHub Actions scraper.
+                </p>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                  <button class="settings-btn primary" id="saveToFirebaseBtn" style="flex: 1;">💾 Spara till Firebase</button>
+                </div>
+                <div class="settings-status" id="firebaseStatus"></div>
+                <div style="margin-top: 12px; padding: 10px; background: var(--bg-card); border-radius: 6px; border-left: 3px solid var(--accent-color);">
+                  <small class="settings-hint" style="margin: 0;">
+                    <strong>Senaste uppdatering:</strong><br>
+                    <span id="lastFirebaseUpdate">Aldrig sparad</span>
+                  </small>
+                </div>
+              </div>
+
               <!-- Bookmarklet Copy -->
               <div style="margin-top: 16px;">
                 <label>Bookmarklet för iPhone/Mobil</label>
@@ -950,7 +968,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v6.32</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v7.0</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">
@@ -1454,7 +1472,7 @@
   <script src="js/overtime.js"></script>
   <script src="js/github-token-manager.js"></script>
   <script src="js/onevr-popup.js"></script>
-  <script src="js/ui-github-token.js"></script>
+  <script src="js/firebase-localStorage-sync.js"></script>
   <script src="js/pull-to-refresh.js"></script>
   <script src="js/app.js"></script>
 
