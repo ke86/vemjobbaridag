@@ -929,11 +929,13 @@
               <!-- localStorage Data Input -->
               <div style="margin-top: 16px;">
                 <label>OneVR localStorage-data</label>
-                <textarea class="settings-textarea" id="storageDataInput" placeholder='Hämtas automatiskt efter OneVR login, eller klistra in manuellt'></textarea>
+                <textarea class="settings-textarea" id="storageDataInput" placeholder='Klistra in OneVR localStorage JSON här'></textarea>
                 <small class="settings-hint">
-                  Du kan även manuellt logga in på <a href="https://launcher.onevr.vrse.cloud" target="_blank">OneVR</a>,
-                  öppna F12 → Console och köra: <code>copy(JSON.stringify(localStorage))</code>
+                  Logga in på <a href="https://launcher.onevr.vrse.cloud" target="_blank">OneVR</a>,
+                  öppna F12 → Console och kör: <code>copy(JSON.stringify(localStorage))</code>
                 </small>
+                <button class="settings-btn primary" id="manualSaveFirebaseBtn" onclick="manualSaveToFirebase()" style="margin-top: 10px; width: 100%;">💾 Spara till Firebase</button>
+                <div id="manualFirebaseStatus" class="settings-status" style="margin-top: 8px;"></div>
               </div>
 
               <!-- Last Upload Info -->
@@ -1472,6 +1474,60 @@
   <script src="js/onevr-popup.js"></script>
   <script src="js/ui-github-token.js"></script>
   <script src="js/firebase-localStorage-sync.js"></script>
+
+  <!-- Manuell Firebase-sparning — fristående, inga beroenden -->
+  <script>
+    async function manualSaveToFirebase() {
+      var btn = document.getElementById('manualSaveFirebaseBtn');
+      var statusEl = document.getElementById('manualFirebaseStatus');
+      var textarea = document.getElementById('storageDataInput');
+
+      if (!textarea || !textarea.value.trim()) {
+        if (statusEl) { statusEl.textContent = '⚠️ Klistra in localStorage-data först'; statusEl.className = 'settings-status error'; }
+        return;
+      }
+
+      var jsonData = textarea.value.trim();
+
+      // Validera JSON
+      try { JSON.parse(jsonData); } catch (e) {
+        if (statusEl) { statusEl.textContent = '⚠️ Ogiltig JSON-data'; statusEl.className = 'settings-status error'; }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
+      if (statusEl) { statusEl.textContent = '⏳ Sparar till Firebase...'; statusEl.className = 'settings-status loading'; }
+
+      try {
+        // 1. Hämta auth-token från Worker
+        var authResp = await fetch('https://onevr-auth.kenny-eriksson1986.workers.dev');
+        if (!authResp.ok) throw new Error('Kunde inte hämta auth-token');
+        var authData = await authResp.json();
+        if (!authData.idToken) throw new Error('Ingen auth-token mottagen');
+
+        // 2. Spara till Firestore
+        var firestoreUrl = 'https://firestore.googleapis.com/v1/projects/vemjobbaridag/databases/(default)/documents/config/localStorage?updateMask.fieldPaths=data&updateMask.fieldPaths=updatedAt';
+        var saveResp = await fetch(firestoreUrl, {
+          method: 'PATCH',
+          headers: { 'Authorization': 'Bearer ' + authData.idToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: { data: { stringValue: jsonData }, updatedAt: { stringValue: new Date().toISOString() } } })
+        });
+
+        if (!saveResp.ok) {
+          var errBody = await saveResp.json();
+          throw new Error(errBody.error ? errBody.error.message : 'Firestore error ' + saveResp.status);
+        }
+
+        if (statusEl) { statusEl.textContent = '✅ Sparat till Firebase! Scraper kan nu läsa tokens.'; statusEl.className = 'settings-status success'; }
+        console.log('[MANUAL-FIREBASE] Save successful');
+      } catch (err) {
+        if (statusEl) { statusEl.textContent = '❌ Fel: ' + err.message; statusEl.className = 'settings-status error'; }
+        console.error('[MANUAL-FIREBASE] Error:', err);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+  </script>
   <script src="js/pull-to-refresh.js"></script>
   <script src="js/app.js"></script>
 
