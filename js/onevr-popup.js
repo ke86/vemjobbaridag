@@ -292,11 +292,30 @@ function processOneVRDataFromURL() {
         console.log('[ONEVR] ✓ Textarea filled with localStorage data');
       }
 
-      // Show success status
-      showStatus('loginStatus', '✓ localStorage hämtad från OneVR! Klicka "Ladda upp" för att spara.', 'success');
+      // Show loading status while uploading
+      showStatus('loginStatus', '⏳ Laddar upp till GitHub...', 'loading');
 
-      // Clean URL
-      window.history.replaceState({}, document.title, window.location.pathname);
+      // Automatically upload to GitHub
+      console.log('[ONEVR] Auto-uploading to GitHub...');
+      uploadLocalStorageToGitHub(jsonString)
+        .then(result => {
+          console.log('[ONEVR] ✓ Auto-upload successful:', result);
+          showStatus('loginStatus', '✓ localStorage hämtad och uppladdat till GitHub!', 'success');
+
+          // Update last upload info
+          updateLastUploadInfo();
+
+          // Clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch(error => {
+          console.error('[ONEVR] Auto-upload failed:', error);
+          // Show partial success - data was retrieved but upload failed
+          showStatus('loginStatus', '⚠ localStorage hämtad men upload misslyckades: ' + error.message, 'error');
+
+          // Clean URL anyway
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
     })
     .catch(error => {
       console.error('[ONEVR] Error fetching onevr_data:', error);
