@@ -10,7 +10,7 @@ const GITHUB_FILE_PATH = 'scripts/localStorage.js';
 const GITHUB_API_URL = 'https://api.github.com/repos/ke86/snok/contents/scripts/localStorage.js';
 
 // Hårdkodad GitHub PAT för OneVR scraper
-const HARDCODED_GITHUB_PAT = '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';
+const HARDCODED_GITHUB_PAT = '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';
 
 /**
  * Get GitHub PAT (använder hårdkodad token)
