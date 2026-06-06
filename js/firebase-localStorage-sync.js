@@ -11,13 +11,14 @@ let firebaseStorageSyncInitialized = false;
 
 function initFirebaseStorageSync() {
   if (firebaseStorageSyncInitialized) return;
-  firebaseStorageSyncInitialized = true;
 
   const saveBtn = document.getElementById('saveToFirebaseBtn');
   if (!saveBtn) {
-    console.log('[FIREBASE-SYNC] Save button not found');
+    console.log('[FIREBASE-SYNC] Save button not found yet, will retry');
     return;
   }
+
+  firebaseStorageSyncInitialized = true;
 
   // Load last update info
   loadLastFirebaseUpdate();

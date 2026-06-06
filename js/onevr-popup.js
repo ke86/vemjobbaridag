@@ -292,26 +292,26 @@ function processOneVRDataFromURL() {
         console.log('[ONEVR] ✓ Textarea filled with localStorage data');
       }
 
-      // Show loading status while uploading
-      showStatus('loginStatus', '⏳ Laddar upp till GitHub...', 'loading');
+      // Show loading status while saving
+      showStatus('loginStatus', '⏳ Sparar till Firebase...', 'loading');
 
-      // Automatically upload to GitHub
-      console.log('[ONEVR] Auto-uploading to GitHub...');
-      uploadLocalStorageToGitHub(jsonString)
+      // Automatically save to Firebase
+      console.log('[ONEVR] Auto-saving to Firebase...');
+      saveLocalStorageToFirebase(jsonString)
         .then(result => {
-          console.log('[ONEVR] ✓ Auto-upload successful:', result);
-          showStatus('loginStatus', '✓ localStorage hämtad och uppladdat till GitHub!', 'success');
+          console.log('[ONEVR] ✓ Auto-save successful:', result);
+          showStatus('loginStatus', '✓ localStorage hämtad och sparad till Firebase!', 'success');
 
-          // Update last upload info
-          updateLastUploadInfo();
+          // Update last Firebase update info
+          loadLastFirebaseUpdate();
 
           // Clean URL
           window.history.replaceState({}, document.title, window.location.pathname);
         })
         .catch(error => {
-          console.error('[ONEVR] Auto-upload failed:', error);
-          // Show partial success - data was retrieved but upload failed
-          showStatus('loginStatus', '⚠ localStorage hämtad men upload misslyckades: ' + error.message, 'error');
+          console.error('[ONEVR] Auto-save failed:', error);
+          // Show partial success - data was retrieved but save failed
+          showStatus('loginStatus', '⚠ localStorage hämtad men Firebase-sparning misslyckades: ' + error.message, 'error');
 
           // Clean URL anyway
           window.history.replaceState({}, document.title, window.location.pathname);
