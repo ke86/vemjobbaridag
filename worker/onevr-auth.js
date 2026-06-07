@@ -1,6 +1,6 @@
 /**
  * onevr-auth.js — Cloudflare Worker
- * Combined worker: scrape triggers, scrape status polling, and Firebase auth token endpoint.
+ * Combined worker: scrape triggers, scrape status polling, Firebase auth token endpoint, and positions API.
  *
  * Environment variables needed:
  *   FIREBASE_API_KEY       — Firebase Web API key (from Firebase Console → Project Settings)
@@ -8,6 +8,7 @@
  *   FIREBASE_PASSWORD      — Service account password for Firebase Auth
  *   GITHUB_PAT            — GitHub Personal Access Token for triggering Actions
  *   SCRAPE_PIN            — PIN code for scrape trigger/status access
+ *   POSITIONS_API_KEY     — API key for /positions endpoint (default: onevr-docs-2026)
  *
  * Deploy:
  *   wrangler deploy --name onevr-auth worker/onevr-auth.js
@@ -45,6 +46,14 @@ export default {
     // ============================
     if (path === '/scrape-status' && request.method === 'GET') {
       return handleScrapeStatus(request, env);
+    }
+
+    // ============================
+    // GET /positions
+    // Returns position data from Firebase
+    // ============================
+    if (path === '/positions' && request.method === 'GET') {
+      return handlePositions(request, env);
     }
 
     return jsonResp({ error: 'Not found' }, 404);
@@ -179,13 +188,93 @@ async function handleScrapeStatus(request, env) {
 }
 
 // ----------------------------------------
+// /positions — Fetch position data from Firebase
+// ----------------------------------------
+async function handlePositions(request, env) {
+  const apiKey = request.headers.get('X-API-Key') || '';
+  const expectedKey = env.POSITIONS_API_KEY || 'onevr-docs-2026';
+
+  if (apiKey !== expectedKey) {
+    return jsonResp({ error: 'Invalid API key' }, 401);
+  }
+
+  const firebaseApiKey = env.FIREBASE_API_KEY;
+  const firebaseEmail = env.FIREBASE_EMAIL;
+  const firebasePassword = env.FIREBASE_PASSWORD;
+
+  if (!firebaseApiKey || !firebaseEmail || !firebasePassword) {
+    return jsonResp({ error: 'Firebase credentials not configured' }, 500);
+  }
+
+  try {
+    // Get Firebase ID token
+    const authRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: firebaseEmail,
+          password: firebasePassword,
+          returnSecureToken: true
+        })
+      }
+    );
+
+    if (!authRes.ok) {
+      return jsonResp({ error: 'Firebase auth failed' }, 401);
+    }
+
+    const authData = await authRes.json();
+    const idToken = authData.idToken;
+
+    // Fetch positions document from Firestore
+    const firestoreUrl = 'https://firestore.googleapis.com/v1/projects/vemjobbaridag/databases/(default)/documents/positions/data';
+    const posRes = await fetch(firestoreUrl, {
+      headers: { 'Authorization': 'Bearer ' + idToken }
+    });
+
+    if (!posRes.ok) {
+      return jsonResp({ error: 'Failed to fetch positions: ' + posRes.status }, posRes.status);
+    }
+
+    const posDoc = await posRes.json();
+
+    // Extract dagar field from Firestore document
+    if (!posDoc.fields || !posDoc.fields.dagar) {
+      return jsonResp({ error: 'No positions data found' }, 404);
+    }
+
+    // Convert Firestore map format to plain object
+    const dagarMap = posDoc.fields.dagar.mapValue.fields;
+    const dagar = {};
+
+    for (const dateKey in dagarMap) {
+      const posArray = dagarMap[dateKey].arrayValue.values || [];
+      dagar[dateKey] = posArray.map(posVal => {
+        const fields = posVal.mapValue.fields;
+        const pos = {};
+        for (const key in fields) {
+          pos[key] = fields[key].stringValue || fields[key].integerValue || '';
+        }
+        return pos;
+      });
+    }
+
+    return jsonResp({ dagar });
+  } catch (err) {
+    return jsonResp({ error: 'Request failed: ' + err.message }, 500);
+  }
+}
+
+// ----------------------------------------
 // Helpers
 // ----------------------------------------
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-PIN',
+    'Access-Control-Allow-Headers': 'Content-Type, X-PIN, X-API-Key',
     'Access-Control-Max-Age': '86400'
   };
 }
