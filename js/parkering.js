@@ -27,30 +27,7 @@ var _parkeringLoaded = false;   // Has data been loaded?
 var _parkDate = new Date();      // Currently viewed date
 var _parkeringUnsubscribe = null; // Firebase listener unsubscribe fn
 var _parkeringFirebaseReady = false; // Has Firebase data arrived?
-
-var _parkeringDefaults = [
-  'Petter Tegnér Sjöstrand',
-  'André Carlsson',
-  'Sara Feldt',
-  'Kenny Eriksson',
-  'Tina Lundin',
-  'Alexander Canlycke',
-  'Dennis Ross',
-  'Saga Fagerström',
-  'Merim Popara',
-  'Ibrahim Luta',
-  'Henrik Royson',
-  'Robin Hjerpe',
-  'Jonathan Doss',
-  'Nadeem Ahmad',
-  'Marcelle Gnawa',
-  'Karolina Johansson',
-  'Anna Lundström',
-  'Kymet Shala',
-  'Safet Rexha',
-  'Faton Toni Maloku',
-  'Peter Nilsson'
-];
+var _parkeringSaving = false;   // True while saving — blocks onSnapshot overwrites
 
 // =============================================
 // PERSISTENCE (Firebase primary + IndexedDB fallback)
@@ -75,18 +52,24 @@ function initParkeringListener() {
   _parkeringUnsubscribe = db.doc(PARK_FIRESTORE_DOC).onSnapshot(
     function(doc) {
       _parkeringFirebaseReady = true;
+
+      // Don't overwrite if we're currently saving — our own write triggers this
+      if (_parkeringSaving) {
+        console.log('[PARKERING] onSnapshot skipped — save in progress');
+        return;
+      }
+
       if (doc.exists) {
         var data = doc.data();
         if (Array.isArray(data.names)) {
           _parkeringList = data.names;
-        } else {
-          _parkeringList = _parkeringDefaults.slice();
+          console.log('[PARKERING] Loaded ' + data.names.length + ' names from Firebase');
         }
-      } else {
-        // First time — seed Firebase with defaults
-        _parkeringList = _parkeringDefaults.slice();
-        saveParkeringToFirebase();
+        // If names field is missing/invalid, keep current list — don't reset
       }
+      // If doc doesn't exist, keep current list (empty on first load)
+      // User adds names via Settings — no hardcoded defaults
+
       _parkeringLoaded = true;
 
       // Also cache to IndexedDB for offline use
@@ -124,12 +107,15 @@ function saveParkeringToFirebase() {
     return Promise.resolve();
   }
 
+  _parkeringSaving = true;
   return db.doc(PARK_FIRESTORE_DOC).set({
     names: _parkeringList,
     lastModified: new Date().toISOString()
   }).then(function() {
+    _parkeringSaving = false;
     if (typeof updateSyncStatus === 'function') updateSyncStatus('syncing');
   }).catch(function(err) {
+    _parkeringSaving = false;
     console.error('[PARKERING] Firebase save error:', err);
     // Fallback: save locally
     saveParkeringToIndexedDB();
@@ -141,20 +127,19 @@ function saveParkeringToFirebase() {
  */
 function loadParkeringFromIndexedDB() {
   if (typeof loadSetting !== 'function') {
-    _parkeringList = _parkeringDefaults.slice();
+    // No IndexedDB helper — keep current list (empty if first load)
     _parkeringLoaded = true;
     return Promise.resolve(_parkeringList);
   }
   return loadSetting('parkering').then(function(val) {
     if (Array.isArray(val) && val.length > 0) {
       _parkeringList = val;
-    } else {
-      _parkeringList = _parkeringDefaults.slice();
     }
+    // If nothing stored, keep current list (empty on fresh install)
     _parkeringLoaded = true;
     return _parkeringList;
   }).catch(function() {
-    _parkeringList = _parkeringDefaults.slice();
+    // Keep current list on error
     _parkeringLoaded = true;
     return _parkeringList;
   });
