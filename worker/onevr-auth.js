@@ -114,7 +114,7 @@ async function handleTriggerScrape(request, env) {
 
   try {
     const res = await fetch(
-      'https://api.github.com/repos/ke86/snok/actions/workflows/scrape.yml/dispatches',
+      'https://api.github.com/repos/ke86/snok/actions/workflows/daily-scrape.yml/dispatches',
       {
         method: 'POST',
         headers: {
@@ -153,7 +153,7 @@ async function handleScrapeStatus(request, env) {
 
   try {
     const res = await fetch(
-      'https://api.github.com/repos/ke86/snok/actions/workflows/scrape.yml/runs?per_page=5',
+      'https://api.github.com/repos/ke86/snok/actions/workflows/daily-scrape.yml/runs?per_page=5',
       {
         headers: {
           'Authorization': 'token ' + pat,
