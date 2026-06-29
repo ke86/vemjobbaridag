@@ -211,20 +211,20 @@ var lastAutoCheckWindow = null; // e.g. "2026-02-13_06" or "2026-02-13_12"
 
 /**
  * Determine current auto-check window key.
- * Returns e.g. "2026-02-13_06" if hour is 07–08, "2026-02-13_12" if 12–13, else null.
+ * Returns e.g. "2026-02-13_07" if hour is 07–20, else null.
+ * One check per hour between 07:00–20:59 Swedish time.
  */
 function autoCheckWindowKey() {
   var now = new Date();
   var h = now.getHours();
   var d = now.toISOString().slice(0, 10);
-  if (h === 7 || h === 8) return d + '_07';
-  if (h === 12 || h === 13) return d + '_12';
+  if (h >= 7 && h <= 20) return d + '_' + String(h).padStart(2, '0');
   return null;
 }
 
 /**
  * Check if an automatic sync should run.
- * Returns true if inside 07–08 or 12–13 AND not checked this window yet.
+ * Returns true if inside 07–20 AND not checked this hour yet.
  */
 function shouldAutoCheck() {
   var key = autoCheckWindowKey();
@@ -393,7 +393,7 @@ async function fetchDagvyFromFirebase(source) {
 
 /**
  * Start the auto-check timer.
- * Checks every 10 minutes — if inside 07–08 or 12–13 window,
+ * Checks every 1 hour — if inside 07–20 window,
  * writes sync signal (which triggers ALL connected apps to fetch).
  */
 function startAutoCheckTimer() {
@@ -403,7 +403,7 @@ function startAutoCheckTimer() {
       console.log('[AUTO-CHECK] Window active — writing sync signal');
       writeSyncSignal();
     }
-  }, 10 * 60 * 1000); // every 10 min
+  }, 60 * 60 * 1000); // every 1 hour
   console.log('[AUTO-CHECK] Timer started (07:00 & 12:00 windows)');
 }
 
