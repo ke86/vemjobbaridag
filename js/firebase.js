@@ -383,6 +383,11 @@ async function fetchDagvyFromFirebase(source) {
     var wk = autoCheckWindowKey();
     if (wk) dagvyLastCheckWindow = wk;
 
+    // Re-render to ensure dagvy corrections are applied (handles startup race condition)
+    if (isLoggedIn && typeof renderEmployees === 'function') {
+      renderEmployees();
+    }
+
     console.log('[DAGVY-SYNC] Done (' + source + '): ' + snapshot.size + ' from Firebase + ' + kept.length + ' kept from previous');
     return snapshot.size;
   } catch (err) {
