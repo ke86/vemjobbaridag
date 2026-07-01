@@ -398,8 +398,9 @@ async function fetchDagvyFromFirebase(source) {
 
 /**
  * Start the auto-check timer.
- * Checks every 1 hour — if inside 07–20 window,
+ * Checks every 10 minutes — if inside 07–20 window and not checked this hour,
  * writes sync signal (which triggers ALL connected apps to fetch).
+ * Dedup: shouldAutoCheck() ensures only 1 check per hour.
  */
 function startAutoCheckTimer() {
   if (autoCheckTimer) return; // already running
@@ -408,8 +409,8 @@ function startAutoCheckTimer() {
       console.log('[AUTO-CHECK] Window active — writing sync signal');
       writeSyncSignal();
     }
-  }, 60 * 60 * 1000); // every 1 hour
-  console.log('[AUTO-CHECK] Timer started (07:00 & 12:00 windows)');
+  }, 10 * 60 * 1000); // every 10 min (dedup limits to 1 per hour)
+  console.log('[AUTO-CHECK] Timer started (07–20, once per hour)');
 }
 
 /**
@@ -769,9 +770,12 @@ function _scrapeFinish(message, success) {
   // Reset button after delay
   setTimeout(_scrapeResetBtn, success ? 10000 : 5000);
 
-  // If success, auto-sync to get the new data
-  if (success && typeof fetchAllData === 'function') {
-    fetchAllData('post-scrape');
+  // If success, write sync signal (notifies ALL connected apps) and fetch new data
+  if (success) {
+    writeSyncSignal();
+    if (typeof fetchAllData === 'function') {
+      fetchAllData('post-scrape');
+    }
   }
 }
 
