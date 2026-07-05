@@ -391,6 +391,38 @@ async function handleLogin() {
 }
 
 /**
+ * Handle logout — clear state, sign out Firebase, show login screen
+ */
+async function handleLogout() {
+  try {
+    await clearLoginState();
+    if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+      await firebase.auth().signOut();
+    }
+    isLoggedIn = false;
+    loginScreen.classList.remove('hidden');
+    setupLoginListeners();
+    // Show loading indicator again for next login
+    var loadingEl = document.getElementById('dataLoading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    // Clear employee list
+    var empList = document.getElementById('employeeList');
+    if (empList) empList.innerHTML = '';
+    // Navigate back to schedule page
+    if (typeof showPage === 'function') showPage('schedule');
+    console.log('[AUTH] Logged out');
+  } catch (err) {
+    console.error('[AUTH] Logout error:', err);
+  }
+}
+
+// Bind logout button
+document.addEventListener('DOMContentLoaded', function() {
+  var logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+});
+
+/**
  * Display login error message
  */
 function showLoginError(message) {

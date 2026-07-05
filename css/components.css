@@ -1411,6 +1411,10 @@ html.dark .profile-select {
   color: white;
 }
 
+.logout-btn {
+  color: var(--accent-red, #e74c3c);
+}
+
 /* ==========================================
    COLLAPSIBLE SETTINGS SECTION
    ========================================== */
