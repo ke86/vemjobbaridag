@@ -5,7 +5,7 @@
 
 const FIREBASE_PROJECT_ID = 'vemjobbaridag';
 const FIRESTORE_API_URL = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-const AUTH_WORKER_URL = 'https://onevr-auth.kenny-eriksson1986.workers.dev/auth-token';
+// AUTH_WORKER_URL is defined in auth.js (use /auth-token endpoint)
 
 let firebaseStorageSyncInitialized = false;
 
@@ -67,7 +67,7 @@ async function saveLocalStorageToFirebase(localStorageJson) {
 
     // Get auth token from Worker
     console.log('[FIREBASE-SYNC] Getting auth token from Worker...');
-    const authResponse = await fetch(AUTH_WORKER_URL);
+    const authResponse = await fetch(AUTH_WORKER_URL + '/auth-token');
     if (!authResponse.ok) {
       throw new Error('Kunde inte hämta auth-token från Worker');
     }
