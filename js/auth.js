@@ -39,17 +39,24 @@ function openDB() {
 /**
  * Save login state to IndexedDB
  */
-async function saveLoginState() {
+async function saveLoginState(firebaseEmail, firebasePassword) {
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
 
-    store.put({
+    const entry = {
       id: 'loginState',
       loggedIn: true,
       timestamp: new Date().toISOString()
-    });
+    };
+    // Save Firebase credentials for auto-login
+    if (firebaseEmail && firebasePassword) {
+      entry.fbE = firebaseEmail;
+      entry.fbP = firebasePassword;
+    }
+
+    store.put(entry);
 
     await new Promise((resolve, reject) => {
       tx.oncomplete = resolve;
@@ -77,7 +84,12 @@ async function checkLoginState() {
       request.onsuccess = () => {
         db.close();
         const data = request.result;
-        resolve(data && data.loggedIn === true);
+        if (data && data.loggedIn === true) {
+          // Return saved credentials if available, otherwise true
+          resolve(data.fbE && data.fbP ? { email: data.fbE, password: data.fbP } : true);
+        } else {
+          resolve(false);
+        }
       };
 
       request.onerror = () => {
@@ -261,8 +273,12 @@ async function initAuth() {
     loginLoading.classList.remove('active');
 
     try {
-      // Sign in to Firebase Auth first
-      await signInToFirebase();
+      // Sign in to Firebase Auth with saved credentials (or without if none saved)
+      if (typeof alreadyLoggedIn === 'object' && alreadyLoggedIn.email) {
+        await signInToFirebase(alreadyLoggedIn.email, alreadyLoggedIn.password);
+      } else {
+        await signInToFirebase();
+      }
 
       await loadDataFromFirebase();
       setupRealtimeListeners();
@@ -355,8 +371,8 @@ async function handleLogin() {
       initParkeringListener();
     }
 
-    // Save login state to IndexedDB
-    await saveLoginState();
+    // Save login state to IndexedDB (include Firebase credentials for auto-login)
+    await saveLoginState(authCreds.email, authCreds.password);
 
     // Hide login screen
     isLoggedIn = true;
