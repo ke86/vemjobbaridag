@@ -1728,6 +1728,10 @@ function isEmployeeFinished(shift) {
 }
 
 function renderEmployees() {
+  // Hide loading indicator
+  var loadingEl = document.getElementById('dataLoading');
+  if (loadingEl) loadingEl.classList.add('hidden');
+
   // Keep profile dropdown in sync with latest employees
   populateProfileSelect();
 
