@@ -533,7 +533,9 @@ function classifyPosFlags(p) {
   if (/TP$/i.test(turnr)) {
     flags.isTP = true;
   }
-  if (/^\d{6}-\d{6}$/.test(t)) {
+  // Check raw turnr for NNNNNN-NNNNNN format (may have " - TP" suffix)
+  var rawClean = turnr.replace(/\s*-\s*TP$/i, '').trim();
+  if (/^\d{6}-\d{6}$/.test(rawClean)) {
     flags.isTP = true;
     flags.isRes = true;
     flags.isSE = true;
