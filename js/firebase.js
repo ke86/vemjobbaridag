@@ -598,6 +598,8 @@ async function manualSyncAll() {
     await writeSyncSignal();
     // Also fetch immediately (don't wait for onSnapshot round-trip)
     await fetchAllData('manual');
+    // Also refresh positions list
+    if (typeof fetchPositions === 'function') fetchPositions();
 
     // Count this sync
     incrementSyncCount();

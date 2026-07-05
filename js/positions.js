@@ -536,6 +536,8 @@ function classifyPosFlags(p) {
   if (/^\d{6}-\d{6}$/.test(t)) {
     flags.isTP = true;
     flags.isRes = true;
+    flags.isSE = true;
+    flags.isDK = true;
     flags.tag = 'RES';
     flags.tagClass = 'pos-tag-res';
     return flags;
