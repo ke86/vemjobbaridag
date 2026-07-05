@@ -384,7 +384,7 @@ async function fetchDagvyFromFirebase(source) {
     if (wk) dagvyLastCheckWindow = wk;
 
     // Re-render to ensure dagvy corrections are applied (handles startup race condition)
-    if (isLoggedIn && typeof renderEmployees === 'function') {
+    if (typeof renderEmployees === 'function') {
       renderEmployees();
     }
 
