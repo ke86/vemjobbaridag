@@ -322,7 +322,17 @@ async function fetchDagvyFromFirebase(source) {
       }
     }
 
-    var snapshot = await db.collection('dagvy').get({ source: 'server' });
+    // Try server first (max 8s), fallback to cache
+    var snapshot;
+    try {
+      snapshot = await Promise.race([
+        db.collection('dagvy').get({ source: 'server' }),
+        new Promise(function(_, reject) { setTimeout(function() { reject('timeout'); }, 8000); })
+      ]);
+    } catch (e) {
+      console.warn('[DAGVY-SYNC] Server timeout, using cache fallback');
+      snapshot = await db.collection('dagvy').get();
+    }
     var latestScrapedAt = null;
     var newNames = {};
 
