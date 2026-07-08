@@ -248,10 +248,9 @@ async function fetchAllData(source) {
   }
   lastSyncFetchTime = now;
 
-  await Promise.all([
-    fetchScheduleFromFirebase(source),
-    fetchDagvyFromFirebase(source)
-  ]);
+  // Run sequentially (schedule first, then dagvy) to avoid SDK concurrency issues
+  await fetchScheduleFromFirebase(source);
+  await fetchDagvyFromFirebase(source);
 
   // Mark auto-check window as done
   var wk = autoCheckWindowKey();
@@ -330,8 +329,16 @@ async function fetchDagvyFromFirebase(source) {
         new Promise(function(_, reject) { setTimeout(function() { reject('timeout'); }, 8000); })
       ]);
     } catch (e) {
-      console.warn('[DAGVY-SYNC] Server timeout, using cache fallback');
-      snapshot = await db.collection('dagvy').get();
+      console.warn('[DAGVY-SYNC] Server timeout, trying cache fallback');
+      try {
+        snapshot = await Promise.race([
+          db.collection('dagvy').get(),
+          new Promise(function(_, reject) { setTimeout(function() { reject('cache-timeout'); }, 8000); })
+        ]);
+      } catch (e2) {
+        console.error('[DAGVY-SYNC] Cache fallback also timed out');
+        return 0;
+      }
     }
     var latestScrapedAt = null;
     var newNames = {};
@@ -604,12 +611,12 @@ async function manualSyncAll() {
     if (icon) icon.textContent = '⏳';
     if (btn) btn.classList.add('syncing');
 
-    // Write sync signal — our own onSnapshot will trigger fetchAllData
-    await writeSyncSignal();
-    // Also fetch immediately (don't wait for onSnapshot round-trip)
+    // Fetch data first (before writeSyncSignal to avoid read/write conflict)
     await fetchAllData('manual');
     // Also refresh positions list
     if (typeof fetchPositions === 'function') fetchPositions();
+    // Then notify other apps (fire-and-forget)
+    writeSyncSignal();
 
     // Count this sync
     incrementSyncCount();
