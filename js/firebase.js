@@ -322,7 +322,7 @@ async function fetchDagvyFromFirebase(source) {
       }
     }
 
-    var snapshot = await db.collection('dagvy').get();
+    var snapshot = await db.collection('dagvy').get({ source: 'server' });
     var latestScrapedAt = null;
     var newNames = {};
 
