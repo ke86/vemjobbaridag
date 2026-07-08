@@ -22,6 +22,10 @@ var _posActiveChips = {};   // { now:true, res:true, ... }
 var _posFilterOpen = false;
 var _posDisappeared = [];     // [{ namn, anstNr, date, turnr, start, slut, ort }]
 var _posDisappearedOpen = false;
+var _posDisapTurns = [];      // [{ date, turnr, start, slut, ort, roll }]
+var _posDisapTurnsOpen = false;
+var _posDisapTurnsOrt = 'alla';
+var _posDisapTurnsRoll = 'alla';
 
 // =============================================
 // PAGE SHOW / HIDE
@@ -180,7 +184,11 @@ function fetchAllHistory(progressCallback, doneCallback) {
 // DISAPPEARED TURNS DETECTION
 // =============================================
 
-/** Compare yesterday's snapshot with today's data to detect disappeared turns */
+/**
+ * Compare yesterday's snapshot with today's data.
+ * Detects: (1) disappeared persons → _posDisappeared (⚠️)
+ *          (2) disappeared shifts  → _posDisapTurns  ($)
+ */
 function checkDisappearedTurns() {
   if (!_posCache || !_posCache.data || !_posCache.data.dagar) return;
 
@@ -190,9 +198,9 @@ function checkDisappearedTurns() {
     String(yesterdayObj.getMonth() + 1).padStart(2, '0') + '-' +
     String(yesterdayObj.getDate()).padStart(2, '0');
 
-  // Dates to check: today + next 2 days (3 days forward)
+  // Dates to check: today + next 6 days (7 days forward)
   var checkDates = [];
-  for (var d = 0; d < 3; d++) {
+  for (var d = 0; d < 7; d++) {
     var dt = new Date();
     dt.setDate(dt.getDate() + d);
     checkDates.push(dt.getFullYear() + '-' +
@@ -200,11 +208,15 @@ function checkDisappearedTurns() {
       String(dt.getDate()).padStart(2, '0'));
   }
 
-  // Fetch yesterday's full snapshot
   fetchHistoricalPositions(yesterday, function(oldData) {
-    if (!oldData || !oldData.dagar) { _posDisappeared = []; return; }
+    if (!oldData || !oldData.dagar) {
+      _posDisappeared = [];
+      _posDisapTurns = [];
+      return;
+    }
     var newDagar = _posCache.data.dagar;
-    var disappeared = [];
+    var disappearedPersons = [];
+    var disappearedShifts = [];
 
     for (var ci = 0; ci < checkDates.length; ci++) {
       var dateStr = checkDates[ci];
@@ -212,64 +224,94 @@ function checkDisappearedTurns() {
       var newDay = newDagar[dateStr] || [];
       if (oldDay.length === 0) continue;
 
-      // Build lookup of current persons by anstNr and name
+      // Build lookups for current data
       var newByAnst = {};
       var newByName = {};
+      var newTurns = {};
       for (var ni = 0; ni < newDay.length; ni++) {
         if (newDay[ni].anstNr) newByAnst[newDay[ni].anstNr] = true;
         if (newDay[ni].namn) newByName[newDay[ni].namn.toLowerCase()] = true;
+        var nt = (newDay[ni].turnr || '').trim().toUpperCase();
+        if (nt) newTurns[nt] = true;
       }
 
-      // Check each person from yesterday's snapshot
+      var processedTurns = {};
+
       for (var oi = 0; oi < oldDay.length; oi++) {
         var p = oldDay[oi];
         if (!p.turnr || !p.namn) continue;
 
-        // Skip entries without real turns
         var turnUpper = (p.turnr || '').toUpperCase().trim();
         if (!turnUpper || turnUpper === 'LEDIG' || turnUpper === '-') continue;
 
-        // Check if person exists in current data for this date
-        var found = false;
-        if (p.anstNr && newByAnst[p.anstNr]) found = true;
-        if (!found && p.namn && newByName[p.namn.toLowerCase()]) found = true;
+        // ── (1) Person disappearance ──
+        var personFound = false;
+        if (p.anstNr && newByAnst[p.anstNr]) personFound = true;
+        if (!personFound && p.namn && newByName[p.namn.toLowerCase()]) personFound = true;
 
-        if (!found) {
-          disappeared.push({
-            namn: p.namn,
-            anstNr: p.anstNr || '',
-            date: dateStr,
-            turnr: p.turnr,
-            start: p.start || '',
-            slut: p.slut || '',
-            ort: p.ort || ''
+        if (!personFound) {
+          disappearedPersons.push({
+            namn: p.namn, anstNr: p.anstNr || '', date: dateStr,
+            turnr: p.turnr, start: p.start || '', slut: p.slut || '', ort: p.ort || ''
           });
+        }
+
+        // ── (2) Shift disappearance (skip reserves) ──
+        var isReserve = turnUpper.indexOf('RESERV') === 0;
+        var rawClean = p.turnr.replace(/\s*-\s*TP$/i, '').trim();
+        var isReserveFormat = /^\d{6}-\d{6}$/.test(rawClean);
+
+        if (!isReserve && !isReserveFormat) {
+          var dedupKey = dateStr + ':' + turnUpper;
+          if (!processedTurns[dedupKey]) {
+            processedTurns[dedupKey] = true;
+
+            if (!newTurns[turnUpper]) {
+              var pTime = getPosTime(p);
+              var roll = (p.roll || '').toLowerCase();
+              var rollLabel = '–';
+              if (roll.indexOf('lokförare') !== -1) rollLabel = 'LF';
+              else if (roll.indexOf('tågvärd') !== -1) rollLabel = 'TV';
+              else if (roll.indexOf('trafik') !== -1 || roll.indexOf('informationsledare') !== -1) rollLabel = 'TIL';
+
+              disappearedShifts.push({
+                date: dateStr, turnr: p.turnr,
+                start: pTime.start || '', slut: pTime.slut || '',
+                ort: p.ort || '', roll: rollLabel
+              });
+            }
+          }
         }
       }
     }
 
-    // Sort by date, then name
-    disappeared.sort(function(a, b) {
+    disappearedPersons.sort(function(a, b) {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return a.namn.localeCompare(b.namn);
     });
+    disappearedShifts.sort(function(a, b) {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      var sa = a.start || '99:99';
+      var sb = b.start || '99:99';
+      return sa.localeCompare(sb);
+    });
 
-    _posDisappeared = disappeared;
+    _posDisappeared = disappearedPersons;
+    _posDisapTurns = disappearedShifts;
 
-    // Re-render to show warning icon (only if we found changes)
-    if (disappeared.length > 0) {
+    if (disappearedPersons.length > 0 || disappearedShifts.length > 0) {
       renderPositions();
     }
   });
 }
 
-/** Build the collapsible panel listing disappeared persons */
+/** Build the ⚠️ panel listing disappeared persons */
 function buildDisappearedPanel() {
   if (_posDisappeared.length === 0) return '';
   var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
 
   var html = '<div class="pos-warn-panel' + (_posDisappearedOpen ? ' open' : '') + '" id="posWarnPanel">';
-  html += '<div class="pos-warn-header">Försvunna sedan igår</div>';
+  html += '<div class="pos-warn-header">Försvunna personer sedan igår</div>';
 
   for (var i = 0; i < _posDisappeared.length; i++) {
     var d = _posDisappeared[i];
@@ -285,6 +327,85 @@ function buildDisappearedPanel() {
     }
     html += '</span>';
     html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/** Build the $ panel listing disappeared shifts with filters */
+function buildDisapTurnsPanel() {
+  if (_posDisapTurns.length === 0) return '';
+  var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+
+  // Unique orts for filter
+  var ortSet = {};
+  for (var oi = 0; oi < _posDisapTurns.length; oi++) {
+    var o = _posDisapTurns[oi].ort;
+    if (o) ortSet[o] = true;
+  }
+  var orts = Object.keys(ortSet).sort();
+
+  // Apply filters
+  var filtered = [];
+  for (var fi = 0; fi < _posDisapTurns.length; fi++) {
+    var t = _posDisapTurns[fi];
+    if (_posDisapTurnsOrt !== 'alla' && t.ort !== _posDisapTurnsOrt) continue;
+    if (_posDisapTurnsRoll !== 'alla') {
+      if (_posDisapTurnsRoll === 'lf' && t.roll !== 'LF') continue;
+      if (_posDisapTurnsRoll === 'tv' && t.roll !== 'TV') continue;
+    }
+    filtered.push(t);
+  }
+
+  var html = '<div class="pos-dollar-panel' + (_posDisapTurnsOpen ? ' open' : '') + '" id="posDollarPanel">';
+  html += '<div class="pos-dollar-header">Lediga turer sedan igår</div>';
+
+  // Filter row
+  html += '<div class="pos-dollar-filters">';
+  html += '<select class="pos-dollar-filter" id="posDollarOrt">';
+  html += '<option value="alla"' + (_posDisapTurnsOrt === 'alla' ? ' selected' : '') + '>Alla orter</option>';
+  for (var si = 0; si < orts.length; si++) {
+    html += '<option value="' + escPosAttr(orts[si]) + '"' + (_posDisapTurnsOrt === orts[si] ? ' selected' : '') + '>' + escPosHtml(orts[si]) + '</option>';
+  }
+  html += '</select>';
+  html += '<select class="pos-dollar-filter" id="posDollarRoll">';
+  html += '<option value="alla"' + (_posDisapTurnsRoll === 'alla' ? ' selected' : '') + '>Alla</option>';
+  html += '<option value="lf"' + (_posDisapTurnsRoll === 'lf' ? ' selected' : '') + '>Lokförare</option>';
+  html += '<option value="tv"' + (_posDisapTurnsRoll === 'tv' ? ' selected' : '') + '>Tågvärd</option>';
+  html += '</select>';
+  html += '</div>';
+
+  // Column header
+  html += '<div class="pos-dollar-row pos-dollar-row-head">';
+  html += '<span>Dag</span><span>Tur</span><span>Tid</span><span>Ort</span><span>Roll</span>';
+  html += '</div>';
+
+  // Count
+  html += '<div class="pos-dollar-count">' + filtered.length + ' av ' + _posDisapTurns.length + ' turer</div>';
+
+  // List
+  for (var li = 0; li < filtered.length; li++) {
+    var item = filtered[li];
+    var dateObj = parsePosDate(item.date);
+    var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
+    var timeStr = '';
+    if (item.start && item.start !== '-') {
+      timeStr = item.start;
+      if (item.slut && item.slut !== '-') timeStr += '–' + item.slut;
+    }
+
+    html += '<div class="pos-dollar-row">';
+    html += '<span class="pos-dollar-date">' + dayLabel + '</span>';
+    html += '<span class="pos-dollar-tur">' + escPosHtml(item.turnr) + '</span>';
+    html += '<span class="pos-dollar-time">' + (timeStr || '–') + '</span>';
+    html += '<span class="pos-dollar-ort">' + escPosHtml(item.ort || '–') + '</span>';
+    html += '<span class="pos-dollar-roll-badge pos-dollar-roll-' + item.roll.toLowerCase() + '">' + item.roll + '</span>';
+    html += '</div>';
+  }
+
+  if (filtered.length === 0) {
+    html += '<div class="pos-dollar-empty">Inga träffar</div>';
   }
 
   html += '</div>';
@@ -322,9 +443,14 @@ function renderPositions() {
   // Date picker
   html += buildPosDatePicker();
 
-  // Disappeared turns warning panel
+  // Disappeared persons warning panel (⚠️)
   if (_posDisappeared.length > 0) {
     html += buildDisappearedPanel();
+  }
+
+  // Disappeared shifts panel ($)
+  if (_posDisapTurns.length > 0) {
+    html += buildDisapTurnsPanel();
   }
 
   // Meta info
@@ -442,15 +568,18 @@ function buildPosDatePicker() {
   var maxDate = _posAvailDates.length > 0 ? _posAvailDates[_posAvailDates.length - 1] : _posCurrentDate;
 
   var hasWarn = _posDisappeared.length > 0;
+  var hasDollar = _posDisapTurns.length > 0;
 
   var html = '<div class="pos-date-picker">';
 
-  // Warning icon for disappeared turns
+  // Left: ⚠️ icon or spacer (for balance with right icon)
   if (hasWarn) {
-    html += '<button class="pos-warn-btn" id="posWarnBtn" title="Försvunna turer">';
+    html += '<button class="pos-warn-btn" id="posWarnBtn" title="Försvunna personer">';
     html += '⚠️';
     html += '<span class="pos-warn-badge">' + _posDisappeared.length + '</span>';
     html += '</button>';
+  } else if (hasDollar) {
+    html += '<div class="pos-icon-spacer"></div>';
   }
 
   html += '<button class="pos-date-nav" id="posPrevDay"' + (isFirst ? ' disabled' : '') + '>←</button>';
@@ -460,9 +589,14 @@ function buildPosDatePicker() {
   html += '</div>';
   html += '<button class="pos-date-nav" id="posNextDay"' + (isLast ? ' disabled' : '') + '>→</button>';
 
-  // Invisible spacer to keep date centered when warning icon is present
-  if (hasWarn) {
-    html += '<div class="pos-warn-spacer"></div>';
+  // Right: $ icon or spacer (for balance with left icon)
+  if (hasDollar) {
+    html += '<button class="pos-dollar-btn" id="posDollarBtn" title="Lediga turer">';
+    html += '<span class="pos-dollar-icon">$</span>';
+    html += '<span class="pos-dollar-badge">' + _posDisapTurns.length + '</span>';
+    html += '</button>';
+  } else if (hasWarn) {
+    html += '<div class="pos-icon-spacer"></div>';
   }
 
   html += '</div>';
@@ -1126,13 +1260,51 @@ function attachPosHistoryBtnListener(card) {
 // EVENT LISTENERS
 // =============================================
 function initPosListeners() {
-  // Warning button (disappeared turns)
+  // Warning button (⚠️ disappeared persons)
   var warnBtn = document.getElementById('posWarnBtn');
   if (warnBtn) {
     warnBtn.addEventListener('click', function() {
       _posDisappearedOpen = !_posDisappearedOpen;
       var panel = document.getElementById('posWarnPanel');
       if (panel) panel.classList.toggle('open', _posDisappearedOpen);
+      // Close $ panel if open
+      if (_posDisappearedOpen && _posDisapTurnsOpen) {
+        _posDisapTurnsOpen = false;
+        var dp = document.getElementById('posDollarPanel');
+        if (dp) dp.classList.remove('open');
+      }
+    });
+  }
+
+  // Dollar button ($ disappeared shifts)
+  var dollarBtn = document.getElementById('posDollarBtn');
+  if (dollarBtn) {
+    dollarBtn.addEventListener('click', function() {
+      _posDisapTurnsOpen = !_posDisapTurnsOpen;
+      var panel = document.getElementById('posDollarPanel');
+      if (panel) panel.classList.toggle('open', _posDisapTurnsOpen);
+      // Close ⚠️ panel if open
+      if (_posDisapTurnsOpen && _posDisappearedOpen) {
+        _posDisappearedOpen = false;
+        var wp = document.getElementById('posWarnPanel');
+        if (wp) wp.classList.remove('open');
+      }
+    });
+  }
+
+  // Dollar panel filters
+  var dollarOrt = document.getElementById('posDollarOrt');
+  if (dollarOrt) {
+    dollarOrt.addEventListener('change', function() {
+      _posDisapTurnsOrt = this.value;
+      renderPositions();
+    });
+  }
+  var dollarRoll = document.getElementById('posDollarRoll');
+  if (dollarRoll) {
+    dollarRoll.addEventListener('change', function() {
+      _posDisapTurnsRoll = this.value;
+      renderPositions();
     });
   }
 
