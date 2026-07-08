@@ -20,6 +20,8 @@ var _posActiveOrt = 'alla';
 var _posSearchQuery = '';
 var _posActiveChips = {};   // { now:true, res:true, ... }
 var _posFilterOpen = false;
+var _posDisappeared = [];     // [{ namn, anstNr, date, turnr, start, slut, ort }]
+var _posDisappearedOpen = false;
 
 // =============================================
 // PAGE SHOW / HIDE
@@ -77,6 +79,8 @@ function fetchPositions() {
       if (typeof updateParkeringMenuIndicator === 'function') updateParkeringMenuIndicator();
       // Fetch available history dates (adds past dates to date picker)
       fetchPositionHistoryDates();
+      // Check for disappeared turns (compare with yesterday's snapshot)
+      checkDisappearedTurns();
     })
     .catch(function(err) {
       if (container) {
@@ -172,6 +176,121 @@ function fetchAllHistory(progressCallback, doneCallback) {
   }
 }
 
+// =============================================
+// DISAPPEARED TURNS DETECTION
+// =============================================
+
+/** Compare yesterday's snapshot with today's data to detect disappeared turns */
+function checkDisappearedTurns() {
+  if (!_posCache || !_posCache.data || !_posCache.data.dagar) return;
+
+  var yesterdayObj = new Date();
+  yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+  var yesterday = yesterdayObj.getFullYear() + '-' +
+    String(yesterdayObj.getMonth() + 1).padStart(2, '0') + '-' +
+    String(yesterdayObj.getDate()).padStart(2, '0');
+
+  // Dates to check: today + next 2 days (3 days forward)
+  var checkDates = [];
+  for (var d = 0; d < 3; d++) {
+    var dt = new Date();
+    dt.setDate(dt.getDate() + d);
+    checkDates.push(dt.getFullYear() + '-' +
+      String(dt.getMonth() + 1).padStart(2, '0') + '-' +
+      String(dt.getDate()).padStart(2, '0'));
+  }
+
+  // Fetch yesterday's full snapshot
+  fetchHistoricalPositions(yesterday, function(oldData) {
+    if (!oldData || !oldData.dagar) { _posDisappeared = []; return; }
+    var newDagar = _posCache.data.dagar;
+    var disappeared = [];
+
+    for (var ci = 0; ci < checkDates.length; ci++) {
+      var dateStr = checkDates[ci];
+      var oldDay = oldData.dagar[dateStr] || [];
+      var newDay = newDagar[dateStr] || [];
+      if (oldDay.length === 0) continue;
+
+      // Build lookup of current persons by anstNr and name
+      var newByAnst = {};
+      var newByName = {};
+      for (var ni = 0; ni < newDay.length; ni++) {
+        if (newDay[ni].anstNr) newByAnst[newDay[ni].anstNr] = true;
+        if (newDay[ni].namn) newByName[newDay[ni].namn.toLowerCase()] = true;
+      }
+
+      // Check each person from yesterday's snapshot
+      for (var oi = 0; oi < oldDay.length; oi++) {
+        var p = oldDay[oi];
+        if (!p.turnr || !p.namn) continue;
+
+        // Skip entries without real turns
+        var turnUpper = (p.turnr || '').toUpperCase().trim();
+        if (!turnUpper || turnUpper === 'LEDIG' || turnUpper === '-') continue;
+
+        // Check if person exists in current data for this date
+        var found = false;
+        if (p.anstNr && newByAnst[p.anstNr]) found = true;
+        if (!found && p.namn && newByName[p.namn.toLowerCase()]) found = true;
+
+        if (!found) {
+          disappeared.push({
+            namn: p.namn,
+            anstNr: p.anstNr || '',
+            date: dateStr,
+            turnr: p.turnr,
+            start: p.start || '',
+            slut: p.slut || '',
+            ort: p.ort || ''
+          });
+        }
+      }
+    }
+
+    // Sort by date, then name
+    disappeared.sort(function(a, b) {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.namn.localeCompare(b.namn);
+    });
+
+    _posDisappeared = disappeared;
+
+    // Re-render to show warning icon (only if we found changes)
+    if (disappeared.length > 0) {
+      renderPositions();
+    }
+  });
+}
+
+/** Build the collapsible panel listing disappeared persons */
+function buildDisappearedPanel() {
+  if (_posDisappeared.length === 0) return '';
+  var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+
+  var html = '<div class="pos-warn-panel' + (_posDisappearedOpen ? ' open' : '') + '" id="posWarnPanel">';
+  html += '<div class="pos-warn-header">Försvunna sedan igår</div>';
+
+  for (var i = 0; i < _posDisappeared.length; i++) {
+    var d = _posDisappeared[i];
+    var dateObj = parsePosDate(d.date);
+    var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
+
+    html += '<div class="pos-warn-item">';
+    html += '<span class="pos-warn-name">' + escPosHtml(d.namn) + '</span>';
+    html += '<span class="pos-warn-detail">' + dayLabel + ' · ' + escPosHtml(d.turnr);
+    if (d.start && d.start !== '-') {
+      html += ' · ' + d.start;
+      if (d.slut && d.slut !== '-') html += '–' + d.slut;
+    }
+    html += '</span>';
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
 /** Navigate to a date, fetching historical data if needed */
 function posNavigateToDate(dateStr) {
   _posCurrentDate = dateStr;
@@ -202,6 +321,11 @@ function renderPositions() {
 
   // Date picker
   html += buildPosDatePicker();
+
+  // Disappeared turns warning panel
+  if (_posDisappeared.length > 0) {
+    html += buildDisappearedPanel();
+  }
 
   // Meta info
   if (data.meta && data.meta.skapad) {
@@ -317,13 +441,30 @@ function buildPosDatePicker() {
   var minDate = _posAvailDates.length > 0 ? _posAvailDates[0] : _posCurrentDate;
   var maxDate = _posAvailDates.length > 0 ? _posAvailDates[_posAvailDates.length - 1] : _posCurrentDate;
 
+  var hasWarn = _posDisappeared.length > 0;
+
   var html = '<div class="pos-date-picker">';
+
+  // Warning icon for disappeared turns
+  if (hasWarn) {
+    html += '<button class="pos-warn-btn" id="posWarnBtn" title="Försvunna turer">';
+    html += '⚠️';
+    html += '<span class="pos-warn-badge">' + _posDisappeared.length + '</span>';
+    html += '</button>';
+  }
+
   html += '<button class="pos-date-nav" id="posPrevDay"' + (isFirst ? ' disabled' : '') + '>←</button>';
   html += '<div class="pos-date-display" id="posDateDisplayBtn">';
   html += '<span class="pos-date-label">' + label + '</span>';
   html += '<input type="date" class="pos-native-date" id="posNativeDatePicker" value="' + _posCurrentDate + '" min="' + minDate + '" max="' + maxDate + '">';
   html += '</div>';
   html += '<button class="pos-date-nav" id="posNextDay"' + (isLast ? ' disabled' : '') + '>→</button>';
+
+  // Invisible spacer to keep date centered when warning icon is present
+  if (hasWarn) {
+    html += '<div class="pos-warn-spacer"></div>';
+  }
+
   html += '</div>';
   return html;
 }
@@ -985,6 +1126,16 @@ function attachPosHistoryBtnListener(card) {
 // EVENT LISTENERS
 // =============================================
 function initPosListeners() {
+  // Warning button (disappeared turns)
+  var warnBtn = document.getElementById('posWarnBtn');
+  if (warnBtn) {
+    warnBtn.addEventListener('click', function() {
+      _posDisappearedOpen = !_posDisappearedOpen;
+      var panel = document.getElementById('posWarnPanel');
+      if (panel) panel.classList.toggle('open', _posDisappearedOpen);
+    });
+  }
+
   // Date nav
   var prevBtn = document.getElementById('posPrevDay');
   var nextBtn = document.getElementById('posNextDay');
