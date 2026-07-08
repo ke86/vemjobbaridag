@@ -303,7 +303,64 @@ function startSyncSignalListener() {
 }
 
 /**
- * Fetch all dagvy docs from Firebase (one-shot getDocs).
+ * Fetch dagvy collection via Firestore REST API (bypasses SDK hang issue).
+ * Returns array of { id, data } objects.
+ */
+async function _fetchDagvyREST() {
+  var token = await firebase.auth().currentUser.getIdToken();
+  var url = 'https://firestore.googleapis.com/v1/projects/' + firebaseConfig.projectId +
+    '/databases/(default)/documents/dagvy?pageSize=100';
+  var resp = await fetch(url, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (!resp.ok) throw new Error('REST API error: ' + resp.status);
+  var json = await resp.json();
+  var results = [];
+  if (!json.documents) return results;
+  for (var i = 0; i < json.documents.length; i++) {
+    var doc = json.documents[i];
+    // Extract document ID from name: "projects/.../documents/dagvy/EmpName"
+    var parts = doc.name.split('/');
+    var id = decodeURIComponent(parts[parts.length - 1]);
+    results.push({ id: id, data: _parseFirestoreFields(doc.fields || {}) });
+  }
+  return results;
+}
+
+/** Parse Firestore REST field values to plain JS objects */
+function _parseFirestoreFields(fields) {
+  var result = {};
+  for (var key in fields) {
+    if (fields.hasOwnProperty(key)) {
+      result[key] = _parseFirestoreValue(fields[key]);
+    }
+  }
+  return result;
+}
+
+function _parseFirestoreValue(val) {
+  if (val.stringValue !== undefined) return val.stringValue;
+  if (val.integerValue !== undefined) return Number(val.integerValue);
+  if (val.doubleValue !== undefined) return val.doubleValue;
+  if (val.booleanValue !== undefined) return val.booleanValue;
+  if (val.nullValue !== undefined) return null;
+  if (val.timestampValue !== undefined) return val.timestampValue;
+  if (val.arrayValue) {
+    var arr = [];
+    var items = (val.arrayValue.values || []);
+    for (var i = 0; i < items.length; i++) {
+      arr.push(_parseFirestoreValue(items[i]));
+    }
+    return arr;
+  }
+  if (val.mapValue) {
+    return _parseFirestoreFields(val.mapValue.fields || {});
+  }
+  return null;
+}
+
+/**
+ * Fetch all dagvy docs from Firebase (one-shot via REST API).
  * Replaces the old onSnapshot listener to save quota.
  * @param {string} source - descriptive label for logging ('startup'|'auto'|'manual')
  */
@@ -321,31 +378,16 @@ async function fetchDagvyFromFirebase(source) {
       }
     }
 
-    // Try server first (max 8s), fallback to cache
-    var snapshot;
-    try {
-      snapshot = await Promise.race([
-        db.collection('dagvy').get({ source: 'server' }),
-        new Promise(function(_, reject) { setTimeout(function() { reject('timeout'); }, 8000); })
-      ]);
-    } catch (e) {
-      console.warn('[DAGVY-SYNC] Server timeout, trying cache fallback');
-      try {
-        snapshot = await Promise.race([
-          db.collection('dagvy').get(),
-          new Promise(function(_, reject) { setTimeout(function() { reject('cache-timeout'); }, 8000); })
-        ]);
-      } catch (e2) {
-        console.error('[DAGVY-SYNC] Cache fallback also timed out');
-        return 0;
-      }
-    }
+    // Use REST API to bypass Firebase SDK hang issue
+    var docs = await _fetchDagvyREST();
     var latestScrapedAt = null;
     var newNames = {};
+    var docCount = 0;
 
-    snapshot.forEach(function(doc) {
-      var empName = doc.id;
-      var dagvyData = doc.data();
+    for (var di = 0; di < docs.length; di++) {
+      var empName = docs[di].id;
+      var dagvyData = docs[di].data;
+      docCount++;
 
       // Clear any previous fromPrevious flag on fresh data
       delete dagvyData.fromPrevious;
@@ -366,7 +408,7 @@ async function fetchDagvyFromFirebase(source) {
       if (typeof applyDagvyToSchedule === 'function') {
         applyDagvyToSchedule(empName, dagvyData);
       }
-    });
+    }
 
     // Smart merge: keep persons that existed before but are missing in this fetch
     var kept = [];
@@ -405,8 +447,8 @@ async function fetchDagvyFromFirebase(source) {
       renderEmployees();
     }
 
-    console.log('[DAGVY-SYNC] Done (' + source + '): ' + snapshot.size + ' from Firebase + ' + kept.length + ' kept from previous');
-    return snapshot.size;
+    console.log('[DAGVY-SYNC] Done (' + source + '): ' + docCount + ' from Firebase + ' + kept.length + ' kept from previous');
+    return docCount;
   } catch (err) {
     console.error('[DAGVY-SYNC] Error (' + source + '):', err);
     throw err;
