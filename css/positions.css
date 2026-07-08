@@ -748,6 +748,50 @@ html.dark .pos-schedule-today {
   opacity: 0.6;
 }
 
+/* ── History load button ─────────────────────── */
+.pos-history-load-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 4px;
+  margin: 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  text-align: center;
+  transition: opacity 0.15s, background 0.15s;
+}
+.pos-history-load-btn:active {
+  opacity: 0.7;
+  background: rgba(59, 130, 246, 0.12);
+}
+.pos-history-load-btn:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+html.dark .pos-history-load-btn {
+  background: rgba(96, 165, 250, 0.08);
+  border-color: rgba(96, 165, 250, 0.25);
+}
+
+/* Small inline spinner (for history button loading) */
+.pos-spinner-small {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: pos-spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 /* ── Empty page placeholder ────────────────── */
 .positions-empty {
   display: flex;

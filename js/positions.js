@@ -13,6 +13,8 @@ var _posCache = null;       // { data, ts }
 var _posCacheTTL = 10 * 60 * 1000; // 10 min
 var _posCurrentDate = null; // "2026-02-21"
 var _posAvailDates = [];    // sorted array of date strings
+var _posHistoryDates = [];  // historical dates from worker
+var _posHistoryCache = {};  // { "2026-07-07": { data, ts } }
 var _posActiveFilter = 'alla';
 var _posActiveOrt = 'alla';
 var _posSearchQuery = '';
@@ -73,6 +75,8 @@ function fetchPositions() {
       renderPositions();
       // Update parking menu indicator when positions data arrives
       if (typeof updateParkeringMenuIndicator === 'function') updateParkeringMenuIndicator();
+      // Fetch available history dates (adds past dates to date picker)
+      fetchPositionHistoryDates();
     })
     .catch(function(err) {
       if (container) {
@@ -88,6 +92,102 @@ function fetchPositions() {
 }
 
 // =============================================
+// HISTORY FETCH
+// =============================================
+
+/** Fetch list of available historical dates from worker */
+function fetchPositionHistoryDates() {
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : 'https://onevr-auth.kenny-eriksson1986.workers.dev') + '/positions/dates';
+  var apiKey = (typeof REMOTE_DOC_API_KEY !== 'undefined' ? REMOTE_DOC_API_KEY : 'onevr-docs-2026');
+
+  fetch(url, { headers: { 'X-API-Key': apiKey } })
+    .then(function(r) { return r.ok ? r.json() : { dates: [] }; })
+    .then(function(data) {
+      _posHistoryDates = data.dates || [];
+      _mergeDatesAndRender();
+    })
+    .catch(function() { _posHistoryDates = []; });
+}
+
+/** Merge history dates with current data dates */
+function _mergeDatesAndRender() {
+  var dateSet = {};
+  for (var i = 0; i < _posAvailDates.length; i++) dateSet[_posAvailDates[i]] = true;
+  for (var j = 0; j < _posHistoryDates.length; j++) dateSet[_posHistoryDates[j]] = true;
+  _posAvailDates = Object.keys(dateSet).sort();
+
+  // Update date picker min/max
+  renderPositions();
+}
+
+/** Fetch historical positions data for a specific date */
+function fetchHistoricalPositions(dateStr, callback) {
+  // Check cache first
+  if (_posHistoryCache[dateStr] && (Date.now() - _posHistoryCache[dateStr].ts) < _posCacheTTL) {
+    if (callback) callback(_posHistoryCache[dateStr].data);
+    return;
+  }
+
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : 'https://onevr-auth.kenny-eriksson1986.workers.dev') + '/positions?date=' + dateStr;
+  var apiKey = (typeof REMOTE_DOC_API_KEY !== 'undefined' ? REMOTE_DOC_API_KEY : 'onevr-docs-2026');
+
+  fetch(url, { headers: { 'X-API-Key': apiKey } })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (data && data.dagar) {
+        _posHistoryCache[dateStr] = { data: data, ts: Date.now() };
+        // Merge only the requested date into current cache (avoid overwriting newer data for other dates)
+        if (_posCache && _posCache.data && _posCache.data.dagar && data.dagar[dateStr]) {
+          _posCache.data.dagar[dateStr] = data.dagar[dateStr];
+        }
+      }
+      if (callback) callback(data);
+    })
+    .catch(function(err) {
+      console.error('[POS] Failed to fetch history for ' + dateStr + ':', err.message);
+      if (callback) callback(null);
+    });
+}
+
+/** Fetch all unloaded historical dates in parallel, then invoke callback */
+function fetchAllHistory(progressCallback, doneCallback) {
+  var dagar = (_posCache && _posCache.data) ? _posCache.data.dagar : {};
+  var unloaded = [];
+  for (var i = 0; i < _posHistoryDates.length; i++) {
+    if (!dagar[_posHistoryDates[i]]) unloaded.push(_posHistoryDates[i]);
+  }
+  if (unloaded.length === 0) { if (doneCallback) doneCallback(); return; }
+
+  var remaining = unloaded.length;
+  var total = unloaded.length;
+  for (var j = 0; j < unloaded.length; j++) {
+    fetchHistoricalPositions(unloaded[j], function() {
+      remaining--;
+      if (progressCallback) progressCallback(total - remaining, total);
+      if (remaining === 0 && doneCallback) doneCallback();
+    });
+  }
+}
+
+/** Navigate to a date, fetching historical data if needed */
+function posNavigateToDate(dateStr) {
+  _posCurrentDate = dateStr;
+  var hasDayData = _posCache && _posCache.data && _posCache.data.dagar && _posCache.data.dagar.hasOwnProperty(dateStr);
+  if (!hasDayData && _posHistoryDates.indexOf(dateStr) !== -1) {
+    // Render immediately (shows loading state), then fetch and re-render
+    renderPositions();
+    fetchHistoricalPositions(dateStr, function() {
+      renderPositions();
+    });
+  } else {
+    renderPositions();
+  }
+}
+
+// =============================================
 // RENDER
 // =============================================
 function renderPositions() {
@@ -96,6 +196,7 @@ function renderPositions() {
 
   var data = _posCache.data;
   var dayData = data.dagar[_posCurrentDate] || [];
+  var isHistoryLoading = !data.dagar.hasOwnProperty(_posCurrentDate) && _posHistoryDates.indexOf(_posCurrentDate) !== -1;
 
   var html = '';
 
@@ -178,18 +279,20 @@ function renderPositions() {
   // Filter + search data
   var filtered = filterPositions(dayData);
 
-  // Count bar
-  html += '<div class="pos-count">' + filtered.length + ' av ' + dayData.length + ' personer</div>';
-
-  // Cards
-  if (filtered.length === 0) {
-    html += '<div class="pos-empty-list">Inga träffar</div>';
+  // Count bar + cards (or loading state for historical dates)
+  if (isHistoryLoading) {
+    html += '<div class="pos-loading"><div class="pos-spinner"></div><div>Hämtar historisk data…</div></div>';
   } else {
-    html += '<div class="pos-list">';
-    for (var j = 0; j < filtered.length; j++) {
-      html += buildPosCard(filtered[j]);
+    html += '<div class="pos-count">' + filtered.length + ' av ' + dayData.length + ' personer</div>';
+    if (filtered.length === 0) {
+      html += '<div class="pos-empty-list">Inga träffar</div>';
+    } else {
+      html += '<div class="pos-list">';
+      for (var j = 0; j < filtered.length; j++) {
+        html += buildPosCard(filtered[j]);
+      }
+      html += '</div>';
     }
-    html += '</div>';
   }
 
   container.innerHTML = html;
@@ -228,16 +331,14 @@ function buildPosDatePicker() {
 function posPrevDay() {
   var idx = _posAvailDates.indexOf(_posCurrentDate);
   if (idx > 0) {
-    _posCurrentDate = _posAvailDates[idx - 1];
-    renderPositions();
+    posNavigateToDate(_posAvailDates[idx - 1]);
   }
 }
 
 function posNextDay() {
   var idx = _posAvailDates.indexOf(_posCurrentDate);
   if (idx < _posAvailDates.length - 1) {
-    _posCurrentDate = _posAvailDates[idx + 1];
-    renderPositions();
+    posNavigateToDate(_posAvailDates[idx + 1]);
   }
 }
 
@@ -734,6 +835,18 @@ function buildPersonSchedule(personName, anstNr) {
   var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
   var nameLower = personName.toLowerCase();
 
+  // Only iterate dates that have loaded data
+  var loadedDates = [];
+  for (var ld = 0; ld < _posAvailDates.length; ld++) {
+    if (dagar.hasOwnProperty(_posAvailDates[ld])) loadedDates.push(_posAvailDates[ld]);
+  }
+
+  // Count unloaded historical dates (for "Visa historik" button)
+  var unloadedHistoryCount = 0;
+  for (var uh = 0; uh < _posHistoryDates.length; uh++) {
+    if (!dagar.hasOwnProperty(_posHistoryDates[uh])) unloadedHistoryCount++;
+  }
+
   // Calculate yesterday's date string for cutoff
   var yesterdayObj = new Date();
   yesterdayObj.setDate(yesterdayObj.getDate() - 1);
@@ -741,13 +854,20 @@ function buildPersonSchedule(personName, anstNr) {
     String(yesterdayObj.getMonth() + 1).padStart(2, '0') + '-' +
     String(yesterdayObj.getDate()).padStart(2, '0');
 
-  // Count how many old days (before yesterday) exist
+  // Count how many old days (before yesterday) exist in loaded data
   var oldDayCount = 0;
-  for (var ci = 0; ci < _posAvailDates.length; ci++) {
-    if (_posAvailDates[ci] < yesterday) oldDayCount++;
+  for (var ci = 0; ci < loadedDates.length; ci++) {
+    if (loadedDates[ci] < yesterday) oldDayCount++;
   }
 
   var html = '<div class="pos-schedule-list">';
+
+  // "Visa historik" button for unloaded history dates (at top)
+  if (unloadedHistoryCount > 0) {
+    html += '<button class="pos-history-load-btn" data-person="' + escPosAttr(personName) + '" data-anstnr="' + escPosAttr(anstNr || '') + '">';
+    html += '📅 Visa historik (' + unloadedHistoryCount + ' dagar)';
+    html += '</button>';
+  }
 
   // Toggle button for old days (only show if there are old days to hide)
   if (oldDayCount > 0) {
@@ -760,8 +880,8 @@ function buildPersonSchedule(personName, anstNr) {
   html += '<span>Dag</span><span>Tur</span><span>Tid</span><span></span>';
   html += '</div>';
 
-  for (var di = 0; di < _posAvailDates.length; di++) {
-    var dateStr = _posAvailDates[di];
+  for (var di = 0; di < loadedDates.length; di++) {
+    var dateStr = loadedDates[di];
     var dayArr = dagar[dateStr] || [];
     var dateObj = parsePosDate(dateStr);
     var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
@@ -824,6 +944,44 @@ function buildPersonSchedule(personName, anstNr) {
 }
 
 // =============================================
+// HISTORY BUTTON HANDLER
+// =============================================
+
+/** Attach click listener to the "Visa historik" button inside a card */
+function attachPosHistoryBtnListener(card) {
+  var histBtn = card.querySelector('.pos-history-load-btn');
+  if (!histBtn) return;
+
+  histBtn.addEventListener('click', function(ev) {
+    ev.stopPropagation();
+    var btn = this;
+    var parentCard = btn.closest('.pos-card');
+    var pName = btn.getAttribute('data-person');
+    var pAnst = btn.getAttribute('data-anstnr') || '';
+
+    btn.innerHTML = '<span class="pos-spinner-small"></span> Hämtar historik…';
+    btn.disabled = true;
+
+    fetchAllHistory(
+      function onProgress(done, total) {
+        btn.innerHTML = '<span class="pos-spinner-small"></span> Hämtar ' + done + '/' + total + '…';
+      },
+      function onDone() {
+        // Remove old schedule + button, rebuild with all data
+        var oldSched = parentCard.querySelector('.pos-schedule-list');
+        if (oldSched) oldSched.remove();
+        var trainsDiv = parentCard.querySelector('.pos-card-trains');
+        if (trainsDiv) {
+          trainsDiv.insertAdjacentHTML('beforeend', buildPersonSchedule(pName, pAnst));
+          // Re-attach in case there's still a button (shouldn't be, but safe)
+          attachPosHistoryBtnListener(parentCard);
+        }
+      }
+    );
+  });
+}
+
+// =============================================
 // EVENT LISTENERS
 // =============================================
 function initPosListeners() {
@@ -844,15 +1002,14 @@ function initPosListeners() {
       var val = this.value;
       if (!val) return;
       if (_posAvailDates.indexOf(val) !== -1) {
-        _posCurrentDate = val;
+        posNavigateToDate(val);
       } else {
         var closest = _posAvailDates[0];
         for (var di = 0; di < _posAvailDates.length; di++) {
           if (_posAvailDates[di] <= val) closest = _posAvailDates[di];
         }
-        _posCurrentDate = closest;
+        posNavigateToDate(closest);
       }
-      renderPositions();
     });
   }
 
@@ -860,8 +1017,9 @@ function initPosListeners() {
   var cards = document.querySelectorAll('.pos-card[data-expandable]');
   for (var ci = 0; ci < cards.length; ci++) {
     cards[ci].addEventListener('click', function(e) {
-      // Don't toggle if clicking inside the schedule list (allow scrolling etc.)
+      // Don't toggle if clicking inside the schedule list or history button
       if (e.target.closest('.pos-schedule-list')) return;
+      if (e.target.closest('.pos-history-load-btn')) return;
 
       var wasExpanded = this.classList.contains('expanded');
 
@@ -886,6 +1044,8 @@ function initPosListeners() {
         var trainsDiv = this.querySelector('.pos-card-trains');
         if (trainsDiv) {
           trainsDiv.insertAdjacentHTML('beforeend', buildPersonSchedule(personName, anstNr));
+          // Attach history button listener
+          attachPosHistoryBtnListener(this);
         }
       }
     });
