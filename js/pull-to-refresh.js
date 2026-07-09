@@ -55,6 +55,7 @@ function registerPullToRefreshFetcher(name, fetchFunc) {
  */
 function ptr_handleTouchStart(e) {
   if (ptr_isRefreshing) return;
+  if (window._ptrDisabled) return;
 
   // Only trigger from top of page
   if (window.scrollY === 0) {

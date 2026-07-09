@@ -31,6 +31,9 @@ var _posDisapTurnsRoll = 'alla';
 // PAGE SHOW / HIDE
 // =============================================
 function onPositionsPageShow() {
+  // Disable pull-to-refresh on positions page
+  window._ptrDisabled = true;
+
   if (!_posCache || (Date.now() - _posCache.ts) > _posCacheTTL) {
     fetchPositions();
   } else {
@@ -42,7 +45,11 @@ function onPositionsPageShow() {
 }
 
 function onPositionsPageHide() {
-  // Nothing to clean up
+  // Re-enable pull-to-refresh
+  window._ptrDisabled = false;
+  // Close warning/dollar panels
+  _posDisappearedOpen = false;
+  _posDisapTurnsOpen = false;
 }
 
 // =============================================
@@ -184,6 +191,11 @@ function fetchAllHistory(progressCallback, doneCallback) {
 // DISAPPEARED TURNS DETECTION
 // =============================================
 
+/** Normalize turn number for comparison — strips TP suffix variants */
+function _normTurnCompare(turnr) {
+  return (turnr || '').replace(/\s*-?\s*TP$/i, '').trim().toUpperCase();
+}
+
 /**
  * Compare yesterday's snapshot with today's data.
  * Detects: (1) disappeared persons → _posDisappeared (⚠️)
@@ -227,12 +239,16 @@ function checkDisappearedTurns() {
       // Build lookups for current data
       var newByAnst = {};
       var newByName = {};
-      var newTurns = {};
+      var newTurns = {};     // exact uppercase
+      var newTurnsNorm = {}; // normalized (strip TP suffix) for shift compare
       for (var ni = 0; ni < newDay.length; ni++) {
         if (newDay[ni].anstNr) newByAnst[newDay[ni].anstNr] = true;
         if (newDay[ni].namn) newByName[newDay[ni].namn.toLowerCase()] = true;
         var nt = (newDay[ni].turnr || '').trim().toUpperCase();
-        if (nt) newTurns[nt] = true;
+        if (nt) {
+          newTurns[nt] = true;
+          newTurnsNorm[_normTurnCompare(newDay[ni].turnr)] = true;
+        }
       }
 
       var processedTurns = {};
@@ -262,11 +278,13 @@ function checkDisappearedTurns() {
         var isReserveFormat = /^\d{6}-\d{6}$/.test(rawClean);
 
         if (!isReserve && !isReserveFormat) {
-          var dedupKey = dateStr + ':' + turnUpper;
+          var normKey = _normTurnCompare(p.turnr);
+          var dedupKey = dateStr + ':' + normKey;
           if (!processedTurns[dedupKey]) {
             processedTurns[dedupKey] = true;
 
-            if (!newTurns[turnUpper]) {
+            // Match on normalized key: "12101" == "12101 - TP"
+            if (!newTurnsNorm[normKey]) {
               var pTime = getPosTime(p);
               var roll = (p.roll || '').toLowerCase();
               var rollLabel = '–';
