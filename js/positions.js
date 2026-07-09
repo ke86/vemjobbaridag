@@ -442,8 +442,37 @@ function checkDisappearedTurns() {
   _posDisappeared = disappearedPersons;
   _posDisapTurns = disappearedShifts;
 
-  // Save current data as new baseline for next comparison
-  _posSaveBaseline(newDagar);
+  // Save merged baseline: new data + old entries that are still missing
+  // This keeps disappeared shifts/persons visible until they reappear
+  var mergedDagar = {};
+  var dk;
+  for (dk in newDagar) {
+    mergedDagar[dk] = newDagar[dk].slice();
+  }
+  for (var mci = 0; mci < checkDates.length; mci++) {
+    var mDate = checkDates[mci];
+    var mOld = oldDagar[mDate] || [];
+    if (!mergedDagar[mDate]) mergedDagar[mDate] = [];
+
+    // Build lookup of what's in new data for this date (by person+turn)
+    var mExisting = {};
+    for (var mi = 0; mi < mergedDagar[mDate].length; mi++) {
+      var mName = mergedDagar[mDate][mi].namn ? mergedDagar[mDate][mi].namn.toLowerCase() : '';
+      var mTurn = _normTurnCompare(mergedDagar[mDate][mi].turnr);
+      mExisting[mName + '|' + mTurn] = true;
+    }
+
+    // Keep old entries that are still missing
+    for (var mj = 0; mj < mOld.length; mj++) {
+      var oName = mOld[mj].namn ? mOld[mj].namn.toLowerCase() : '';
+      var oTurn = _normTurnCompare(mOld[mj].turnr);
+      if (!mExisting[oName + '|' + oTurn]) {
+        mergedDagar[mDate].push(mOld[mj]);
+        mExisting[oName + '|' + oTurn] = true; // prevent duplicates
+      }
+    }
+  }
+  _posSaveBaseline(mergedDagar);
 
   if (disappearedPersons.length > 0 || disappearedShifts.length > 0) {
     renderPositions();
