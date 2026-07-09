@@ -196,6 +196,14 @@ function _normTurnCompare(turnr) {
   return (turnr || '').replace(/\s*-?\s*TP$/i, '').trim().toUpperCase();
 }
 
+/** Convert "HH:MM" to minutes for time comparison, returns -1 if invalid */
+function _posTimeToMin(t) {
+  if (!t || t === '-') return -1;
+  var parts = t.split(':');
+  if (parts.length < 2) return -1;
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
 /**
  * Compare yesterday's snapshot with today's data.
  * Detects: (1) disappeared persons → _posDisappeared (⚠️)
@@ -323,9 +331,19 @@ function checkDisappearedTurns() {
       if (oldDay2.length === 0 || newDay2.length === 0) continue;
 
       var newTurnsNorm = {};
+      // Build per-person time lookup for new data (to detect reassignments)
+      var newPersonTimes = {}; // key: namn_lower → { start: minutes, slut: minutes }
       for (var ni2 = 0; ni2 < newDay2.length; ni2++) {
         var nt = (newDay2[ni2].turnr || '').trim().toUpperCase();
         if (nt) newTurnsNorm[_normTurnCompare(newDay2[ni2].turnr)] = true;
+        var nName = newDay2[ni2].namn ? newDay2[ni2].namn.toLowerCase() : null;
+        if (nName) {
+          var nTime = getPosTime(newDay2[ni2]);
+          newPersonTimes[nName] = {
+            start: _posTimeToMin(nTime.start),
+            slut: _posTimeToMin(nTime.slut)
+          };
+        }
       }
 
       var processedTurns = {};
@@ -345,18 +363,36 @@ function checkDisappearedTurns() {
           if (!processedTurns[dedupKey]) {
             processedTurns[dedupKey] = true;
             if (!newTurnsNorm[normKey]) {
+              // Turn is missing — but check if the person was reassigned
+              // (same person, similar start/end ±1h → not truly free)
               var pTime = getPosTime(p);
-              var roll = (p.roll || '').toLowerCase();
-              var rollLabel = '–';
-              if (roll.indexOf('lokförare') !== -1) rollLabel = 'LF';
-              else if (roll.indexOf('tågvärd') !== -1) rollLabel = 'TV';
-              else if (roll.indexOf('trafik') !== -1 || roll.indexOf('informationsledare') !== -1) rollLabel = 'TIL';
+              var pName = p.namn ? p.namn.toLowerCase() : null;
+              var reassigned = false;
 
-              disappearedShifts.push({
-                date: dateStr2, turnr: p.turnr,
-                start: pTime.start || '', slut: pTime.slut || '',
-                ort: p.ort || '', roll: rollLabel
-              });
+              if (pName && newPersonTimes[pName]) {
+                var oldStartMin = _posTimeToMin(pTime.start);
+                var oldSlutMin = _posTimeToMin(pTime.slut);
+                var npt = newPersonTimes[pName];
+                if (oldStartMin >= 0 && npt.start >= 0 && oldSlutMin >= 0 && npt.slut >= 0) {
+                  if (Math.abs(oldStartMin - npt.start) <= 60 && Math.abs(oldSlutMin - npt.slut) <= 60) {
+                    reassigned = true;
+                  }
+                }
+              }
+
+              if (!reassigned) {
+                var roll = (p.roll || '').toLowerCase();
+                var rollLabel = '–';
+                if (roll.indexOf('lokförare') !== -1) rollLabel = 'LF';
+                else if (roll.indexOf('tågvärd') !== -1) rollLabel = 'TV';
+                else if (roll.indexOf('trafik') !== -1 || roll.indexOf('informationsledare') !== -1) rollLabel = 'TIL';
+
+                disappearedShifts.push({
+                  date: dateStr2, turnr: p.turnr,
+                  start: pTime.start || '', slut: pTime.slut || '',
+                  ort: p.ort || '', roll: rollLabel
+                });
+              }
             }
           }
         }
