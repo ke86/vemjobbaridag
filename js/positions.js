@@ -234,7 +234,8 @@ function checkDisappearedTurns() {
       var dateStr = checkDates[ci];
       var oldDay = oldData.dagar[dateStr] || [];
       var newDay = newDagar[dateStr] || [];
-      if (oldDay.length === 0) continue;
+      // Skip if either side has no data for this date
+      if (oldDay.length === 0 || newDay.length === 0) continue;
 
       // Build lookups for current data
       var newByAnst = {};
