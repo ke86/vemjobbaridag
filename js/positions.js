@@ -227,64 +227,123 @@ function checkDisappearedTurns() {
       return;
     }
     var newDagar = _posCache.data.dagar;
-    var disappearedPersons = [];
     var disappearedShifts = [];
+
+    // ── (1) Per-person schedule comparison ──
+    // Build per-person date maps across all check dates
+    var oldByPerson = {}; // key = namn_lower → { dates: { dateStr: entry } }
+    var newByPerson = {}; // same
 
     for (var ci = 0; ci < checkDates.length; ci++) {
       var dateStr = checkDates[ci];
       var oldDay = oldData.dagar[dateStr] || [];
       var newDay = newDagar[dateStr] || [];
-      // Skip if either side has no data for this date
-      if (oldDay.length === 0 || newDay.length === 0) continue;
 
-      // Build lookups for current data
-      var newByAnst = {};
-      var newByName = {};
-      var newTurns = {};     // exact uppercase
-      var newTurnsNorm = {}; // normalized (strip TP suffix) for shift compare
+      for (var oi = 0; oi < oldDay.length; oi++) {
+        var op = oldDay[oi];
+        if (!op.namn) continue;
+        var key = op.namn.toLowerCase();
+        if (!oldByPerson[key]) oldByPerson[key] = { namn: op.namn, anstNr: op.anstNr || '', dates: {} };
+        oldByPerson[key].dates[dateStr] = op;
+      }
+
       for (var ni = 0; ni < newDay.length; ni++) {
-        if (newDay[ni].anstNr) newByAnst[newDay[ni].anstNr] = true;
-        if (newDay[ni].namn) newByName[newDay[ni].namn.toLowerCase()] = true;
-        var nt = (newDay[ni].turnr || '').trim().toUpperCase();
-        if (nt) {
-          newTurns[nt] = true;
-          newTurnsNorm[_normTurnCompare(newDay[ni].turnr)] = true;
+        var np = newDay[ni];
+        if (!np.namn) continue;
+        var nkey = np.namn.toLowerCase();
+        if (!newByPerson[nkey]) newByPerson[nkey] = true;
+      }
+    }
+
+    // Find persons who lost dates from their schedule
+    var disappearedPersons = [];
+    for (var personKey in oldByPerson) {
+      var person = oldByPerson[personKey];
+      var oldDates = Object.keys(person.dates);
+
+      // Person must still exist in new data (on at least 1 date) → they're active
+      // If they lost specific dates, they're probably sick
+      // Also flag if they had 2+ dates and are completely gone
+      var existsInNew = !!newByPerson[personKey];
+      var lostDates = [];
+
+      for (var di = 0; di < oldDates.length; di++) {
+        var dd = oldDates[di];
+        var newDayForDate = newDagar[dd] || [];
+        if (newDayForDate.length === 0) continue; // no new data for this date, skip
+
+        // Check if this person is on this date in new data
+        var foundOnDate = false;
+        for (var fi = 0; fi < newDayForDate.length; fi++) {
+          if (newDayForDate[fi].namn && newDayForDate[fi].namn.toLowerCase() === personKey) {
+            foundOnDate = true;
+            break;
+          }
+        }
+        if (!foundOnDate) {
+          lostDates.push(dd);
         }
       }
 
+      if (lostDates.length === 0) continue;
+
+      // Only flag if: person is still active (exists on other dates) OR had 2+ dates and lost all
+      if (existsInNew || oldDates.length >= 2) {
+        lostDates.sort();
+        var entries = [];
+        for (var li = 0; li < lostDates.length; li++) {
+          var entry = person.dates[lostDates[li]];
+          entries.push({
+            date: lostDates[li],
+            turnr: entry.turnr || '',
+            start: entry.start || '',
+            slut: entry.slut || '',
+            ort: entry.ort || ''
+          });
+        }
+        disappearedPersons.push({
+          namn: person.namn,
+          anstNr: person.anstNr,
+          lostDates: entries,
+          totalOld: oldDates.length,
+          stillActive: existsInNew
+        });
+      }
+    }
+
+    disappearedPersons.sort(function(a, b) {
+      return b.lostDates.length - a.lostDates.length || a.namn.localeCompare(b.namn);
+    });
+
+    // ── (2) Shift disappearance (per-date, skip reserves) ──
+    for (var ci2 = 0; ci2 < checkDates.length; ci2++) {
+      var dateStr2 = checkDates[ci2];
+      var oldDay2 = oldData.dagar[dateStr2] || [];
+      var newDay2 = newDagar[dateStr2] || [];
+      if (oldDay2.length === 0 || newDay2.length === 0) continue;
+
+      var newTurnsNorm = {};
+      for (var ni2 = 0; ni2 < newDay2.length; ni2++) {
+        var nt = (newDay2[ni2].turnr || '').trim().toUpperCase();
+        if (nt) newTurnsNorm[_normTurnCompare(newDay2[ni2].turnr)] = true;
+      }
+
       var processedTurns = {};
-
-      for (var oi = 0; oi < oldDay.length; oi++) {
-        var p = oldDay[oi];
+      for (var oi2 = 0; oi2 < oldDay2.length; oi2++) {
+        var p = oldDay2[oi2];
         if (!p.turnr || !p.namn) continue;
-
         var turnUpper = (p.turnr || '').toUpperCase().trim();
         if (!turnUpper || turnUpper === 'LEDIG' || turnUpper === '-') continue;
 
-        // ── (1) Person disappearance ──
-        var personFound = false;
-        if (p.anstNr && newByAnst[p.anstNr]) personFound = true;
-        if (!personFound && p.namn && newByName[p.namn.toLowerCase()]) personFound = true;
-
-        if (!personFound) {
-          disappearedPersons.push({
-            namn: p.namn, anstNr: p.anstNr || '', date: dateStr,
-            turnr: p.turnr, start: p.start || '', slut: p.slut || '', ort: p.ort || ''
-          });
-        }
-
-        // ── (2) Shift disappearance (skip reserves) ──
         var isReserve = turnUpper.indexOf('RESERV') === 0;
         var rawClean = p.turnr.replace(/\s*-\s*TP$/i, '').trim();
         var isReserveFormat = /^\d{6}-\d{6}$/.test(rawClean);
 
         if (!isReserve && !isReserveFormat) {
           var normKey = _normTurnCompare(p.turnr);
-          var dedupKey = dateStr + ':' + normKey;
+          var dedupKey = dateStr2 + ':' + normKey;
           if (!processedTurns[dedupKey]) {
             processedTurns[dedupKey] = true;
-
-            // Match on normalized key: "12101" == "12101 - TP"
             if (!newTurnsNorm[normKey]) {
               var pTime = getPosTime(p);
               var roll = (p.roll || '').toLowerCase();
@@ -294,7 +353,7 @@ function checkDisappearedTurns() {
               else if (roll.indexOf('trafik') !== -1 || roll.indexOf('informationsledare') !== -1) rollLabel = 'TIL';
 
               disappearedShifts.push({
-                date: dateStr, turnr: p.turnr,
+                date: dateStr2, turnr: p.turnr,
                 start: pTime.start || '', slut: pTime.slut || '',
                 ort: p.ort || '', roll: rollLabel
               });
@@ -304,10 +363,6 @@ function checkDisappearedTurns() {
       }
     }
 
-    disappearedPersons.sort(function(a, b) {
-      if (a.date !== b.date) return a.date.localeCompare(b.date);
-      return a.namn.localeCompare(b.namn);
-    });
     disappearedShifts.sort(function(a, b) {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       var sa = a.start || '99:99';
@@ -324,27 +379,38 @@ function checkDisappearedTurns() {
   });
 }
 
-/** Build the ⚠️ panel listing disappeared persons */
+/** Build the ⚠️ panel listing disappeared persons (grouped by person) */
 function buildDisappearedPanel() {
   if (_posDisappeared.length === 0) return '';
   var dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
 
   var html = '<div class="pos-warn-panel' + (_posDisappearedOpen ? ' open' : '') + '" id="posWarnPanel">';
   html += '<div class="pos-warn-header">Försvunna personer sedan igår</div>';
+  html += '<div class="pos-warn-count">' + _posDisappeared.length + ' personer</div>';
 
   for (var i = 0; i < _posDisappeared.length; i++) {
-    var d = _posDisappeared[i];
-    var dateObj = parsePosDate(d.date);
-    var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
+    var person = _posDisappeared[i];
 
-    html += '<div class="pos-warn-item">';
-    html += '<span class="pos-warn-name">' + escPosHtml(d.namn) + '</span>';
-    html += '<span class="pos-warn-detail">' + dayLabel + ' · ' + escPosHtml(d.turnr);
-    if (d.start && d.start !== '-') {
-      html += ' · ' + d.start;
-      if (d.slut && d.slut !== '-') html += '–' + d.slut;
+    html += '<div class="pos-warn-person">';
+    html += '<div class="pos-warn-name">' + escPosHtml(person.namn);
+    if (!person.stillActive) html += ' <span class="pos-warn-gone-tag">helt borta</span>';
+    html += '</div>';
+
+    for (var j = 0; j < person.lostDates.length; j++) {
+      var d = person.lostDates[j];
+      var dateObj = parsePosDate(d.date);
+      var dayLabel = dayNames[dateObj.getDay()] + ' ' + dateObj.getDate() + '/' + (dateObj.getMonth() + 1);
+
+      html += '<div class="pos-warn-date-row">';
+      html += '<span class="pos-warn-detail">' + dayLabel + ' · ' + escPosHtml(d.turnr);
+      if (d.start && d.start !== '-') {
+        html += ' · ' + d.start;
+        if (d.slut && d.slut !== '-') html += '–' + d.slut;
+      }
+      html += '</span>';
+      html += '</div>';
     }
-    html += '</span>';
+
     html += '</div>';
   }
 
