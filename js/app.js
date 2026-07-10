@@ -327,16 +327,6 @@ function setupEventListeners() {
       }
     });
   }
-  const clearBaselineBtn = document.getElementById('clearBaselineBtn');
-  if (clearBaselineBtn) {
-    clearBaselineBtn.addEventListener('click', function() {
-      try { localStorage.removeItem('posBaseline_v1'); } catch(e) {}
-      _posBaseline = null;
-      _posDisappeared = [];
-      _posDisapTurns = [];
-      updateBaselineStatusUI();
-    });
-  }
 
   // Dagvy file upload listeners
   initDagvyUpload();

@@ -41,12 +41,15 @@ export default {
     }
 
     // ── Positions (API key protected) ──
-    if (path === '/positions' || path === '/positions/dates') {
+    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared') {
       if (!validateApiKey(request, env)) {
         return jsonResp({ error: 'Invalid API key' }, 401);
       }
       if (path === '/positions/dates' && request.method === 'GET') {
         return handleGetPositionDates(env);
+      }
+      if (path === '/positions/disappeared' && request.method === 'GET') {
+        return handleGetDisappeared(env);
       }
       if (request.method === 'GET') return handleGetPositions(env, url);
       if (request.method === 'PUT') return handlePutPositions(request, env);
@@ -300,10 +303,284 @@ async function handlePutPositions(request, env) {
       size: bodyStr.length
     });
 
+    // Compute disappeared persons/shifts (baseline comparison)
+    await computeDisappeared(env, body);
+
     return jsonResp({ success: true, message: 'Positions data saved', date: today, historyDates: dateList.length });
   } catch (err) {
     return jsonResp({ error: 'Failed to save positions: ' + err.message }, 500);
   }
+}
+
+// =============================================
+// /positions/disappeared — Baseline comparison
+// =============================================
+
+/** GET /positions/disappeared — return stored comparison results */
+async function handleGetDisappeared(env) {
+  if (!env.DOCS_KV) {
+    return jsonResp({ error: 'KV storage not configured' }, 500);
+  }
+
+  try {
+    const result = await env.DOCS_KV.get('positions:_disappeared', 'json');
+    if (!result) {
+      return jsonResp({ ts: null, status: 'none', persons: [], shifts: [] });
+    }
+    return jsonResp(result);
+  } catch (err) {
+    return jsonResp({ error: 'Failed to read disappeared: ' + err.message }, 500);
+  }
+}
+
+/**
+ * Run baseline comparison after new positions data is saved.
+ * Computes disappeared persons (⚠️) and disappeared shifts ($).
+ * Stores results in KV: positions:_disappeared, positions:_baseline
+ */
+async function computeDisappeared(env, newData) {
+  if (!newData || !newData.dagar) return;
+
+  const BASELINE_MAX_GAP = 24 * 60 * 60 * 1000; // 24h
+  const MAX_SHIFTS = 50;
+  const MAX_PERSONS = 30;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const newDagar = newData.dagar;
+
+  // Validate: today must exist with ≥50 entries
+  if (!newDagar[today] || newDagar[today].length < 50) {
+    await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+      ts: Date.now(), status: 'invalid', persons: [], shifts: [],
+      detail: 'Dagens data saknas eller har för få poster'
+    }));
+    return;
+  }
+
+  // Load existing baseline from KV
+  let baseline = await env.DOCS_KV.get('positions:_baseline', 'json');
+
+  // No baseline or too old → save current as first baseline
+  if (!baseline || !baseline.dagar || !baseline.ts || (Date.now() - baseline.ts) > BASELINE_MAX_GAP) {
+    await env.DOCS_KV.put('positions:_baseline', JSON.stringify({
+      dagar: newDagar, ts: Date.now()
+    }));
+    await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+      ts: Date.now(), status: 'first', persons: [], shifts: []
+    }));
+    return;
+  }
+
+  const oldDagar = baseline.dagar;
+
+  // Dates to check: today + next 6 days
+  const checkDates = [];
+  for (let d = 0; d < 7; d++) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() + d);
+    checkDates.push(dt.toISOString().slice(0, 10));
+  }
+
+  // ── (1) Per-person schedule comparison ──
+  const oldByPerson = {};
+  const newByPerson = {};
+
+  for (const dateStr of checkDates) {
+    const oldDay = oldDagar[dateStr] || [];
+    const newDay = newDagar[dateStr] || [];
+
+    for (const op of oldDay) {
+      if (!op.namn) continue;
+      const key = op.namn.toLowerCase();
+      if (!oldByPerson[key]) oldByPerson[key] = { namn: op.namn, anstNr: op.anstNr || '', dates: {} };
+      oldByPerson[key].dates[dateStr] = op;
+    }
+
+    for (const np of newDay) {
+      if (!np.namn) continue;
+      newByPerson[np.namn.toLowerCase()] = true;
+    }
+  }
+
+  const disappearedPersons = [];
+  for (const personKey in oldByPerson) {
+    const person = oldByPerson[personKey];
+    const oldDates = Object.keys(person.dates);
+    const existsInNew = !!newByPerson[personKey];
+    const lostDates = [];
+
+    for (const dd of oldDates) {
+      const newDayForDate = newDagar[dd] || [];
+      if (newDayForDate.length === 0) continue;
+
+      let foundOnDate = false;
+      for (const entry of newDayForDate) {
+        if (entry.namn && entry.namn.toLowerCase() === personKey) {
+          foundOnDate = true;
+          break;
+        }
+      }
+      if (!foundOnDate) lostDates.push(dd);
+    }
+
+    if (lostDates.length === 0) continue;
+
+    if (existsInNew || oldDates.length >= 2) {
+      lostDates.sort();
+      const entries = lostDates.map(ld => {
+        const e = person.dates[ld];
+        return { date: ld, turnr: e.turnr || '', start: e.start || '', slut: e.slut || '', ort: e.ort || '' };
+      });
+      disappearedPersons.push({
+        namn: person.namn, anstNr: person.anstNr,
+        lostDates: entries, totalOld: oldDates.length, stillActive: existsInNew
+      });
+    }
+  }
+
+  disappearedPersons.sort((a, b) => b.lostDates.length - a.lostDates.length || a.namn.localeCompare(b.namn));
+
+  // ── (2) Per-date shift comparison ──
+  const disappearedShifts = [];
+
+  for (const dateStr of checkDates) {
+    const oldDay = oldDagar[dateStr] || [];
+    const newDay = newDagar[dateStr] || [];
+    if (oldDay.length === 0 || newDay.length === 0) continue;
+
+    // Build lookup of new turns + person times
+    const newTurnsNorm = {};
+    const newPersonTimes = {};
+    for (const nt of newDay) {
+      const turnUpper = (nt.turnr || '').trim().toUpperCase();
+      if (turnUpper) newTurnsNorm[_normTurn(nt.turnr)] = true;
+      const nName = nt.namn ? nt.namn.toLowerCase() : null;
+      if (nName) {
+        newPersonTimes[nName] = {
+          start: _timeToMin(nt.start),
+          slut: _timeToMin(nt.slut)
+        };
+      }
+    }
+
+    const processedTurns = {};
+    for (const p of oldDay) {
+      if (!p.turnr || !p.namn) continue;
+      const turnUpper = (p.turnr || '').toUpperCase().trim();
+      if (!turnUpper || turnUpper === 'LEDIG' || turnUpper === '-') continue;
+
+      // Exclusions
+      const isReserve = turnUpper.startsWith('RESERV');
+      const isGulvast = turnUpper.startsWith('GULVÄST') || turnUpper.startsWith('GULVAST');
+      const isAdm = turnUpper === 'ADM';
+      const rawClean = p.turnr.replace(/\s*-\s*TP$/i, '').trim();
+      const isReserveFormat = /^\d{6}-\d{6}$/.test(rawClean);
+
+      if (isReserve || isReserveFormat || isGulvast || isAdm) continue;
+
+      const normKey = _normTurn(p.turnr);
+      const dedupKey = dateStr + ':' + normKey;
+      if (processedTurns[dedupKey]) continue;
+      processedTurns[dedupKey] = true;
+
+      if (!newTurnsNorm[normKey]) {
+        // Check reassignment (same person, similar times ±1h)
+        const pName = p.namn ? p.namn.toLowerCase() : null;
+        let reassigned = false;
+
+        if (pName && newPersonTimes[pName]) {
+          const oldStartMin = _timeToMin(p.start);
+          const oldSlutMin = _timeToMin(p.slut);
+          const npt = newPersonTimes[pName];
+          if (oldStartMin >= 0 && npt.start >= 0 && oldSlutMin >= 0 && npt.slut >= 0) {
+            if (Math.abs(oldStartMin - npt.start) <= 60 && Math.abs(oldSlutMin - npt.slut) <= 60) {
+              reassigned = true;
+            }
+          }
+        }
+
+        if (!reassigned) {
+          const roll = (p.roll || '').toLowerCase();
+          let rollLabel = '–';
+          if (roll.includes('lokförare')) rollLabel = 'LF';
+          else if (roll.includes('tågvärd')) rollLabel = 'TV';
+          else if (roll.includes('trafik') || roll.includes('informationsledare')) rollLabel = 'TIL';
+
+          disappearedShifts.push({
+            date: dateStr, turnr: p.turnr,
+            start: p.start || '', slut: p.slut || '',
+            ort: p.ort || '', roll: rollLabel
+          });
+        }
+      }
+    }
+  }
+
+  disappearedShifts.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.start || '99:99').localeCompare(b.start || '99:99');
+  });
+
+  // Threshold check
+  if (disappearedShifts.length > MAX_SHIFTS || disappearedPersons.length > MAX_PERSONS) {
+    // Unreasonable — don't update baseline, save status
+    await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+      ts: Date.now(), status: 'unreasonable',
+      persons: [], shifts: [],
+      detail: disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer'
+    }));
+    return;
+  }
+
+  // Save results
+  await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+    ts: Date.now(), status: 'ok',
+    persons: disappearedPersons,
+    shifts: disappearedShifts
+  }));
+
+  // Save merged baseline (new data + old entries still missing → dashboard mode)
+  const mergedDagar = {};
+  for (const dk in newDagar) {
+    mergedDagar[dk] = newDagar[dk].slice ? newDagar[dk].slice() : [...newDagar[dk]];
+  }
+  for (const mDate of checkDates) {
+    const mOld = oldDagar[mDate] || [];
+    if (!mergedDagar[mDate]) mergedDagar[mDate] = [];
+
+    const mExisting = {};
+    for (const item of mergedDagar[mDate]) {
+      const mName = item.namn ? item.namn.toLowerCase() : '';
+      const mTurn = _normTurn(item.turnr);
+      mExisting[mName + '|' + mTurn] = true;
+    }
+
+    for (const oldItem of mOld) {
+      const oName = oldItem.namn ? oldItem.namn.toLowerCase() : '';
+      const oTurn = _normTurn(oldItem.turnr);
+      if (!mExisting[oName + '|' + oTurn]) {
+        mergedDagar[mDate].push(oldItem);
+        mExisting[oName + '|' + oTurn] = true;
+      }
+    }
+  }
+
+  await env.DOCS_KV.put('positions:_baseline', JSON.stringify({
+    dagar: mergedDagar, ts: Date.now()
+  }));
+}
+
+/** Normalize turn number for comparison — strips TP suffix */
+function _normTurn(turnr) {
+  return (turnr || '').replace(/\s*-?\s*TP$/i, '').trim().toUpperCase();
+}
+
+/** Convert "HH:MM" to minutes, -1 if invalid */
+function _timeToMin(t) {
+  if (!t || t === '-') return -1;
+  const parts = (t + '').split(':');
+  if (parts.length < 2) return -1;
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 }
 
 // =============================================

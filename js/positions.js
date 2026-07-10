@@ -26,9 +26,7 @@ var _posDisapTurns = [];      // [{ date, turnr, start, slut, ort, roll }]
 var _posDisapTurnsOpen = false;
 var _posDisapTurnsOrt = 'alla';
 var _posDisapTurnsRoll = 'alla';
-var _posBaseline = null;      // { dagar: {...}, ts: timestamp }
-var _posBaselineKey = 'posBaseline_v1';
-var _posBaselineMaxAge = 7 * 24 * 60 * 60 * 1000; // 7 days
+var _posDisapStatus = null;   // { ts, status, detail } from worker
 
 // =============================================
 // PAGE SHOW / HIDE
@@ -198,341 +196,102 @@ function fetchAllHistory(progressCallback, doneCallback) {
 }
 
 // =============================================
-// BASELINE (localStorage persistence)
+// BASELINE STATUS (server-side, shared across devices)
 // =============================================
 
-/** Load baseline from localStorage (if available and not expired) */
-function _posLoadBaseline() {
-  try {
-    var raw = localStorage.getItem(_posBaselineKey);
-    if (!raw) return null;
-    var bl = JSON.parse(raw);
-    if (!bl || !bl.dagar || !bl.ts) return null;
-    if (Date.now() - bl.ts > _posBaselineMaxAge) {
-      localStorage.removeItem(_posBaselineKey);
-      return null;
-    }
-    return bl;
-  } catch (e) {
-    return null;
-  }
-}
-
-/** Save current positions data as baseline to localStorage */
-function _posSaveBaseline(dagar, status, shifts, persons) {
-  try {
-    var bl = { dagar: dagar, ts: Date.now(), status: status || 'ok', shifts: shifts || 0, persons: persons || 0 };
-    localStorage.setItem(_posBaselineKey, JSON.stringify(bl));
-    _posBaseline = bl;
-  } catch (e) {
-    // localStorage full or unavailable — keep in-memory only
-    _posBaseline = { dagar: dagar, ts: Date.now(), status: status || 'ok', shifts: shifts || 0, persons: persons || 0 };
-  }
-}
-
-/** Update baseline status text in settings UI */
+/** Update baseline status text in settings UI (fetched from worker) */
 function updateBaselineStatusUI() {
   var el = document.getElementById('baselineStatusText');
   if (!el) return;
 
-  var bl = _posBaseline || _posLoadBaseline();
-  if (!bl || !bl.ts) {
-    el.textContent = '○ Ingen baseline';
+  if (!_posDisapStatus) {
+    el.textContent = '○ Hämtar status…';
+    // Fetch from worker
+    var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : 'https://onevr-auth.kenny-eriksson1986.workers.dev') + '/positions/disappeared';
+    var apiKey = (typeof REMOTE_DOC_API_KEY !== 'undefined' ? REMOTE_DOC_API_KEY : 'onevr-docs-2026');
+    fetch(url, { headers: { 'X-API-Key': apiKey } })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) {
+        if (data) {
+          _posDisapStatus = data;
+          _renderBaselineStatus(el, data);
+        } else {
+          el.textContent = '✗ Kunde inte hämta status';
+        }
+      })
+      .catch(function() { el.textContent = '✗ Nätverksfel'; });
     return;
   }
 
-  var d = new Date(bl.ts);
+  _renderBaselineStatus(el, _posDisapStatus);
+}
+
+function _renderBaselineStatus(el, data) {
+  if (!data || !data.ts) {
+    el.textContent = '○ Ingen baseline (servern har aldrig kört jämförelse)';
+    return;
+  }
+
+  var d = new Date(data.ts);
   var timeStr = d.getDate() + '/' + (d.getMonth() + 1) + ' kl ' +
     String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
 
   var statusIcon = '✓';
   var statusLabel = 'Lyckad';
-  if (bl.status === 'unreasonable') { statusIcon = '⚠️'; statusLabel = 'Orimligt resultat — ej sparad'; }
-  else if (bl.status === 'invalid') { statusIcon = '✗'; statusLabel = 'Ogiltig data — ej sparad'; }
-  else if (bl.status === 'first') { statusIcon = '○'; statusLabel = 'Första laddning (baseline sparad)'; }
+  if (data.status === 'unreasonable') { statusIcon = '⚠️'; statusLabel = 'Orimligt resultat'; }
+  else if (data.status === 'invalid') { statusIcon = '✗'; statusLabel = 'Ogiltig data'; }
+  else if (data.status === 'first') { statusIcon = '○'; statusLabel = 'Baseline sparad (första)'; }
+  else if (data.status === 'none') { statusIcon = '○'; statusLabel = 'Ingen data ännu'; }
 
   var info = statusIcon + ' ' + statusLabel;
-  if (bl.status === 'ok' && (bl.shifts > 0 || bl.persons > 0)) {
-    info += ' (' + bl.shifts + ' lediga, ' + bl.persons + ' personer)';
+  if (data.status === 'ok') {
+    var pCount = (data.persons || []).length;
+    var sCount = (data.shifts || []).length;
+    info += ' (' + sCount + ' lediga, ' + pCount + ' personer)';
+  }
+  if (data.detail) {
+    info += '<br><span style="opacity:0.6;font-size:0.85em">' + data.detail + '</span>';
   }
 
-  el.innerHTML = '<span style="opacity:0.7">Senast: ' + timeStr + '</span><br>' + info;
+  el.innerHTML = '<span style="opacity:0.7">Senast: ' + timeStr + '</span><br>' + info +
+    '<br><span style="opacity:0.5;font-size:0.8em">Synkad — alla enheter ser samma resultat</span>';
 }
 
 // =============================================
-// DISAPPEARED TURNS DETECTION
+// DISAPPEARED TURNS DETECTION (fetched from worker)
 // =============================================
-
-/** Normalize turn number for comparison — strips TP suffix variants */
-function _normTurnCompare(turnr) {
-  return (turnr || '').replace(/\s*-?\s*TP$/i, '').trim().toUpperCase();
-}
-
-/** Convert "HH:MM" to minutes for time comparison, returns -1 if invalid */
-function _posTimeToMin(t) {
-  if (!t || t === '-') return -1;
-  var parts = t.split(':');
-  if (parts.length < 2) return -1;
-  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-}
 
 /**
- * Compare current data against the saved baseline.
- * Detects: (1) disappeared persons → _posDisappeared (⚠️)
- *          (2) disappeared shifts  → _posDisapTurns  ($)
- * After comparison, saves current data as new baseline.
+ * Fetch disappeared persons/shifts from worker.
+ * The worker computes comparisons server-side so all devices see the same results.
  */
 function checkDisappearedTurns() {
-  if (!_posCache || !_posCache.data || !_posCache.data.dagar) return;
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : 'https://onevr-auth.kenny-eriksson1986.workers.dev') + '/positions/disappeared';
+  var apiKey = (typeof REMOTE_DOC_API_KEY !== 'undefined' ? REMOTE_DOC_API_KEY : 'onevr-docs-2026');
 
-  // Load baseline (previous fetch) from memory or localStorage
-  if (!_posBaseline) _posBaseline = _posLoadBaseline();
+  fetch(url, { headers: { 'X-API-Key': apiKey } })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      _posDisapStatus = data;
 
-  var newDagar = _posCache.data.dagar;
-
-  // Input validation: today must exist with reasonable entry count
-  var today = getTodayStr();
-  if (!newDagar[today] || newDagar[today].length < 50) {
-    // Data is invalid/incomplete — don't compare, don't save
-    _posSaveBaseline(_posBaseline ? _posBaseline.dagar : newDagar, 'invalid', 0, 0);
-    return;
-  }
-
-  // No baseline, or baseline older than 24h → first load, save as baseline, show 0
-  var _baselineMaxGap = 24 * 60 * 60 * 1000;
-  if (!_posBaseline || !_posBaseline.dagar || (Date.now() - _posBaseline.ts) > _baselineMaxGap) {
-    _posSaveBaseline(newDagar, 'first', 0, 0);
-    _posDisappeared = [];
-    _posDisapTurns = [];
-    return;
-  }
-
-  var oldDagar = _posBaseline.dagar;
-
-  // Dates to check: today + next 6 days (7 days forward)
-  var checkDates = [];
-  for (var d = 0; d < 7; d++) {
-    var dt = new Date();
-    dt.setDate(dt.getDate() + d);
-    checkDates.push(dt.getFullYear() + '-' +
-      String(dt.getMonth() + 1).padStart(2, '0') + '-' +
-      String(dt.getDate()).padStart(2, '0'));
-  }
-
-  var disappearedShifts = [];
-
-  // ── (1) Per-person schedule comparison ──
-  var oldByPerson = {};
-  var newByPerson = {};
-
-  for (var ci = 0; ci < checkDates.length; ci++) {
-    var dateStr = checkDates[ci];
-    var oldDay = oldDagar[dateStr] || [];
-    var newDay = newDagar[dateStr] || [];
-
-    for (var oi = 0; oi < oldDay.length; oi++) {
-      var op = oldDay[oi];
-      if (!op.namn) continue;
-      var key = op.namn.toLowerCase();
-      if (!oldByPerson[key]) oldByPerson[key] = { namn: op.namn, anstNr: op.anstNr || '', dates: {} };
-      oldByPerson[key].dates[dateStr] = op;
-    }
-
-    for (var ni = 0; ni < newDay.length; ni++) {
-      var np = newDay[ni];
-      if (!np.namn) continue;
-      var nkey = np.namn.toLowerCase();
-      if (!newByPerson[nkey]) newByPerson[nkey] = true;
-    }
-  }
-
-  // Find persons who lost dates from their schedule
-  var disappearedPersons = [];
-  for (var personKey in oldByPerson) {
-    var person = oldByPerson[personKey];
-    var oldDates = Object.keys(person.dates);
-
-    var existsInNew = !!newByPerson[personKey];
-    var lostDates = [];
-
-    for (var di = 0; di < oldDates.length; di++) {
-      var dd = oldDates[di];
-      var newDayForDate = newDagar[dd] || [];
-      if (newDayForDate.length === 0) continue;
-
-      var foundOnDate = false;
-      for (var fi = 0; fi < newDayForDate.length; fi++) {
-        if (newDayForDate[fi].namn && newDayForDate[fi].namn.toLowerCase() === personKey) {
-          foundOnDate = true;
-          break;
-        }
+      if (data.status === 'ok') {
+        _posDisappeared = data.persons || [];
+        _posDisapTurns = data.shifts || [];
+      } else {
+        _posDisappeared = [];
+        _posDisapTurns = [];
       }
-      if (!foundOnDate) {
-        lostDates.push(dd);
+
+      if (_posDisappeared.length > 0 || _posDisapTurns.length > 0) {
+        renderPositions();
       }
-    }
-
-    if (lostDates.length === 0) continue;
-
-    if (existsInNew || oldDates.length >= 2) {
-      lostDates.sort();
-      var entries = [];
-      for (var li = 0; li < lostDates.length; li++) {
-        var entry = person.dates[lostDates[li]];
-        entries.push({
-          date: lostDates[li],
-          turnr: entry.turnr || '',
-          start: entry.start || '',
-          slut: entry.slut || '',
-          ort: entry.ort || ''
-        });
-      }
-      disappearedPersons.push({
-        namn: person.namn,
-        anstNr: person.anstNr,
-        lostDates: entries,
-        totalOld: oldDates.length,
-        stillActive: existsInNew
-      });
-    }
-  }
-
-  disappearedPersons.sort(function(a, b) {
-    return b.lostDates.length - a.lostDates.length || a.namn.localeCompare(b.namn);
-  });
-
-  // ── (2) Shift disappearance (per-date, skip reserves) ──
-  for (var ci2 = 0; ci2 < checkDates.length; ci2++) {
-    var dateStr2 = checkDates[ci2];
-    var oldDay2 = oldDagar[dateStr2] || [];
-    var newDay2 = newDagar[dateStr2] || [];
-    if (oldDay2.length === 0 || newDay2.length === 0) continue;
-
-    var newTurnsNorm = {};
-    var newPersonTimes = {};
-    for (var ni2 = 0; ni2 < newDay2.length; ni2++) {
-      var nt = (newDay2[ni2].turnr || '').trim().toUpperCase();
-      if (nt) newTurnsNorm[_normTurnCompare(newDay2[ni2].turnr)] = true;
-      var nName = newDay2[ni2].namn ? newDay2[ni2].namn.toLowerCase() : null;
-      if (nName) {
-        var nTime = getPosTime(newDay2[ni2]);
-        newPersonTimes[nName] = {
-          start: _posTimeToMin(nTime.start),
-          slut: _posTimeToMin(nTime.slut)
-        };
-      }
-    }
-
-    var processedTurns = {};
-    for (var oi2 = 0; oi2 < oldDay2.length; oi2++) {
-      var p = oldDay2[oi2];
-      if (!p.turnr || !p.namn) continue;
-      var turnUpper = (p.turnr || '').toUpperCase().trim();
-      if (!turnUpper || turnUpper === 'LEDIG' || turnUpper === '-') continue;
-
-      var isReserve = turnUpper.indexOf('RESERV') === 0;
-      var isGulvast = turnUpper.indexOf('GULVÄST') === 0 || turnUpper.indexOf('GULVAST') === 0;
-      var isAdm = turnUpper === 'ADM';
-      var rawClean = p.turnr.replace(/\s*-\s*TP$/i, '').trim();
-      var isReserveFormat = /^\d{6}-\d{6}$/.test(rawClean);
-
-      if (!isReserve && !isReserveFormat && !isGulvast && !isAdm) {
-        var normKey = _normTurnCompare(p.turnr);
-        var dedupKey = dateStr2 + ':' + normKey;
-        if (!processedTurns[dedupKey]) {
-          processedTurns[dedupKey] = true;
-          if (!newTurnsNorm[normKey]) {
-            var pTime = getPosTime(p);
-            var pName = p.namn ? p.namn.toLowerCase() : null;
-            var reassigned = false;
-
-            if (pName && newPersonTimes[pName]) {
-              var oldStartMin = _posTimeToMin(pTime.start);
-              var oldSlutMin = _posTimeToMin(pTime.slut);
-              var npt = newPersonTimes[pName];
-              if (oldStartMin >= 0 && npt.start >= 0 && oldSlutMin >= 0 && npt.slut >= 0) {
-                if (Math.abs(oldStartMin - npt.start) <= 60 && Math.abs(oldSlutMin - npt.slut) <= 60) {
-                  reassigned = true;
-                }
-              }
-            }
-
-            if (!reassigned) {
-              var roll = (p.roll || '').toLowerCase();
-              var rollLabel = '–';
-              if (roll.indexOf('lokförare') !== -1) rollLabel = 'LF';
-              else if (roll.indexOf('tågvärd') !== -1) rollLabel = 'TV';
-              else if (roll.indexOf('trafik') !== -1 || roll.indexOf('informationsledare') !== -1) rollLabel = 'TIL';
-
-              disappearedShifts.push({
-                date: dateStr2, turnr: p.turnr,
-                start: pTime.start || '', slut: pTime.slut || '',
-                ort: p.ort || '', roll: rollLabel
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  disappearedShifts.sort(function(a, b) {
-    if (a.date !== b.date) return a.date.localeCompare(b.date);
-    var sa = a.start || '99:99';
-    var sb = b.start || '99:99';
-    return sa.localeCompare(sb);
-  });
-
-  // Threshold check: unreasonable results = bad data, don't save
-  var MAX_SHIFTS = 50;
-  var MAX_PERSONS = 30;
-  if (disappearedShifts.length > MAX_SHIFTS || disappearedPersons.length > MAX_PERSONS) {
-    console.warn('[POS] Orimligt resultat: ' + disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer — baseline orörd');
-    _posDisappeared = [];
-    _posDisapTurns = [];
-    // Save status metadata without changing baseline data
-    _posSaveBaseline(_posBaseline.dagar, 'unreasonable', disappearedShifts.length, disappearedPersons.length);
-    return;
-  }
-
-  _posDisappeared = disappearedPersons;
-  _posDisapTurns = disappearedShifts;
-
-  // Save merged baseline: new data + old entries that are still missing
-  // This keeps disappeared shifts/persons visible until they reappear
-  var mergedDagar = {};
-  var dk;
-  for (dk in newDagar) {
-    mergedDagar[dk] = newDagar[dk].slice();
-  }
-  for (var mci = 0; mci < checkDates.length; mci++) {
-    var mDate = checkDates[mci];
-    var mOld = oldDagar[mDate] || [];
-    if (!mergedDagar[mDate]) mergedDagar[mDate] = [];
-
-    // Build lookup of what's in new data for this date (by person+turn)
-    var mExisting = {};
-    for (var mi = 0; mi < mergedDagar[mDate].length; mi++) {
-      var mName = mergedDagar[mDate][mi].namn ? mergedDagar[mDate][mi].namn.toLowerCase() : '';
-      var mTurn = _normTurnCompare(mergedDagar[mDate][mi].turnr);
-      mExisting[mName + '|' + mTurn] = true;
-    }
-
-    // Keep old entries that are still missing
-    for (var mj = 0; mj < mOld.length; mj++) {
-      var oName = mOld[mj].namn ? mOld[mj].namn.toLowerCase() : '';
-      var oTurn = _normTurnCompare(mOld[mj].turnr);
-      if (!mExisting[oName + '|' + oTurn]) {
-        mergedDagar[mDate].push(mOld[mj]);
-        mExisting[oName + '|' + oTurn] = true; // prevent duplicates
-      }
-    }
-  }
-  _posSaveBaseline(mergedDagar, 'ok', disappearedShifts.length, disappearedPersons.length);
-
-  if (disappearedPersons.length > 0 || disappearedShifts.length > 0) {
-    renderPositions();
-  }
+    })
+    .catch(function(err) {
+      console.warn('[POS] Failed to fetch disappeared:', err.message);
+    });
 }
 
 /** Build the ⚠️ panel listing disappeared persons (grouped by person) */
