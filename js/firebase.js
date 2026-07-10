@@ -694,12 +694,27 @@ function updateSyncTimestamp() {
 }
 
 // =============================================
-// MANUAL SCRAPE (trigger + poll status)
+// MANUAL SCRAPE (trigger + poll status + progress + history)
 // =============================================
 var SCRAPE_WORKER = 'https://onevr-auth.kenny-eriksson1986.workers.dev';
 var SCRAPE_PIN = '8612';
 var _scrapePolling = false;
 var _scrapeTimer = null;
+var _scrapeProgressInterval = null;
+var _scrapeStartTime = 0;
+var SCRAPE_EXPECTED_DURATION = 13 * 60 * 1000; // 13 minutes in ms
+
+/**
+ * Check if current time is within night block (23:00–06:00 Swedish time).
+ * Returns true if blocked.
+ */
+function _isNightBlock() {
+  // Get current hour in Swedish timezone (Europe/Stockholm)
+  var now = new Date();
+  var seStr = now.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm', hour: 'numeric', hour12: false });
+  var hour = parseInt(seStr, 10);
+  return hour >= 23 || hour < 6;
+}
 
 /**
  * Trigger a manual scrape and start polling for status.
@@ -711,6 +726,15 @@ async function triggerManualScrape() {
   var statusEl = document.getElementById('scrapeStatus');
 
   if (_scrapePolling) return; // Already running
+
+  // Night block check (23:00–06:00 Swedish time)
+  if (_isNightBlock()) {
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="scrape-night-block">🌙 Uppdatering ej tillgänglig 23:00–06:00</span>';
+      statusEl.className = 'scrape-status';
+    }
+    return;
+  }
 
   try {
     if (btn) btn.disabled = true;
@@ -736,6 +760,10 @@ async function triggerManualScrape() {
       statusEl.className = 'scrape-status scrape-status-active';
     }
 
+    // Start progress bar
+    _scrapeStartTime = Date.now();
+    _scrapeShowProgress();
+
     // Start polling
     _scrapePolling = true;
     _pollScrapeStatus();
@@ -751,6 +779,80 @@ async function triggerManualScrape() {
     if (btn) btn.disabled = false;
     setTimeout(function() { _scrapeResetBtn(); }, 5000);
   }
+}
+
+/**
+ * Show and animate the progress bar.
+ */
+function _scrapeShowProgress() {
+  var progressEl = document.getElementById('scrapeProgress');
+  if (progressEl) progressEl.style.display = '';
+
+  _scrapeUpdateProgress();
+  _scrapeProgressInterval = setInterval(_scrapeUpdateProgress, 1000);
+}
+
+/**
+ * Update progress bar based on elapsed time.
+ */
+function _scrapeUpdateProgress() {
+  var elapsed = Date.now() - _scrapeStartTime;
+  var pct = Math.min((elapsed / SCRAPE_EXPECTED_DURATION) * 100, 99);
+
+  var fillEl = document.getElementById('scrapeProgressFill');
+  var textEl = document.getElementById('scrapeProgressText');
+
+  if (fillEl) fillEl.style.width = pct.toFixed(1) + '%';
+
+  if (textEl) {
+    var elapsedSec = Math.floor(elapsed / 1000);
+    var mins = Math.floor(elapsedSec / 60);
+    var secs = elapsedSec % 60;
+    var timeStr = mins + ':' + String(secs).padStart(2, '0');
+
+    if (elapsed > SCRAPE_EXPECTED_DURATION) {
+      textEl.textContent = Math.round(pct) + '% · ' + timeStr + ' · Tar längre tid än vanligt…';
+    } else {
+      textEl.textContent = Math.round(pct) + '% · ' + timeStr;
+    }
+  }
+}
+
+/**
+ * Stop progress bar with final state.
+ */
+function _scrapeStopProgress(success) {
+  if (_scrapeProgressInterval) {
+    clearInterval(_scrapeProgressInterval);
+    _scrapeProgressInterval = null;
+  }
+
+  var fillEl = document.getElementById('scrapeProgressFill');
+  var textEl = document.getElementById('scrapeProgressText');
+  var progressEl = document.getElementById('scrapeProgress');
+
+  if (fillEl) {
+    fillEl.style.width = '100%';
+    fillEl.classList.remove('done', 'error');
+    fillEl.classList.add(success ? 'done' : 'error');
+  }
+
+  if (textEl) {
+    var elapsed = Date.now() - _scrapeStartTime;
+    var mins = Math.round(elapsed / 60000);
+    textEl.textContent = success
+      ? '✓ Klar på ' + mins + ' min'
+      : '✗ Misslyckades efter ' + mins + ' min';
+  }
+
+  // Hide progress bar after 10 seconds
+  setTimeout(function() {
+    if (progressEl) progressEl.style.display = 'none';
+    if (fillEl) {
+      fillEl.style.width = '0%';
+      fillEl.classList.remove('done', 'error');
+    }
+  }, 10000);
 }
 
 /**
@@ -817,6 +919,9 @@ function _scrapeFinish(message, success) {
   _scrapePolling = false;
   if (_scrapeTimer) { clearTimeout(_scrapeTimer); _scrapeTimer = null; }
 
+  // Stop progress bar
+  _scrapeStopProgress(success);
+
   var statusEl = document.getElementById('scrapeStatus');
   var icon = document.getElementById('scrapeIcon');
   var textEl = document.getElementById('scrapeText');
@@ -837,6 +942,8 @@ function _scrapeFinish(message, success) {
     if (typeof fetchAllData === 'function') {
       fetchAllData('post-scrape');
     }
+    // Refresh history list
+    _scrapeFetchHistory();
   }
 }
 
@@ -851,6 +958,91 @@ function _scrapeResetBtn() {
   if (btn) btn.disabled = false;
   if (icon) icon.textContent = '🔄';
   if (textEl) textEl.textContent = 'Uppdatera nu';
+
+  // Re-check night block when resetting
+  _scrapeCheckNightBlock();
+}
+
+/**
+ * Check and apply night block state to button.
+ */
+function _scrapeCheckNightBlock() {
+  var btn = document.getElementById('scrapeBtn');
+  var statusEl = document.getElementById('scrapeStatus');
+
+  if (_isNightBlock()) {
+    if (btn) btn.disabled = true;
+    if (statusEl && !_scrapePolling) {
+      statusEl.innerHTML = '<span class="scrape-night-block">🌙 Ej tillgänglig 23:00–06:00</span>';
+      statusEl.className = 'scrape-status';
+    }
+  }
+}
+
+/**
+ * Fetch and render the update history list (10 latest).
+ */
+function _scrapeFetchHistory() {
+  var listEl = document.getElementById('scrapeHistoryList');
+  if (!listEl) return;
+
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : SCRAPE_WORKER) + '/positions/update-log';
+  var apiKey = (typeof REMOTE_DOC_API_KEY !== 'undefined' ? REMOTE_DOC_API_KEY : 'onevr-docs-2026');
+
+  fetch(url, { headers: { 'X-API-Key': apiKey } })
+    .then(function(r) { return r.ok ? r.json() : { entries: [] }; })
+    .then(function(data) {
+      var entries = data.entries || [];
+      if (entries.length === 0) {
+        listEl.innerHTML = '<span class="scrape-history-loading">Ingen historik ännu</span>';
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        var d = new Date(e.ts);
+        var timeStr = d.getDate() + '/' + (d.getMonth() + 1) + ' kl ' +
+          String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        var icon = e.status === 'ok' ? '✓' : '✗';
+        var iconClass = e.status === 'ok' ? 'style="color:#22c55e"' : 'style="color:#ef4444"';
+        var info = '';
+        if (e.entries) info = e.entries + ' poster';
+        if (e.days) info += ' · ' + e.days + ' dagar';
+        if (e.error) info = e.error;
+
+        html += '<div class="scrape-history-item">';
+        html += '<span class="scrape-history-icon" ' + iconClass + '>' + icon + '</span>';
+        html += '<span class="scrape-history-time">' + timeStr + '</span>';
+        html += '<span class="scrape-history-info">' + info + '</span>';
+        html += '</div>';
+      }
+      listEl.innerHTML = html;
+    })
+    .catch(function() {
+      listEl.innerHTML = '<span class="scrape-history-loading">Kunde inte hämta historik</span>';
+    });
+}
+
+/**
+ * Initialize scrape section: check night block + load history on expand.
+ */
+function initScrapeSection() {
+  _scrapeCheckNightBlock();
+
+  // Load history when section is expanded
+  var subSection = document.getElementById('scrapeSubsection');
+  if (subSection) {
+    var observer = new MutationObserver(function(mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].attributeName === 'class' && subSection.classList.contains('expanded')) {
+          _scrapeFetchHistory();
+          _scrapeCheckNightBlock();
+        }
+      }
+    });
+    observer.observe(subSection, { attributes: true });
+  }
 }
 
 /**

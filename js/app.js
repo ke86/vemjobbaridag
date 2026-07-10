@@ -315,6 +315,8 @@ function setupEventListeners() {
       scrapeSubsection.classList.toggle('expanded');
     });
   }
+  // Init scrape section (night block check + history on expand)
+  if (typeof initScrapeSection === 'function') initScrapeSection();
 
   // Positionsbaseline subsection (collapsible inside Data)
   const baselineSubHeader = document.getElementById('baselineSubHeader');

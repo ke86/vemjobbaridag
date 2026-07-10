@@ -835,6 +835,22 @@
                 <span class="sidebar-sync-text" id="scrapeText">Uppdatera nu</span>
               </button>
               <div class="scrape-status" id="scrapeStatus"></div>
+
+              <!-- Progress bar (visible during active scrape) -->
+              <div class="scrape-progress" id="scrapeProgress" style="display:none;">
+                <div class="scrape-progress-bar">
+                  <div class="scrape-progress-fill" id="scrapeProgressFill"></div>
+                </div>
+                <span class="scrape-progress-text" id="scrapeProgressText">0% · 0:00</span>
+              </div>
+
+              <!-- Update history -->
+              <div class="scrape-history" id="scrapeHistory">
+                <div class="scrape-history-title">Senaste uppdateringar</div>
+                <div class="scrape-history-list" id="scrapeHistoryList">
+                  <span class="scrape-history-loading">Laddar…</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -994,7 +1010,7 @@
       <div class="settings-section">
         <h3 class="settings-title">Appversion</h3>
         <div class="version-info">
-          <p class="version-text" id="versionText">Vem jobbar idag? v7.37</p>
+          <p class="version-text" id="versionText">Vem jobbar idag? v7.38</p>
           <p class="version-status" id="versionStatus"></p>
         </div>
         <button class="update-btn" id="checkUpdateBtn">

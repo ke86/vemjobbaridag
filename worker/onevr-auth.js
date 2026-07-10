@@ -41,7 +41,7 @@ export default {
     }
 
     // ── Positions (API key protected) ──
-    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared') {
+    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared' || path === '/positions/update-log') {
       if (!validateApiKey(request, env)) {
         return jsonResp({ error: 'Invalid API key' }, 401);
       }
@@ -50,6 +50,9 @@ export default {
       }
       if (path === '/positions/disappeared' && request.method === 'GET') {
         return handleGetDisappeared(env);
+      }
+      if (path === '/positions/update-log' && request.method === 'GET') {
+        return handleGetUpdateLog(env);
       }
       if (request.method === 'GET') return handleGetPositions(env, url);
       if (request.method === 'PUT') return handlePutPositions(request, env);
@@ -306,6 +309,23 @@ async function handlePutPositions(request, env) {
     // Compute disappeared persons/shifts (baseline comparison)
     await computeDisappeared(env, body);
 
+    // Count total entries for log
+    let totalEntries = 0;
+    if (body.dagar) {
+      for (const dk in body.dagar) {
+        totalEntries += (body.dagar[dk] || []).length;
+      }
+    }
+
+    // Append to update log
+    await appendUpdateLog(env, {
+      ts: Date.now(),
+      status: 'ok',
+      date: today,
+      entries: totalEntries,
+      days: Object.keys(body.dagar || {}).length
+    });
+
     return jsonResp({ success: true, message: 'Positions data saved', date: today, historyDates: dateList.length });
   } catch (err) {
     return jsonResp({ error: 'Failed to save positions: ' + err.message }, 500);
@@ -315,6 +335,33 @@ async function handlePutPositions(request, env) {
 // =============================================
 // /positions/disappeared — Baseline comparison
 // =============================================
+
+/** GET /positions/update-log — return last 10 update entries */
+async function handleGetUpdateLog(env) {
+  if (!env.DOCS_KV) {
+    return jsonResp({ error: 'KV storage not configured' }, 500);
+  }
+
+  try {
+    const log = await env.DOCS_KV.get('positions:_updateLog', 'json');
+    return jsonResp({ entries: log || [] });
+  } catch (err) {
+    return jsonResp({ error: 'Failed to read update log: ' + err.message }, 500);
+  }
+}
+
+/** Append an entry to the update log (max 10 entries) */
+async function appendUpdateLog(env, entry) {
+  try {
+    let log = (await env.DOCS_KV.get('positions:_updateLog', 'json')) || [];
+    log.unshift(entry); // newest first
+    if (log.length > 10) log = log.slice(0, 10);
+    await env.DOCS_KV.put('positions:_updateLog', JSON.stringify(log));
+  } catch (err) {
+    // Non-critical — don't fail the PUT request
+    console.error('[WORKER] Failed to append update log:', err);
+  }
+}
 
 /** GET /positions/disappeared — return stored comparison results */
 async function handleGetDisappeared(env) {
