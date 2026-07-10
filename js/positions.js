@@ -142,7 +142,14 @@ function _mergeDatesAndRender() {
 function fetchHistoricalPositions(dateStr, callback) {
   // Check cache first
   if (_posHistoryCache[dateStr] && (Date.now() - _posHistoryCache[dateStr].ts) < _posCacheTTL) {
-    if (callback) callback(_posHistoryCache[dateStr].data);
+    var cachedData = _posHistoryCache[dateStr].data;
+    // Ensure merge into live cache (might have been lost if _posCache was refreshed)
+    if (cachedData && cachedData.dagar && cachedData.dagar[dateStr]) {
+      if (_posCache && _posCache.data && _posCache.data.dagar && !_posCache.data.dagar[dateStr]) {
+        _posCache.data.dagar[dateStr] = cachedData.dagar[dateStr];
+      }
+    }
+    if (callback) callback(cachedData);
     return;
   }
 
@@ -212,15 +219,44 @@ function _posLoadBaseline() {
 }
 
 /** Save current positions data as baseline to localStorage */
-function _posSaveBaseline(dagar) {
+function _posSaveBaseline(dagar, status, shifts, persons) {
   try {
-    var bl = { dagar: dagar, ts: Date.now() };
+    var bl = { dagar: dagar, ts: Date.now(), status: status || 'ok', shifts: shifts || 0, persons: persons || 0 };
     localStorage.setItem(_posBaselineKey, JSON.stringify(bl));
     _posBaseline = bl;
   } catch (e) {
     // localStorage full or unavailable — keep in-memory only
-    _posBaseline = { dagar: dagar, ts: Date.now() };
+    _posBaseline = { dagar: dagar, ts: Date.now(), status: status || 'ok', shifts: shifts || 0, persons: persons || 0 };
   }
+}
+
+/** Update baseline status text in settings UI */
+function updateBaselineStatusUI() {
+  var el = document.getElementById('baselineStatusText');
+  if (!el) return;
+
+  var bl = _posBaseline || _posLoadBaseline();
+  if (!bl || !bl.ts) {
+    el.textContent = '○ Ingen baseline';
+    return;
+  }
+
+  var d = new Date(bl.ts);
+  var timeStr = d.getDate() + '/' + (d.getMonth() + 1) + ' kl ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+
+  var statusIcon = '✓';
+  var statusLabel = 'Lyckad';
+  if (bl.status === 'unreasonable') { statusIcon = '⚠️'; statusLabel = 'Orimligt resultat — ej sparad'; }
+  else if (bl.status === 'invalid') { statusIcon = '✗'; statusLabel = 'Ogiltig data — ej sparad'; }
+  else if (bl.status === 'first') { statusIcon = '○'; statusLabel = 'Första laddning (baseline sparad)'; }
+
+  var info = statusIcon + ' ' + statusLabel;
+  if (bl.status === 'ok' && (bl.shifts > 0 || bl.persons > 0)) {
+    info += ' (' + bl.shifts + ' lediga, ' + bl.persons + ' personer)';
+  }
+
+  el.innerHTML = '<span style="opacity:0.7">Senast: ' + timeStr + '</span><br>' + info;
 }
 
 // =============================================
@@ -254,10 +290,18 @@ function checkDisappearedTurns() {
 
   var newDagar = _posCache.data.dagar;
 
+  // Input validation: today must exist with reasonable entry count
+  var today = getTodayStr();
+  if (!newDagar[today] || newDagar[today].length < 50) {
+    // Data is invalid/incomplete — don't compare, don't save
+    _posSaveBaseline(_posBaseline ? _posBaseline.dagar : newDagar, 'invalid', 0, 0);
+    return;
+  }
+
   // No baseline, or baseline older than 24h → first load, save as baseline, show 0
   var _baselineMaxGap = 24 * 60 * 60 * 1000;
   if (!_posBaseline || !_posBaseline.dagar || (Date.now() - _posBaseline.ts) > _baselineMaxGap) {
-    _posSaveBaseline(newDagar);
+    _posSaveBaseline(newDagar, 'first', 0, 0);
     _posDisappeared = [];
     _posDisapTurns = [];
     return;
@@ -439,6 +483,18 @@ function checkDisappearedTurns() {
     return sa.localeCompare(sb);
   });
 
+  // Threshold check: unreasonable results = bad data, don't save
+  var MAX_SHIFTS = 50;
+  var MAX_PERSONS = 30;
+  if (disappearedShifts.length > MAX_SHIFTS || disappearedPersons.length > MAX_PERSONS) {
+    console.warn('[POS] Orimligt resultat: ' + disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer — baseline orörd');
+    _posDisappeared = [];
+    _posDisapTurns = [];
+    // Save status metadata without changing baseline data
+    _posSaveBaseline(_posBaseline.dagar, 'unreasonable', disappearedShifts.length, disappearedPersons.length);
+    return;
+  }
+
   _posDisappeared = disappearedPersons;
   _posDisapTurns = disappearedShifts;
 
@@ -472,7 +528,7 @@ function checkDisappearedTurns() {
       }
     }
   }
-  _posSaveBaseline(mergedDagar);
+  _posSaveBaseline(mergedDagar, 'ok', disappearedShifts.length, disappearedPersons.length);
 
   if (disappearedPersons.length > 0 || disappearedShifts.length > 0) {
     renderPositions();

@@ -17,15 +17,7 @@ const ptr_fetchFunctions = [];
 function initPullToRefresh() {
   console.log('[PTR] Initializing pull-to-refresh...');
 
-  // Register all fetch functions
-  if (typeof fetchPositions === 'function') {
-    registerPullToRefreshFetcher('positions', fetchPositions);
-    console.log('[PTR] Registered: fetchPositions');
-  } else {
-    console.warn('[PTR] fetchPositions not found');
-  }
-
-  // Fetch all data from Firebase (schedule, dagvy, etc.)
+  // Register fetch functions (positions excluded — handles its own refresh)
   if (typeof fetchAllData === 'function') {
     registerPullToRefreshFetcher('firebase', () => fetchAllData('ptr'));
     console.log('[PTR] Registered: fetchAllData');
@@ -68,6 +60,7 @@ function ptr_handleTouchStart(e) {
  * Handle touch move
  */
 function ptr_handleTouchMove(e) {
+  if (window._ptrDisabled) return;
   if (ptr_isRefreshing || window.scrollY !== 0) {
     ptr_scrollStarted = true;
     return;
@@ -88,6 +81,7 @@ function ptr_handleTouchMove(e) {
  * Handle touch end - trigger refresh if pulled enough
  */
 function ptr_handleTouchEnd(e) {
+  if (window._ptrDisabled) { ptr_touchStartY = 0; return; }
   if (ptr_isRefreshing || ptr_scrollStarted) {
     ptr_touchStartY = 0;
     return;

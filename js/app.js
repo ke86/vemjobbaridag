@@ -316,6 +316,28 @@ function setupEventListeners() {
     });
   }
 
+  // Positionsbaseline subsection (collapsible inside Data)
+  const baselineSubHeader = document.getElementById('baselineSubHeader');
+  const baselineSubsection = document.getElementById('baselineSubsection');
+  if (baselineSubHeader && baselineSubsection) {
+    baselineSubHeader.addEventListener('click', function() {
+      baselineSubsection.classList.toggle('expanded');
+      if (baselineSubsection.classList.contains('expanded')) {
+        updateBaselineStatusUI();
+      }
+    });
+  }
+  const clearBaselineBtn = document.getElementById('clearBaselineBtn');
+  if (clearBaselineBtn) {
+    clearBaselineBtn.addEventListener('click', function() {
+      try { localStorage.removeItem('posBaseline_v1'); } catch(e) {}
+      _posBaseline = null;
+      _posDisappeared = [];
+      _posDisapTurns = [];
+      updateBaselineStatusUI();
+    });
+  }
+
   // Dagvy file upload listeners
   initDagvyUpload();
 
