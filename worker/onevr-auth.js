@@ -570,12 +570,15 @@ async function computeDisappeared(env, newData) {
 
   // Threshold check
   if (disappearedShifts.length > MAX_SHIFTS || disappearedPersons.length > MAX_PERSONS) {
-    // Unreasonable — don't update baseline, save status
-    await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
-      ts: Date.now(), status: 'unreasonable',
-      persons: [], shifts: [],
-      detail: disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer'
-    }));
+    // Unreasonable — don't update baseline, don't overwrite valid results
+    // Only flag the latest check as unreasonable on existing data
+    const existing = await env.DOCS_KV.get('positions:_disappeared', 'json');
+    if (existing) {
+      existing.lastCheckTs = Date.now();
+      existing.lastCheckStatus = 'unreasonable';
+      existing.lastCheckDetail = disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer';
+      await env.DOCS_KV.put('positions:_disappeared', JSON.stringify(existing));
+    }
     return;
   }
 

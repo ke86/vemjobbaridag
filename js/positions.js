@@ -253,7 +253,15 @@ function _renderBaselineStatus(el, data) {
     info += '<br><span style="opacity:0.6;font-size:0.85em">' + data.detail + '</span>';
   }
 
-  el.innerHTML = '<span style="opacity:0.7">Senast: ' + timeStr + '</span><br>' + info +
+  // Show warning if latest check was unreasonable (but we still have valid old data)
+  if (data.lastCheckStatus === 'unreasonable' && data.lastCheckTs) {
+    var lcd = new Date(data.lastCheckTs);
+    var lcTime = lcd.getDate() + '/' + (lcd.getMonth() + 1) + ' kl ' +
+      String(lcd.getHours()).padStart(2, '0') + ':' + String(lcd.getMinutes()).padStart(2, '0');
+    info += '<br><span style="color:#f59e0b;font-size:0.85em">⚠️ Senaste check (' + lcTime + ') orimlig: ' + (data.lastCheckDetail || '') + ' — visar data från ' + timeStr + '</span>';
+  }
+
+  el.innerHTML = '<span style="opacity:0.7">Senast giltig: ' + timeStr + '</span><br>' + info +
     '<br><span style="opacity:0.5;font-size:0.8em">Synkad — alla enheter ser samma resultat</span>';
 }
 
