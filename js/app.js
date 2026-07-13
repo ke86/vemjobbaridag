@@ -318,6 +318,17 @@ function setupEventListeners() {
   // Init scrape section (night block check + history on expand)
   if (typeof initScrapeSection === 'function') initScrapeSection();
 
+  // Hämta reservdata subsection (collapsible inside Data)
+  const reservSubHeader = document.getElementById('reservSubHeader');
+  const reservSubsection = document.getElementById('reservSubsection');
+  if (reservSubHeader && reservSubsection) {
+    reservSubHeader.addEventListener('click', function() {
+      reservSubsection.classList.toggle('expanded');
+    });
+  }
+  // Init reserv section (night block check + history on expand)
+  if (typeof initReservSection === 'function') initReservSection();
+
   // Positionsbaseline subsection (collapsible inside Data)
   const baselineSubHeader = document.getElementById('baselineSubHeader');
   const baselineSubsection = document.getElementById('baselineSubsection');

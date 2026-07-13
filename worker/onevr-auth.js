@@ -40,6 +40,17 @@ export default {
       return handleScrapeStatus(request, env);
     }
 
+    // ── Reserv trigger/status (PIN protected) ──
+    if (path === '/trigger-reserv' && request.method === 'POST') {
+      return handleTriggerReserv(request, env);
+    }
+    if (path === '/reserv-status' && request.method === 'GET') {
+      return handleReservStatus(request, env);
+    }
+    if (path === '/reserv/history' && request.method === 'GET') {
+      return handleReservHistory(request, env);
+    }
+
     // ── Positions (API key protected) ──
     if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared' || path === '/positions/update-log') {
       if (!validateApiKey(request, env)) {
@@ -219,6 +230,141 @@ async function handleScrapeStatus(request, env) {
     return jsonResp({ runs });
   } catch (err) {
     return jsonResp({ error: 'Request failed: ' + err.message }, 500);
+  }
+}
+
+// =============================================
+// /trigger-reserv — kick off GitHub Action with job=reserv input
+// =============================================
+async function handleTriggerReserv(request, env) {
+  const pin = request.headers.get('X-PIN') || '';
+  if (pin !== env.SCRAPE_PIN) {
+    return jsonResp({ error: 'Invalid PIN' }, 401);
+  }
+
+  const pat = env.GITHUB_PAT;
+  if (!pat) {
+    return jsonResp({ error: 'GitHub PAT not configured' }, 500);
+  }
+
+  try {
+    const res = await fetch(
+      'https://api.github.com/repos/ke86/snok/actions/workflows/daily-scrape.yml/dispatches',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'token ' + pat,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'onevr-auth-worker',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ref: 'main', inputs: { job: 'reserv' } })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.text();
+      return jsonResp({ error: 'GitHub API error: ' + res.status + ' ' + err }, res.status);
+    }
+
+    // Log to KV
+    await _appendReservHistory(env, { ts: Date.now(), status: 'triggered' });
+
+    return jsonResp({ success: true, message: 'Reserv workflow triggered' });
+  } catch (err) {
+    return jsonResp({ error: 'Request failed: ' + err.message }, 500);
+  }
+}
+
+// =============================================
+// /reserv-status — poll GitHub Actions runs (same workflow, latest run)
+// =============================================
+async function handleReservStatus(request, env) {
+  const pin = request.headers.get('X-PIN') || '';
+  if (pin !== env.SCRAPE_PIN) {
+    return jsonResp({ error: 'Invalid PIN' }, 401);
+  }
+
+  const pat = env.GITHUB_PAT;
+  if (!pat) {
+    return jsonResp({ error: 'GitHub PAT not configured' }, 500);
+  }
+
+  try {
+    const res = await fetch(
+      'https://api.github.com/repos/ke86/snok/actions/workflows/daily-scrape.yml/runs?per_page=5&event=workflow_dispatch',
+      {
+        headers: {
+          'Authorization': 'token ' + pat,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'onevr-auth-worker'
+        }
+      }
+    );
+
+    if (!res.ok) {
+      return jsonResp({ error: 'GitHub API error: ' + res.status }, res.status);
+    }
+
+    const data = await res.json();
+    const runs = (data.workflow_runs || []).map(run => {
+      const started = run.created_at ? new Date(run.created_at) : null;
+      const now = new Date();
+      return {
+        id: run.id,
+        status: run.status,
+        conclusion: run.conclusion,
+        event: run.event,
+        created_at: run.created_at,
+        elapsed: started ? (now - started) / 1000 : null
+      };
+    });
+
+    // If the latest run just succeeded, append to reserv history
+    if (runs.length > 0 && runs[0].conclusion === 'success' && env.DOCS_KV) {
+      const lastKey = 'reserv:_lastLoggedRun';
+      const lastLogged = await env.DOCS_KV.get(lastKey);
+      if (lastLogged !== String(runs[0].id)) {
+        await _appendReservHistory(env, { ts: Date.now(), status: 'ok', runId: runs[0].id });
+        await env.DOCS_KV.put(lastKey, String(runs[0].id));
+      }
+    }
+
+    return jsonResp({ runs });
+  } catch (err) {
+    return jsonResp({ error: 'Request failed: ' + err.message }, 500);
+  }
+}
+
+// =============================================
+// /reserv/history — return reserv run history
+// =============================================
+async function handleReservHistory(request, env) {
+  if (!validateApiKey(request, env)) {
+    return jsonResp({ error: 'Invalid API key' }, 401);
+  }
+
+  if (!env.DOCS_KV) {
+    return jsonResp({ entries: [] });
+  }
+
+  try {
+    const log = await env.DOCS_KV.get('reserv:_history', 'json');
+    return jsonResp({ entries: log || [] });
+  } catch (err) {
+    return jsonResp({ error: 'Failed to read reserv history: ' + err.message }, 500);
+  }
+}
+
+async function _appendReservHistory(env, entry) {
+  if (!env.DOCS_KV) return;
+  try {
+    let log = (await env.DOCS_KV.get('reserv:_history', 'json')) || [];
+    log.unshift(entry);
+    if (log.length > 10) log = log.slice(0, 10);
+    await env.DOCS_KV.put('reserv:_history', JSON.stringify(log));
+  } catch (err) {
+    console.error('[WORKER] Failed to append reserv history:', err);
   }
 }
 

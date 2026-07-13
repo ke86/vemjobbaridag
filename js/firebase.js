@@ -1045,6 +1045,267 @@ function initScrapeSection() {
   }
 }
 
+// =============================================
+// RESERV SCRAPE (same workflow, job=reserv input)
+// =============================================
+var _reservPolling = false;
+var _reservTimer = null;
+var _reservProgressInterval = null;
+var _reservStartTime = 0;
+
+async function triggerReservScrape() {
+  var btn = document.getElementById('reservBtn');
+  var icon = document.getElementById('reservIcon');
+  var textEl = document.getElementById('reservText');
+  var statusEl = document.getElementById('reservStatus');
+
+  if (_reservPolling) return;
+
+  if (_isNightBlock()) {
+    if (statusEl) {
+      statusEl.innerHTML = '<span class="scrape-night-block">🌙 Uppdatering ej tillgänglig 23:00–06:00</span>';
+      statusEl.className = 'scrape-status';
+    }
+    return;
+  }
+
+  try {
+    if (btn) btn.disabled = true;
+    if (icon) icon.textContent = '⏳';
+    if (textEl) textEl.textContent = 'Startar...';
+    if (statusEl) statusEl.textContent = '';
+
+    var res = await fetch(SCRAPE_WORKER + '/trigger-reserv', {
+      method: 'POST',
+      headers: { 'X-PIN': SCRAPE_PIN }
+    });
+
+    if (!res.ok) {
+      var errData = {};
+      try { errData = await res.json(); } catch (e) { /* ignore */ }
+      throw new Error(errData.error || 'HTTP ' + res.status);
+    }
+
+    if (icon) icon.textContent = '🛡️';
+    if (textEl) textEl.textContent = 'Hämtar reservdata...';
+    if (statusEl) {
+      statusEl.textContent = '⏳ Väntar i kö...';
+      statusEl.className = 'scrape-status scrape-status-active';
+    }
+
+    _reservStartTime = Date.now();
+    _reservShowProgress();
+    _reservPolling = true;
+    _pollReservStatus();
+
+  } catch (err) {
+    console.error('[RESERV] Trigger error:', err);
+    if (icon) icon.textContent = '❌';
+    if (textEl) textEl.textContent = 'Kunde inte starta';
+    if (statusEl) {
+      statusEl.textContent = '❌ ' + (err.message || 'Okänt fel');
+      statusEl.className = 'scrape-status scrape-status-error';
+    }
+    if (btn) btn.disabled = false;
+    setTimeout(function() { _reservResetBtn(); }, 5000);
+  }
+}
+
+function _reservShowProgress() {
+  var progressEl = document.getElementById('reservProgress');
+  if (progressEl) progressEl.style.display = '';
+  _reservUpdateProgress();
+  _reservProgressInterval = setInterval(_reservUpdateProgress, 1000);
+}
+
+function _reservUpdateProgress() {
+  var elapsed = Date.now() - _reservStartTime;
+  var pct = Math.min((elapsed / SCRAPE_EXPECTED_DURATION) * 100, 99);
+  var fillEl = document.getElementById('reservProgressFill');
+  var textEl = document.getElementById('reservProgressText');
+  if (fillEl) fillEl.style.width = pct.toFixed(1) + '%';
+  if (textEl) {
+    var elapsedSec = Math.floor(elapsed / 1000);
+    var mins = Math.floor(elapsedSec / 60);
+    var secs = elapsedSec % 60;
+    var timeStr = mins + ':' + String(secs).padStart(2, '0');
+    textEl.textContent = elapsed > SCRAPE_EXPECTED_DURATION
+      ? Math.round(pct) + '% · ' + timeStr + ' · Tar längre tid än vanligt…'
+      : Math.round(pct) + '% · ' + timeStr;
+  }
+}
+
+function _reservStopProgress(success) {
+  if (_reservProgressInterval) {
+    clearInterval(_reservProgressInterval);
+    _reservProgressInterval = null;
+  }
+  var fillEl = document.getElementById('reservProgressFill');
+  var textEl = document.getElementById('reservProgressText');
+  var progressEl = document.getElementById('reservProgress');
+  if (fillEl) {
+    fillEl.style.width = '100%';
+    fillEl.classList.remove('done', 'error');
+    fillEl.classList.add(success ? 'done' : 'error');
+  }
+  if (textEl && progressEl) {
+    var elapsed = Date.now() - _reservStartTime;
+    var mins = Math.floor(elapsed / 60000);
+    var secs = Math.floor((elapsed % 60000) / 1000);
+    textEl.textContent = (success ? '✓ Klar ' : '✗ Misslyckades ') +
+      mins + ':' + String(secs).padStart(2, '0');
+    setTimeout(function() {
+      if (progressEl) progressEl.style.display = 'none';
+    }, 4000);
+  }
+}
+
+function _pollReservStatus() {
+  if (!_reservPolling) return;
+
+  fetch(SCRAPE_WORKER + '/reserv-status', {
+    headers: { 'X-PIN': SCRAPE_PIN }
+  })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (!data.runs || data.runs.length === 0) {
+        _reservFinish('⏳ Ingen körning hittad...', false);
+        return;
+      }
+
+      var run = null;
+      for (var i = 0; i < data.runs.length; i++) {
+        var r = data.runs[i];
+        if (r.status === 'in_progress' || r.status === 'queued') { run = r; break; }
+      }
+      if (!run) run = data.runs[0];
+
+      var statusEl = document.getElementById('reservStatus');
+      var textEl = document.getElementById('reservText');
+
+      if (run.status === 'queued') {
+        if (statusEl) statusEl.textContent = '⏳ Väntar i kö...';
+        _reservTimer = setTimeout(_pollReservStatus, 10000);
+      } else if (run.status === 'in_progress') {
+        var elapsed = run.elapsed ? Math.round(run.elapsed) + 's' : '';
+        if (statusEl) statusEl.textContent = '🔄 Kör...' + (elapsed ? ' (' + elapsed + ')' : '');
+        if (textEl) textEl.textContent = 'Hämtar reservdata...';
+        _reservTimer = setTimeout(_pollReservStatus, 10000);
+      } else if (run.conclusion === 'success') {
+        var mins = run.elapsed ? Math.round(run.elapsed / 60) : '?';
+        _reservFinish('✅ Klar! (' + mins + ' min)', true);
+      } else if (run.conclusion === 'failure') {
+        _reservFinish('❌ Misslyckades', false);
+      } else if (run.conclusion === 'cancelled') {
+        _reservFinish('⚠️ Avbruten', false);
+      } else {
+        _reservTimer = setTimeout(_pollReservStatus, 10000);
+      }
+    })
+    .catch(function(err) {
+      console.error('[RESERV] Poll error:', err);
+      _reservFinish('❌ Kunde inte hämta status', false);
+    });
+}
+
+function _reservFinish(message, success) {
+  _reservPolling = false;
+  if (_reservTimer) { clearTimeout(_reservTimer); _reservTimer = null; }
+  _reservStopProgress(success);
+
+  var statusEl = document.getElementById('reservStatus');
+  var icon = document.getElementById('reservIcon');
+  var textEl = document.getElementById('reservText');
+
+  if (statusEl) {
+    statusEl.textContent = message;
+    statusEl.className = 'scrape-status ' + (success ? 'scrape-status-done' : 'scrape-status-error');
+  }
+  if (icon) icon.textContent = success ? '✅' : '❌';
+  if (textEl) textEl.textContent = success ? 'Uppdatering klar' : 'Uppdatera nu';
+
+  setTimeout(_reservResetBtn, success ? 10000 : 5000);
+
+  if (success) {
+    _reservFetchHistory();
+  }
+}
+
+function _reservResetBtn() {
+  var btn = document.getElementById('reservBtn');
+  var icon = document.getElementById('reservIcon');
+  var textEl = document.getElementById('reservText');
+  if (btn) btn.disabled = false;
+  if (icon) icon.textContent = '🛡️';
+  if (textEl) textEl.textContent = 'Uppdatera nu';
+  _reservCheckNightBlock();
+}
+
+function _reservCheckNightBlock() {
+  var btn = document.getElementById('reservBtn');
+  var statusEl = document.getElementById('reservStatus');
+  if (_isNightBlock()) {
+    if (btn) btn.disabled = true;
+    if (statusEl && !_reservPolling) {
+      statusEl.innerHTML = '<span class="scrape-night-block">🌙 Ej tillgänglig 23:00–06:00</span>';
+      statusEl.className = 'scrape-status';
+    }
+  }
+}
+
+function _reservFetchHistory() {
+  var listEl = document.getElementById('reservHistoryList');
+  if (!listEl) return;
+
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : SCRAPE_WORKER) + '/reserv/history';
+  var apiKey = (typeof REMOTE_DOC_API_KEY !== 'undefined' ? REMOTE_DOC_API_KEY : 'onevr-docs-2026');
+
+  fetch(url, { headers: { 'X-API-Key': apiKey } })
+    .then(function(r) { return r.ok ? r.json() : { entries: [] }; })
+    .then(function(data) {
+      var entries = data.entries || [];
+      if (entries.length === 0) {
+        listEl.innerHTML = '<span class="scrape-history-loading">Ingen historik ännu</span>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        var d = new Date(e.ts);
+        var timeStr = d.getDate() + '/' + (d.getMonth() + 1) + ' kl ' +
+          String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        var icon = e.status === 'ok' ? '✓' : '✗';
+        var iconClass = e.status === 'ok' ? 'style="color:#22c55e"' : 'style="color:#ef4444"';
+        var info = e.error || '';
+        html += '<div class="scrape-history-item">';
+        html += '<span class="scrape-history-icon" ' + iconClass + '>' + icon + '</span>';
+        html += '<span class="scrape-history-time">' + timeStr + '</span>';
+        html += '<span class="scrape-history-info">' + info + '</span>';
+        html += '</div>';
+      }
+      listEl.innerHTML = html;
+    })
+    .catch(function() {
+      listEl.innerHTML = '<span class="scrape-history-loading">Kunde inte hämta historik</span>';
+    });
+}
+
+function initReservSection() {
+  _reservCheckNightBlock();
+  var subSection = document.getElementById('reservSubsection');
+  if (subSection) {
+    var observer = new MutationObserver(function(mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].attributeName === 'class' && subSection.classList.contains('expanded')) {
+          _reservFetchHistory();
+          _reservCheckNightBlock();
+        }
+      }
+    });
+    observer.observe(subSection, { attributes: true });
+  }
+}
+
 /**
  * Load initial data from Firebase.
  * Now delegates to fetchScheduleFromFirebase (parallel fetch + cache).

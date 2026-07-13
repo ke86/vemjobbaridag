@@ -852,6 +852,38 @@
             </div>
           </div>
 
+          <!-- Hämta reservdata (collapsible) -->
+          <div class="settings-subsection collapsible-sub" id="reservSubsection">
+            <div class="subsection-header" id="reservSubHeader">
+              <h4 class="settings-subtitle" style="margin-bottom:0;">🛡️ Hämta reservdata</h4>
+              <span class="collapsible-arrow">›</span>
+            </div>
+            <div class="subsection-content" id="reservSubContent">
+              <p class="settings-desc">Kör Reserv-jobbet i scrape-workflowet för att hämta reservdata.</p>
+              <button class="sidebar-sync-btn" id="reservBtn" onclick="triggerReservScrape()">
+                <span class="sidebar-sync-icon" id="reservIcon">🛡️</span>
+                <span class="sidebar-sync-text" id="reservText">Uppdatera nu</span>
+              </button>
+              <div class="scrape-status" id="reservStatus"></div>
+
+              <!-- Progress bar (visible during active reserv scrape) -->
+              <div class="scrape-progress" id="reservProgress" style="display:none;">
+                <div class="scrape-progress-bar">
+                  <div class="scrape-progress-fill" id="reservProgressFill"></div>
+                </div>
+                <span class="scrape-progress-text" id="reservProgressText">0% · 0:00</span>
+              </div>
+
+              <!-- Update history -->
+              <div class="scrape-history" id="reservHistory">
+                <div class="scrape-history-title">Senaste uppdateringar</div>
+                <div class="scrape-history-list" id="reservHistoryList">
+                  <span class="scrape-history-loading">Laddar…</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Fridagsnyckel (collapsible) -->
           <div class="settings-subsection collapsible-sub" id="fridagsSubsection">
             <div class="subsection-header" id="fridagsSubHeader">
