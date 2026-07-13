@@ -52,9 +52,12 @@ export default {
     }
 
     // ── Positions (API key protected) ──
-    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared' || path === '/positions/update-log' || path === '/positions/reset-baseline') {
+    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared' || path === '/positions/update-log' || path === '/positions/reset-baseline' || path === '/positions/accept-unreasonable') {
       if (path === '/positions/reset-baseline' && request.method === 'POST') {
         return handleResetBaseline(request, env);
+      }
+      if (path === '/positions/accept-unreasonable' && request.method === 'POST') {
+        return handleAcceptUnreasonable(request, env);
       }
       if (!validateApiKey(request, env)) {
         return jsonResp({ error: 'Invalid API key' }, 401);
@@ -551,6 +554,49 @@ async function handleResetBaseline(request, env) {
 }
 
 /**
+ * POST /positions/accept-unreasonable — promote the last "unreasonable" result as the
+ * official result and update the baseline to current positions data (PIN protected).
+ */
+async function handleAcceptUnreasonable(request, env) {
+  const pin = request.headers.get('X-PIN') || '';
+  if (!env.SCRAPE_PIN || pin !== env.SCRAPE_PIN) {
+    return jsonResp({ error: 'Invalid PIN' }, 401);
+  }
+  if (!env.DOCS_KV) {
+    return jsonResp({ error: 'KV storage not configured' }, 500);
+  }
+  try {
+    const disappeared = await env.DOCS_KV.get('positions:_disappeared', 'json');
+    if (!disappeared || disappeared.lastCheckStatus !== 'unreasonable') {
+      return jsonResp({ error: 'Ingen orimlig kontroll att godkänna' }, 400);
+    }
+
+    const persons = disappeared.lastCheckPersons || [];
+    const shifts = disappeared.lastCheckShifts || [];
+
+    // Update baseline to current positions data
+    const currentPositions = await env.DOCS_KV.get('positions', 'json');
+    if (currentPositions && currentPositions.dagar) {
+      await env.DOCS_KV.put('positions:_baseline', JSON.stringify({
+        dagar: currentPositions.dagar, ts: Date.now()
+      }));
+    }
+
+    // Promote the unreasonable result as the official result
+    await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+      ts: Date.now(), status: 'ok',
+      persons, shifts,
+      consecutiveUnreasonable: 0,
+      detail: 'Godkänt manuellt (orimlig: ' + (disappeared.lastCheckDetail || '') + ')'
+    }));
+
+    return jsonResp({ success: true, persons: persons.length, shifts: shifts.length });
+  } catch (err) {
+    return jsonResp({ error: 'Failed to accept result: ' + err.message }, 500);
+  }
+}
+
+/**
  * Run baseline comparison after new positions data is saved.
  * Computes disappeared persons (⚠️) and disappeared shifts ($).
  * Stores results in KV: positions:_disappeared, positions:_baseline
@@ -760,6 +806,8 @@ async function computeDisappeared(env, newData) {
       existing.lastCheckStatus = 'unreasonable';
       existing.lastCheckDetail = detail;
       existing.consecutiveUnreasonable = consecutive;
+      existing.lastCheckPersons = disappearedPersons;
+      existing.lastCheckShifts = disappearedShifts;
       await env.DOCS_KV.put('positions:_disappeared', JSON.stringify(existing));
     }
     return;

@@ -259,6 +259,7 @@ function _renderBaselineStatus(el, data) {
     var lcTime = lcd.getDate() + '/' + (lcd.getMonth() + 1) + ' kl ' +
       String(lcd.getHours()).padStart(2, '0') + ':' + String(lcd.getMinutes()).padStart(2, '0');
     info += '<br><span style="color:#f59e0b;font-size:0.85em">⚠️ Senaste check (' + lcTime + ') orimlig: ' + (data.lastCheckDetail || '') + ' — visar data från ' + timeStr + '</span>';
+    info += '<br><button id="acceptUnreasonableBtn" onclick="acceptUnreasonableResult()" style="margin-top:6px;font-size:0.8em;padding:4px 10px;background:#f59e0b;border:none;border-radius:4px;cursor:pointer;color:#000;font-weight:600;">Godkänn ändå</button>';
   }
 
   el.innerHTML = '<span style="opacity:0.7">Senast giltig: ' + timeStr + '</span><br>' + info +
@@ -301,6 +302,37 @@ function resetBaselineNow() {
     .catch(function() {
       btn.textContent = '✗ Nätverksfel';
       setTimeout(function() { btn.disabled = false; btn.textContent = 'Återställ baslinje'; }, 3000);
+    });
+}
+
+function acceptUnreasonableResult() {
+  var btn = document.getElementById('acceptUnreasonableBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Godkänner…'; }
+
+  var pin = (typeof SCRAPE_PIN !== 'undefined' ? SCRAPE_PIN : '');
+  if (!pin) {
+    pin = prompt('Ange PIN:');
+    if (!pin) { if (btn) { btn.disabled = false; btn.textContent = 'Godkänn ändå'; } return; }
+  }
+
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : 'https://onevr-auth.kenny-eriksson1986.workers.dev') + '/positions/accept-unreasonable';
+  fetch(url, { method: 'POST', headers: { 'X-PIN': pin } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        _posDisapStatus = null;
+        _posDisappeared = data.persons ? [] : [];
+        _posDisapTurns = [];
+        checkDisappearedTurns();
+        setTimeout(function() { updateBaselineStatusUI(); }, 500);
+      } else {
+        if (btn) { btn.disabled = false; btn.textContent = '✗ ' + (data.error || 'Fel'); }
+        setTimeout(function() { if (btn) { btn.disabled = false; btn.textContent = 'Godkänn ändå'; } }, 3000);
+      }
+    })
+    .catch(function() {
+      if (btn) { btn.textContent = '✗ Nätverksfel'; }
+      setTimeout(function() { if (btn) { btn.disabled = false; btn.textContent = 'Godkänn ändå'; } }, 3000);
     });
 }
 
