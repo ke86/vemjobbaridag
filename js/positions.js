@@ -321,8 +321,6 @@ function acceptUnreasonableResult() {
     .then(function(data) {
       if (data.success) {
         _posDisapStatus = null;
-        _posDisappeared = data.persons ? [] : [];
-        _posDisapTurns = [];
         checkDisappearedTurns();
         setTimeout(function() { updateBaselineStatusUI(); }, 500);
       } else {
