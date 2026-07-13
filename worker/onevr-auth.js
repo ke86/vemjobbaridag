@@ -52,7 +52,10 @@ export default {
     }
 
     // ── Positions (API key protected) ──
-    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared' || path === '/positions/update-log') {
+    if (path === '/positions' || path === '/positions/dates' || path === '/positions/disappeared' || path === '/positions/update-log' || path === '/positions/reset-baseline') {
+      if (path === '/positions/reset-baseline' && request.method === 'POST') {
+        return handleResetBaseline(request, env);
+      }
       if (!validateApiKey(request, env)) {
         return jsonResp({ error: 'Invalid API key' }, 401);
       }
@@ -526,6 +529,27 @@ async function handleGetDisappeared(env) {
   }
 }
 
+/** POST /positions/reset-baseline — delete baseline so next upload starts fresh (PIN protected) */
+async function handleResetBaseline(request, env) {
+  const pin = request.headers.get('X-PIN') || '';
+  if (!env.SCRAPE_PIN || pin !== env.SCRAPE_PIN) {
+    return jsonResp({ error: 'Invalid PIN' }, 401);
+  }
+  if (!env.DOCS_KV) {
+    return jsonResp({ error: 'KV storage not configured' }, 500);
+  }
+  try {
+    await env.DOCS_KV.delete('positions:_baseline');
+    await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+      ts: Date.now(), status: 'first', persons: [], shifts: [],
+      detail: 'Manuellt återställd', consecutiveUnreasonable: 0
+    }));
+    return jsonResp({ success: true, message: 'Baseline återställd — nästa positionsuppdatering skapar ny baseline' });
+  } catch (err) {
+    return jsonResp({ error: 'Failed to reset baseline: ' + err.message }, 500);
+  }
+}
+
 /**
  * Run baseline comparison after new positions data is saved.
  * Computes disappeared persons (⚠️) and disappeared shifts ($).
@@ -535,8 +559,9 @@ async function computeDisappeared(env, newData) {
   if (!newData || !newData.dagar) return;
 
   const BASELINE_MAX_GAP = 24 * 60 * 60 * 1000; // 24h
-  const MAX_SHIFTS = 50;
-  const MAX_PERSONS = 30;
+  const MAX_SHIFTS = 150;
+  const MAX_PERSONS = 80;
+  const MAX_CONSECUTIVE_UNREASONABLE = 5;
 
   const today = new Date().toISOString().slice(0, 10);
   const newDagar = newData.dagar;
@@ -716,23 +741,36 @@ async function computeDisappeared(env, newData) {
 
   // Threshold check
   if (disappearedShifts.length > MAX_SHIFTS || disappearedPersons.length > MAX_PERSONS) {
-    // Unreasonable — don't update baseline, don't overwrite valid results
-    // Only flag the latest check as unreasonable on existing data
     const existing = await env.DOCS_KV.get('positions:_disappeared', 'json');
+    const consecutive = (existing ? (existing.consecutiveUnreasonable || 0) : 0) + 1;
+    const detail = disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer';
+
+    // Auto-reset after too many consecutive unreasonable results (baseline is clearly stale)
+    if (consecutive >= MAX_CONSECUTIVE_UNREASONABLE) {
+      await env.DOCS_KV.put('positions:_baseline', JSON.stringify({ dagar: newDagar, ts: Date.now() }));
+      await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
+        ts: Date.now(), status: 'first', persons: [], shifts: [],
+        detail: 'Auto-återställd efter ' + consecutive + ' orimliga kontroller (' + detail + ')'
+      }));
+      return;
+    }
+
     if (existing) {
       existing.lastCheckTs = Date.now();
       existing.lastCheckStatus = 'unreasonable';
-      existing.lastCheckDetail = disappearedShifts.length + ' turer, ' + disappearedPersons.length + ' personer';
+      existing.lastCheckDetail = detail;
+      existing.consecutiveUnreasonable = consecutive;
       await env.DOCS_KV.put('positions:_disappeared', JSON.stringify(existing));
     }
     return;
   }
 
-  // Save results
+  // Save results (reset consecutive counter since this check succeeded)
   await env.DOCS_KV.put('positions:_disappeared', JSON.stringify({
     ts: Date.now(), status: 'ok',
     persons: disappearedPersons,
-    shifts: disappearedShifts
+    shifts: disappearedShifts,
+    consecutiveUnreasonable: 0
   }));
 
   // Save merged baseline (new data + old entries still missing → dashboard mode)

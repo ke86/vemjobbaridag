@@ -265,6 +265,45 @@ function _renderBaselineStatus(el, data) {
     '<br><span style="opacity:0.5;font-size:0.8em">Synkad — alla enheter ser samma resultat</span>';
 }
 
+function resetBaselineNow() {
+  var btn = document.getElementById('resetBaselineBtn');
+  if (!btn) return;
+
+  var pin = (typeof SCRAPE_PIN !== 'undefined' ? SCRAPE_PIN : '');
+  if (!pin) {
+    pin = prompt('Ange PIN:');
+    if (!pin) return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Återställer…';
+
+  var url = (typeof REMOTE_DOC_WORKER !== 'undefined' ? REMOTE_DOC_WORKER : 'https://onevr-auth.kenny-eriksson1986.workers.dev') + '/positions/reset-baseline';
+  fetch(url, { method: 'POST', headers: { 'X-PIN': pin } })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        btn.textContent = '✓ Återställd';
+        _posDisapStatus = null;
+        _posDisappeared = [];
+        _posDisapTurns = [];
+        renderPositions();
+        setTimeout(function() {
+          btn.disabled = false;
+          btn.textContent = 'Återställ baslinje';
+          updateBaselineStatusUI();
+        }, 2500);
+      } else {
+        btn.textContent = '✗ ' + (data.error || 'Okänt fel');
+        setTimeout(function() { btn.disabled = false; btn.textContent = 'Återställ baslinje'; }, 3000);
+      }
+    })
+    .catch(function() {
+      btn.textContent = '✗ Nätverksfel';
+      setTimeout(function() { btn.disabled = false; btn.textContent = 'Återställ baslinje'; }, 3000);
+    });
+}
+
 // =============================================
 // DISAPPEARED TURNS DETECTION (fetched from worker)
 // =============================================
