@@ -310,32 +310,53 @@ function _resolveOrt(person) {
   return '';
 }
 
-function _getPosOrtMap() {
-  if (typeof _posCache === 'undefined' || !_posCache || !_posCache.data || !_posCache.data.dagar) {
-    return null;
-  }
-  // Rebuild map whenever positions cache timestamp changes
-  var cacheTs = _posCache.ts || 0;
-  if (_posOrtMap && _posOrtMap._ts === cacheTs) return _posOrtMap;
+var _RESERV_ORT_MAP_KEY = 'reservOrtMap';
+var _RESERV_ORT_MAP_TTL = 48 * 60 * 60 * 1000; // 48h
 
-  var map = { _ts: cacheTs };
-  var dagar = _posCache.data.dagar;
-  var dates = Object.keys(dagar);
-  for (var d = 0; d < dates.length; d++) {
-    var dayData = dagar[dates[d]];
-    if (!Array.isArray(dayData)) continue;
-    for (var i = 0; i < dayData.length; i++) {
-      var pos = dayData[i];
-      var ort = (pos.ort || '').trim();
-      if (!ort) continue;
-      var key = (pos.namn || '').toLowerCase().trim();
-      if (key && !map[key]) {
-        map[key] = ort;
+function _getPosOrtMap() {
+  if (typeof _posCache !== 'undefined' && _posCache && _posCache.data && _posCache.data.dagar) {
+    var cacheTs = _posCache.ts || 0;
+    if (_posOrtMap && _posOrtMap._ts === cacheTs) return _posOrtMap;
+
+    var map = { _ts: cacheTs };
+    var dagar = _posCache.data.dagar;
+    var dates = Object.keys(dagar);
+    for (var d = 0; d < dates.length; d++) {
+      var dayData = dagar[dates[d]];
+      if (!Array.isArray(dayData)) continue;
+      for (var i = 0; i < dayData.length; i++) {
+        var pos = dayData[i];
+        var ort = (pos.ort || '').trim();
+        if (!ort) continue;
+        var key = (pos.namn || '').toLowerCase().trim();
+        if (key && !map[key]) {
+          map[key] = ort;
+        }
       }
     }
+    _posOrtMap = map;
+
+    try {
+      localStorage.setItem(_RESERV_ORT_MAP_KEY, JSON.stringify({ map: map, savedAt: Date.now() }));
+    } catch (e) { /* storage full */ }
+
+    return _posOrtMap;
   }
-  _posOrtMap = map;
-  return _posOrtMap;
+
+  // No positions cache in memory — try localStorage fallback
+  if (_posOrtMap) return _posOrtMap;
+  try {
+    var raw = localStorage.getItem(_RESERV_ORT_MAP_KEY);
+    if (raw) {
+      var stored = JSON.parse(raw);
+      if (stored && stored.map && (Date.now() - (stored.savedAt || 0)) < _RESERV_ORT_MAP_TTL) {
+        _posOrtMap = stored.map;
+        return _posOrtMap;
+      }
+    }
+  } catch (e) { /* parse error */ }
+
+  return null;
 }
 
 function _isWorkingNow(person) {
