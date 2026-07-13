@@ -235,18 +235,25 @@ function _getPersonsForDay(dateStr) {
 }
 
 var _STATION_ORT = {
-  'HDort': 'Halmstad',
-  'MCort': 'Malmö',
-  'CKort': 'Karlskrona',
-  'HBort': 'Helsingborg',
-  'KACort': 'Kalmar'
+  'hdort': 'Halmstad',
+  'hd': 'Halmstad',
+  'mcort': 'Malmö',
+  'mc': 'Malmö',
+  'm': 'Malmö',
+  'ckort': 'Karlskrona',
+  'ck': 'Karlskrona',
+  'hbort': 'Helsingborg',
+  'hb': 'Helsingborg',
+  'kacort': 'Kalmar',
+  'kac': 'Kalmar',
+  'hm': 'Hässleholm'
 };
 
 function _resolveOrt(person) {
   if (person.locName) return person.locName;
   var firstSeg = person.segments && person.segments[0];
   if (firstSeg && firstSeg.fromStation) {
-    return _STATION_ORT[firstSeg.fromStation] || '';
+    return _STATION_ORT[firstSeg.fromStation.toLowerCase()] || '';
   }
   return '';
 }
