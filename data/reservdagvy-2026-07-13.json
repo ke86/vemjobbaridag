@@ -1,0 +1,2065 @@
+{
+  "startDate": "2026-07-13",
+  "scrapedAt": "2026-07-13T10:04:18.452Z",
+  "totalPersons": 24,
+  "days": [
+    {
+      "date": "2026-07-13",
+      "label": "Idag",
+      "persons": [
+        {
+          "name": "Niklas Lindblad",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "302212-260713",
+          "start": "04:10",
+          "end": "11:00",
+          "country": "",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "MCORT",
+              "toStation": "M",
+              "timeStart": "04:10",
+              "timeEnd": "06:30",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "06:30",
+              "timeEnd": "07:00",
+              "activity": "Rast",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "M",
+              "timeStart": "07:00",
+              "timeEnd": "07:12",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "M",
+              "toStation": "HB",
+              "timeStart": "07:12",
+              "timeEnd": "07:54",
+              "activity": "",
+              "trainNr": "1018",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "07:54",
+              "timeEnd": "08:03",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "MC",
+              "timeStart": "08:03",
+              "timeEnd": "08:48",
+              "activity": "1039 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "08:48",
+              "timeEnd": "08:50",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "08:50",
+              "timeEnd": "09:08",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:08",
+              "timeEnd": "09:10",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:10",
+              "timeEnd": "09:12",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "HB",
+              "timeStart": "09:12",
+              "timeEnd": "09:54",
+              "activity": "1034 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "09:54",
+              "timeEnd": "10:06",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "M",
+              "timeStart": "10:06",
+              "timeEnd": "10:48",
+              "activity": "",
+              "trainNr": "1055",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "M",
+              "toStation": "MCort",
+              "timeStart": "10:48",
+              "timeEnd": "11:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Daniela Lita",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "302635-260713",
+          "start": "04:51",
+          "end": "12:06",
+          "country": "",
+          "locName": "Helsingborg",
+          "segments": [
+            {
+              "fromStation": "HBORT",
+              "toStation": "HBORT",
+              "timeStart": "04:51",
+              "timeEnd": "04:55",
+              "activity": "Orderläsning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HBORT",
+              "toStation": "HB",
+              "timeStart": "04:55",
+              "timeEnd": "05:01",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "05:01",
+              "timeEnd": "05:06",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "MC",
+              "timeStart": "05:06",
+              "timeEnd": "05:48",
+              "activity": "",
+              "trainNr": "1015",
+              "trainType": "Omlopp",
+              "vehicles": [
+                "TV AGS"
+              ]
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "05:48",
+              "timeEnd": "05:50",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "DK.KK",
+              "timeStart": "05:50",
+              "timeEnd": "06:40",
+              "activity": "",
+              "trainNr": "1015",
+              "trainType": "Omlopp",
+              "vehicles": [
+                "TV AGS"
+              ]
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "06:40",
+              "timeEnd": "06:43",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "KKbg",
+              "timeStart": "06:43",
+              "timeEnd": "06:48",
+              "activity": "",
+              "trainNr": "1015",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "KKbg",
+              "timeStart": "06:48",
+              "timeEnd": "06:55",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "DK.KK",
+              "timeStart": "06:55",
+              "timeEnd": "07:00",
+              "activity": "",
+              "trainNr": "1024",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "07:00",
+              "timeEnd": "07:05",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "MC",
+              "timeStart": "07:05",
+              "timeEnd": "07:55",
+              "activity": "",
+              "trainNr": "1024",
+              "trainType": "Omlopp",
+              "vehicles": [
+                "TV AGS"
+              ]
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "07:55",
+              "timeEnd": "07:57",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MCrlo",
+              "timeStart": "07:57",
+              "timeEnd": "08:03",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCrlo",
+              "toStation": "MCrlo",
+              "timeStart": "08:03",
+              "timeEnd": "08:55",
+              "activity": "Rasto",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCrlo",
+              "toStation": "MC",
+              "timeStart": "08:55",
+              "timeEnd": "09:01",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:01",
+              "timeEnd": "09:03",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:03",
+              "timeEnd": "09:05",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "DK.KK",
+              "timeStart": "09:05",
+              "timeEnd": "09:55",
+              "activity": "",
+              "trainNr": "1041",
+              "trainType": "Omlopp",
+              "vehicles": [
+                "TV AGS"
+              ]
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "09:55",
+              "timeEnd": "09:58",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "KKbg",
+              "timeStart": "09:58",
+              "timeEnd": "10:03",
+              "activity": "",
+              "trainNr": "1041",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "KKbg",
+              "timeStart": "10:03",
+              "timeEnd": "10:10",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "DK.KK",
+              "timeStart": "10:10",
+              "timeEnd": "10:15",
+              "activity": "",
+              "trainNr": "1050",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "10:15",
+              "timeEnd": "10:20",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "MC",
+              "timeStart": "10:20",
+              "timeEnd": "11:10",
+              "activity": "",
+              "trainNr": "1050",
+              "trainType": "Omlopp",
+              "vehicles": [
+                "TV AGS"
+              ]
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "11:10",
+              "timeEnd": "11:12",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "HB",
+              "timeStart": "11:12",
+              "timeEnd": "11:54",
+              "activity": "",
+              "trainNr": "1050",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HBORT",
+              "timeStart": "11:54",
+              "timeEnd": "12:00",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HBORT",
+              "toStation": "HBORT",
+              "timeStart": "12:00",
+              "timeEnd": "12:06",
+              "activity": "Rapportering",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Viktor Ekholm",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "302307-260713",
+          "start": "07:00",
+          "end": "15:00",
+          "country": "",
+          "locName": "Hässleholm",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "HM",
+              "timeStart": "07:00",
+              "timeEnd": "08:16",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "CR",
+              "timeStart": "08:16",
+              "timeEnd": "08:33",
+              "activity": "",
+              "trainNr": "1020",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CR",
+              "toStation": "CR",
+              "timeStart": "08:33",
+              "timeEnd": "09:18",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CR",
+              "toStation": "MC",
+              "timeStart": "09:18",
+              "timeEnd": "10:33",
+              "activity": "1053 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "10:33",
+              "timeEnd": "10:35",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MCrlo",
+              "timeStart": "10:35",
+              "timeEnd": "10:41",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCrlo",
+              "toStation": "MCrlo",
+              "timeStart": "10:41",
+              "timeEnd": "11:19",
+              "activity": "Rast",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCrlo",
+              "toStation": "MC",
+              "timeStart": "11:19",
+              "timeEnd": "11:25",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "11:25",
+              "timeEnd": "11:27",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "CR",
+              "timeStart": "11:27",
+              "timeEnd": "12:33",
+              "activity": "1052 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CR",
+              "toStation": "CR",
+              "timeStart": "12:33",
+              "timeEnd": "13:25",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CR",
+              "toStation": "HM",
+              "timeStart": "13:25",
+              "timeEnd": "13:44",
+              "activity": "",
+              "trainNr": "1085",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "",
+              "timeStart": "13:44",
+              "timeEnd": "15:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Jasmine Iddi",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "302685-260713",
+          "start": "09:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "MCORT",
+              "toStation": "MC",
+              "timeStart": "09:00",
+              "timeEnd": "09:42",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCrlo",
+              "toStation": "MC",
+              "timeStart": "09:42",
+              "timeEnd": "09:48",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:48",
+              "timeEnd": "09:50",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "DK.KK",
+              "timeStart": "09:50",
+              "timeEnd": "10:40",
+              "activity": "1047 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "10:40",
+              "timeEnd": "10:43",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "KKbg",
+              "timeStart": "10:43",
+              "timeEnd": "10:48",
+              "activity": "",
+              "trainNr": "1047",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "KKbg",
+              "timeStart": "10:48",
+              "timeEnd": "10:55",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "DK.KK",
+              "timeStart": "10:55",
+              "timeEnd": "11:00",
+              "activity": "",
+              "trainNr": "1056",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "11:00",
+              "timeEnd": "11:05",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "MC",
+              "timeStart": "11:05",
+              "timeEnd": "11:55",
+              "activity": "1056 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "11:55",
+              "timeEnd": "11:57",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MCORT",
+              "timeStart": "11:57",
+              "timeEnd": "12:03",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "M",
+              "timeStart": "12:03",
+              "timeEnd": "12:12",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "M",
+              "toStation": "HB",
+              "timeStart": "12:12",
+              "timeEnd": "12:54",
+              "activity": "",
+              "trainNr": "1058",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HD",
+              "timeStart": "12:54",
+              "timeEnd": "13:46",
+              "activity": "1058 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HD",
+              "toStation": "HD",
+              "timeStart": "13:46",
+              "timeEnd": "13:51",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HD",
+              "toStation": "HD",
+              "timeStart": "13:51",
+              "timeEnd": "14:21",
+              "activity": "Rast",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HD",
+              "toStation": "HD",
+              "timeStart": "14:21",
+              "timeEnd": "14:23",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HD",
+              "toStation": "G",
+              "timeStart": "14:23",
+              "timeEnd": "15:35",
+              "activity": "",
+              "trainNr": "20172",
+              "trainType": "Passresa",
+              "vehicles": []
+            },
+            {
+              "fromStation": "G",
+              "toStation": "G",
+              "timeStart": "15:35",
+              "timeEnd": "15:55",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "G",
+              "toStation": "MC",
+              "timeStart": "15:55",
+              "timeEnd": "18:48",
+              "activity": "1119 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MCORT",
+              "timeStart": "18:48",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Paul Löfquist",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "302542-260713",
+          "start": "12:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "12:00",
+              "timeEnd": "12:25",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCrlo",
+              "toStation": "MC",
+              "timeStart": "12:25",
+              "timeEnd": "12:31",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "12:31",
+              "timeEnd": "12:33",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "12:33",
+              "timeEnd": "12:35",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "DK.KK",
+              "timeStart": "12:35",
+              "timeEnd": "13:25",
+              "activity": "1069 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "13:25",
+              "timeEnd": "13:28",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "KKbg",
+              "timeStart": "13:28",
+              "timeEnd": "13:33",
+              "activity": "",
+              "trainNr": "1069",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "KKbg",
+              "timeStart": "13:33",
+              "timeEnd": "13:40",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "DK.KK",
+              "timeStart": "13:40",
+              "timeEnd": "13:45",
+              "activity": "",
+              "trainNr": "1078",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "13:45",
+              "timeEnd": "13:50",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "MC",
+              "timeStart": "13:50",
+              "timeEnd": "14:40",
+              "activity": "1078 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "14:40",
+              "timeEnd": "16:01",
+              "activity": "Rast",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "16:01",
+              "timeEnd": "16:03",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "16:03",
+              "timeEnd": "16:05",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "DK.KK",
+              "timeStart": "16:05",
+              "timeEnd": "16:55",
+              "activity": "1097 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "16:55",
+              "timeEnd": "16:58",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "KKbg",
+              "timeStart": "16:58",
+              "timeEnd": "17:03",
+              "activity": "",
+              "trainNr": "1097",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "KKbg",
+              "timeStart": "17:03",
+              "timeEnd": "17:10",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "KKbg",
+              "toStation": "DK.KK",
+              "timeStart": "17:10",
+              "timeEnd": "17:15",
+              "activity": "",
+              "trainNr": "1106",
+              "trainType": "Växling",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "DK.KK",
+              "timeStart": "17:15",
+              "timeEnd": "17:20",
+              "activity": "Plattformstid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "DK.KK",
+              "toStation": "MC",
+              "timeStart": "17:20",
+              "timeEnd": "18:10",
+              "activity": "1106 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "18:10",
+              "timeEnd": "18:12",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MCORT",
+              "timeStart": "18:12",
+              "timeEnd": "18:18",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "18:18",
+              "timeEnd": "18:24",
+              "activity": "Rapportering",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "18:24",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Agne Andersson",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV3 - TP",
+          "start": "13:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "13:00",
+              "timeEnd": "13:08",
+              "activity": "Orderläsning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "13:08",
+              "timeEnd": "13:15",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "13:15",
+              "timeEnd": "13:16",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "MC",
+              "timeStart": "13:16",
+              "timeEnd": "14:03",
+              "activity": "1081 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "14:03",
+              "timeEnd": "14:05",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "14:05",
+              "timeEnd": "14:07",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "14:07",
+              "timeEnd": "14:23",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "14:23",
+              "timeEnd": "14:25",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "14:25",
+              "timeEnd": "14:27",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "HM",
+              "timeStart": "14:27",
+              "timeEnd": "15:14",
+              "activity": "1076 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "15:14",
+              "timeEnd": "15:30",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "15:30",
+              "timeEnd": "16:00",
+              "activity": "Rast",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "",
+              "timeStart": "16:00",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Andreas Larsson",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV2",
+          "start": "07:00",
+          "end": "13:00",
+          "country": "",
+          "locName": "Hässleholm",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "07:00",
+              "timeEnd": "13:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Björn Iskrona",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV3",
+          "start": "11:45",
+          "end": "18:15",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "11:45",
+              "timeEnd": "18:15",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Kenneth Edvardsson",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV3",
+          "start": "14:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "14:00",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Philip Tullock",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "11282-R",
+          "start": "12:00",
+          "end": "19:00",
+          "country": "DK",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "MCort",
+              "toStation": "MCort",
+              "timeStart": "12:00",
+              "timeEnd": "19:00",
+              "activity": "10.0r produktionsreserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Tina Lundin",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "302462-260713",
+          "start": "04:20",
+          "end": "10:55",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "04:20",
+              "timeEnd": "05:12",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "HB",
+              "timeStart": "05:12",
+              "timeEnd": "05:54",
+              "activity": "11002 TV AGSRST",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "05:54",
+              "timeEnd": "05:57",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "05:57",
+              "timeEnd": "06:05",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "06:05",
+              "timeEnd": "06:10",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "MC",
+              "timeStart": "06:10",
+              "timeEnd": "06:56",
+              "activity": "21323 TV AGSRST",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "06:56",
+              "timeEnd": "06:59",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "06:59",
+              "timeEnd": "07:01",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "07:01",
+              "timeEnd": "07:10",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "07:10",
+              "timeEnd": "07:12",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "HB",
+              "timeStart": "07:12",
+              "timeEnd": "07:54",
+              "activity": "1018 TV AGS",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "07:54",
+              "timeEnd": "07:56",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HBrlo",
+              "timeStart": "07:56",
+              "timeEnd": "08:02",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HBrlo",
+              "toStation": "HBrlo",
+              "timeStart": "08:02",
+              "timeEnd": "08:55",
+              "activity": "Rasto",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HBrlo",
+              "toStation": "HB",
+              "timeStart": "08:55",
+              "timeEnd": "09:01",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "HB",
+              "timeStart": "09:01",
+              "timeEnd": "09:06",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HB",
+              "toStation": "MC",
+              "timeStart": "09:06",
+              "timeEnd": "09:48",
+              "activity": "1047 TV",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:48",
+              "timeEnd": "09:50",
+              "activity": "Tågpassning",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MC",
+              "timeStart": "09:50",
+              "timeEnd": "09:52",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MC",
+              "toStation": "MCORT",
+              "timeStart": "09:52",
+              "timeEnd": "09:58",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "09:58",
+              "timeEnd": "10:04",
+              "activity": "Rapportering",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "10:04",
+              "timeEnd": "10:55",
+              "activity": "Garantitid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Veronica Stehn",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "302085-260713",
+          "start": "04:35",
+          "end": "12:00",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "HDort",
+              "toStation": "HD",
+              "timeStart": "04:35",
+              "timeEnd": "06:23",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HD",
+              "toStation": "G",
+              "timeStart": "06:23",
+              "timeEnd": "07:35",
+              "activity": "20156 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "G",
+              "toStation": "G",
+              "timeStart": "07:35",
+              "timeEnd": "08:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "G",
+              "toStation": "G",
+              "timeStart": "08:00",
+              "timeEnd": "08:30",
+              "activity": "Rast",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "G",
+              "toStation": "G",
+              "timeStart": "08:30",
+              "timeEnd": "08:55",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "G",
+              "toStation": "HD",
+              "timeStart": "08:55",
+              "timeEnd": "10:06",
+              "activity": "1063 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HD",
+              "toStation": "HDort",
+              "timeStart": "10:06",
+              "timeEnd": "12:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        }
+      ]
+    },
+    {
+      "date": "2026-07-14",
+      "label": "Imorgon",
+      "persons": [
+        {
+          "name": "Andreas Lassas",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV3",
+          "start": "13:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "Halmstad",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "13:00",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Arlind Gashi",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "RESERV3",
+          "start": "13:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "Hässleholm",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "13:00",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Catarina Thelander",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "12482-R",
+          "start": "12:00",
+          "end": "19:00",
+          "country": "DK",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "12:00",
+              "timeEnd": "19:00",
+              "activity": "10.0r produktionsreserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Elias Lovestedt",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV5",
+          "start": "08:45",
+          "end": "16:15",
+          "country": "",
+          "locName": "Kalmar",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "08:45",
+              "timeEnd": "16:15",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Henrietta Liljengren",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV4",
+          "start": "16:00",
+          "end": "22:00",
+          "country": "",
+          "locName": "Hässleholm",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "16:00",
+              "timeEnd": "22:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Henrik Royson",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "12291-R",
+          "start": "04:10",
+          "end": "11:00",
+          "country": "DK",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "MCort",
+              "toStation": "MCort",
+              "timeStart": "04:10",
+              "timeEnd": "11:00",
+              "activity": "10.0r produktionsreserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Ildiko Calvo",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "RESERV3",
+          "start": "13:00",
+          "end": "19:00",
+          "country": "",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "13:00",
+              "timeEnd": "19:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Joakim Tärnudd",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "302260-260714",
+          "start": "12:30",
+          "end": "17:30",
+          "country": "",
+          "locName": "Karlskrona",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "CKrlo",
+              "timeStart": "12:30",
+              "timeEnd": "12:41",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CKort",
+              "toStation": "CK",
+              "timeStart": "12:41",
+              "timeEnd": "12:43",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CK",
+              "toStation": "CK",
+              "timeStart": "12:43",
+              "timeEnd": "12:48",
+              "activity": "Plattformstid/uppstart",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CK",
+              "toStation": "HM",
+              "timeStart": "12:48",
+              "timeEnd": "14:44",
+              "activity": "1093 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "14:44",
+              "timeEnd": "14:46",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "HM",
+              "timeStart": "14:46",
+              "timeEnd": "15:14",
+              "activity": "Disponibel",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "HM",
+              "toStation": "CK",
+              "timeStart": "15:14",
+              "timeEnd": "17:12",
+              "activity": "1076 M1",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CK",
+              "toStation": "CK",
+              "timeStart": "17:12",
+              "timeEnd": "17:15",
+              "activity": "Avlös / tågsyn",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CK",
+              "toStation": "CKrlo",
+              "timeStart": "17:15",
+              "timeEnd": "17:17",
+              "activity": "Gångtid",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            },
+            {
+              "fromStation": "CKrlo",
+              "toStation": "CKRLO",
+              "timeStart": "17:17",
+              "timeEnd": "17:30",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Jonas Eriksson",
+          "badge": "TV",
+          "badgeColor": "tv",
+          "role": "Tågvärd",
+          "turnr": "16481-R",
+          "start": "09:00",
+          "end": "19:00",
+          "country": "DK",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "MCORT",
+              "toStation": "MCORT",
+              "timeStart": "09:00",
+              "timeEnd": "19:00",
+              "activity": "10.0r produktionsreserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Patrik Svensson",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV3",
+          "start": "11:30",
+          "end": "18:30",
+          "country": "",
+          "locName": "Karlskrona",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "11:30",
+              "timeEnd": "18:30",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Peter Lund",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "12281-R",
+          "start": "05:00",
+          "end": "12:00",
+          "country": "DK",
+          "locName": "Malmö",
+          "segments": [
+            {
+              "fromStation": "MCort",
+              "toStation": "MCort",
+              "timeStart": "05:00",
+              "timeEnd": "12:00",
+              "activity": "10.0r produktionsreserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        },
+        {
+          "name": "Victor Persson",
+          "badge": "LKF",
+          "badgeColor": "lkf",
+          "role": "Lokförare",
+          "turnr": "RESERV4",
+          "start": "16:00",
+          "end": "22:00",
+          "country": "",
+          "locName": "",
+          "segments": [
+            {
+              "fromStation": "",
+              "toStation": "",
+              "timeStart": "16:00",
+              "timeEnd": "22:00",
+              "activity": "Reserv",
+              "trainNr": "",
+              "trainType": "",
+              "vehicles": []
+            }
+          ],
+          "notFound": false
+        }
+      ]
+    }
+  ]
+}
