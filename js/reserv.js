@@ -4,7 +4,7 @@
  * Filtered by Idag/Imorgon, Roll, and Ort.
  */
 
-/* global fetchReservDagvyFromFirebase, showReservDagvyPopup */
+/* global fetchReservDagvyFromFirebase, showReservDagvyPopup, _posCache */
 
 // =============================================
 // STATE
@@ -76,20 +76,33 @@ function renderReserv() {
 
   var today = _getTodayStr();
   var tomorrow = _getTomorrowStr();
+  var idag = _reservSelectedDay === 'idag';
+  var imorgon = _reservSelectedDay === 'imorgon';
+  var selectedDateStr = idag ? today : tomorrow;
 
-  var persons = _getPersonsForDay(_reservSelectedDay === 'idag' ? today : tomorrow);
+  var allPersons = _getPersonsForDay(selectedDateStr);
 
-  // Apply roll filter
-  if (_reservFilterRoll !== 'alla') {
-    persons = persons.filter(function(p) {
-      return (p.role || '').toLowerCase() === _reservFilterRoll.toLowerCase();
+  // Apply ort filter first (for counting purposes too)
+  var ortFiltered = allPersons;
+  if (_reservFilterOrt !== 'alla') {
+    ortFiltered = allPersons.filter(function(p) {
+      return _resolveOrt(p) === _reservFilterOrt;
     });
   }
 
-  // Apply ort filter
-  if (_reservFilterOrt !== 'alla') {
+  // Count by role after ort filter, before roll filter
+  var lokCount = 0, tvCount = 0;
+  for (var k = 0; k < ortFiltered.length; k++) {
+    var r = (ortFiltered[k].role || '').toLowerCase();
+    if (r.indexOf('lokförare') !== -1) lokCount++;
+    else if (r.indexOf('tågvärd') !== -1) tvCount++;
+  }
+
+  // Apply roll filter for display list
+  var persons = ortFiltered;
+  if (_reservFilterRoll !== 'alla') {
     persons = persons.filter(function(p) {
-      return _resolveOrt(p) === _reservFilterOrt;
+      return (p.role || '').toLowerCase() === _reservFilterRoll.toLowerCase();
     });
   }
 
@@ -98,16 +111,17 @@ function renderReserv() {
     return (a.start || '').localeCompare(b.start || '');
   });
 
-  var idag = _reservSelectedDay === 'idag';
-  var imorgon = _reservSelectedDay === 'imorgon';
-
-  var selectedDateStr = idag ? today : tomorrow;
-
   var html =
     '<div class="reserv-controls">' +
-      '<div class="reserv-day-toggle">' +
-        '<button class="reserv-day-btn' + (idag ? ' active' : '') + '" onclick="setReservDay(\'idag\')">Idag</button>' +
-        '<button class="reserv-day-btn' + (imorgon ? ' active' : '') + '" onclick="setReservDay(\'imorgon\')">Imorgon</button>' +
+      '<div class="reserv-toggle-row">' +
+        '<div class="reserv-day-toggle">' +
+          '<button class="reserv-day-btn' + (idag ? ' active' : '') + '" onclick="setReservDay(\'idag\')">Idag</button>' +
+          '<button class="reserv-day-btn' + (imorgon ? ' active' : '') + '" onclick="setReservDay(\'imorgon\')">Imorgon</button>' +
+        '</div>' +
+        '<div class="reserv-count-pills">' +
+          '<span class="reserv-count-lok">Lkf ' + lokCount + '</span>' +
+          '<span class="reserv-count-tv">TV ' + tvCount + '</span>' +
+        '</div>' +
       '</div>' +
       '<div class="reserv-filter-row">' +
         '<select class="reserv-select" id="reservRollSelect" onchange="setReservRoll(this.value)">' +
@@ -149,6 +163,9 @@ function renderReserv() {
   }
 
   container.innerHTML = html;
+
+  // Update sidebar menu badges
+  updateReservMenuBadges();
 }
 
 // =============================================
@@ -156,8 +173,10 @@ function renderReserv() {
 // =============================================
 function _buildReservCard(person, dateStr) {
   var rollClass = '';
-  if ((person.role || '').toLowerCase().includes('lokförare')) rollClass = ' pos-role-lok';
-  else if ((person.role || '').toLowerCase().includes('tågvärd')) rollClass = ' pos-role-tv';
+  if ((person.role || '').toLowerCase().indexOf('lokförare') !== -1) rollClass = ' pos-role-lok';
+  else if ((person.role || '').toLowerCase().indexOf('tågvärd') !== -1) rollClass = ' pos-role-tv';
+
+  var activeClass = _isWorkingNow(person) ? ' reserv-card--active-now' : '';
 
   var badgeHtml = '';
   if (person.badge) {
@@ -176,7 +195,7 @@ function _buildReservCard(person, dateStr) {
 
   var personDataJson = JSON.stringify(person).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 
-  return '<div class="reserv-card' + rollClass + '" onclick="openReservDagvy(this)" data-person=\'' + personDataJson + '\' data-date="' + _esc(dateStr) + '">' +
+  return '<div class="reserv-card' + rollClass + activeClass + '" onclick="openReservDagvy(this)" data-person=\'' + personDataJson + '\' data-date="' + _esc(dateStr) + '">' +
     '<div class="reserv-card-top">' +
       '<span class="reserv-card-name">' + _esc(person.name) + '</span>' +
       badgeHtml +
@@ -186,6 +205,31 @@ function _buildReservCard(person, dateStr) {
       timeHtml +
     '</div>' +
   '</div>';
+}
+
+// =============================================
+// MENU BADGES
+// =============================================
+function updateReservMenuBadges() {
+  if (!_reservData) return;
+  var today = _getTodayStr();
+  var todayPersons = _getPersonsForDay(today);
+  var lokCount = 0, tvCount = 0;
+  for (var i = 0; i < todayPersons.length; i++) {
+    var r = (todayPersons[i].role || '').toLowerCase();
+    if (r.indexOf('lokförare') !== -1) lokCount++;
+    else if (r.indexOf('tågvärd') !== -1) tvCount++;
+  }
+  var lokEl = document.getElementById('reservMenuLok');
+  var tvEl = document.getElementById('reservMenuTv');
+  if (lokEl) {
+    lokEl.textContent = lokCount;
+    lokEl.style.display = lokCount > 0 ? '' : 'none';
+  }
+  if (tvEl) {
+    tvEl.textContent = tvCount;
+    tvEl.style.display = tvCount > 0 ? '' : 'none';
+  }
 }
 
 // =============================================
@@ -253,9 +297,37 @@ function _resolveOrt(person) {
   if (person.locName) return person.locName;
   var firstSeg = person.segments && person.segments[0];
   if (firstSeg && firstSeg.fromStation) {
-    return _STATION_ORT[firstSeg.fromStation.toLowerCase()] || '';
+    var mapped = _STATION_ORT[firstSeg.fromStation.toLowerCase()];
+    if (mapped) return mapped;
+  }
+  // Fallback: look up person by name in positions data
+  if (typeof _posCache !== 'undefined' && _posCache && _posCache.data && _posCache.data.dagar) {
+    var today = _getTodayStr();
+    var dayData = _posCache.data.dagar[today];
+    if (Array.isArray(dayData)) {
+      var nameNorm = (person.name || '').toLowerCase().trim();
+      for (var i = 0; i < dayData.length; i++) {
+        var pos = dayData[i];
+        if ((pos.namn || '').toLowerCase().trim() === nameNorm && pos.ort) {
+          return pos.ort;
+        }
+      }
+    }
   }
   return '';
+}
+
+function _isWorkingNow(person) {
+  if (!person.start || !person.end) return false;
+  var now = new Date();
+  var hhmm = _pad(now.getHours()) + ':' + _pad(now.getMinutes());
+  var s = person.start.substring(0, 5);
+  var e = person.end.substring(0, 5);
+  if (s <= e) {
+    return hhmm >= s && hhmm <= e;
+  }
+  // Overnight shift
+  return hhmm >= s || hhmm <= e;
 }
 
 function _getTodayStr() {

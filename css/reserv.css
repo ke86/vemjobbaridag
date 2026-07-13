@@ -265,6 +265,72 @@
   padding-bottom: 8px;
 }
 
+/* ---- Idag / Imorgon toggle row ---- */
+.reserv-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+/* ---- Role count pills ---- */
+.reserv-count-pills {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.reserv-count-lok,
+.reserv-count-tv {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+}
+
+.reserv-count-lok {
+  background: rgba(234, 88, 12, 0.15);
+  color: #fb923c;
+}
+
+.reserv-count-tv {
+  background: rgba(37, 99, 235, 0.15);
+  color: #60a5fa;
+}
+
+/* ---- Active-now card (green border) ---- */
+.reserv-card--active-now {
+  border-color: rgba(34, 197, 94, 0.45) !important;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18);
+}
+
+/* ---- Sidebar menu badges ---- */
+.reserv-menu-badge {
+  display: inline-block;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+  margin-left: 3px;
+  line-height: 1.5;
+}
+
+.reserv-menu-badge-lok {
+  background: rgba(234, 88, 12, 0.22);
+  color: #fb923c;
+}
+
+.reserv-menu-badge-tv {
+  background: rgba(37, 99, 235, 0.22);
+  color: #60a5fa;
+}
+
 /* ---- Dark mode adjustments ---- */
 html.dark .reserv-select {
   background-color: rgba(255,255,255,0.05);
