@@ -97,8 +97,6 @@
       <li><a href="#" data-page="positions"><span class="icon">📍</span> Positionslista</a></li>
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
       <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
-      <li><a href="#" data-page="departure"><span class="icon">🚆</span> Avgång/Ankomst</a></li>
-      <li><a href="#" data-page="disruptions"><span class="icon">⚠️</span> Trafikstörningar</a></li>
       <li><a href="#" data-page="documents"><span class="icon">📄</span> Dokument</a></li>
       <li><a href="#" data-page="links"><span class="icon">🔗</span> Länkar</a></li>
       <!-- <li><a href="#" data-page="overtime"><span class="icon">⏱️</span> Övertid</a></li> PAUSAD: väntar på pre-fill aktivering -->
@@ -1086,6 +1084,22 @@
         <div class="links-card-text">
           <span class="links-card-title">BromsaX31</span>
           <span class="links-card-desc">Bromstabeller för X31-tåg</span>
+        </div>
+        <span class="links-card-arrow">›</span>
+      </a>
+      <a href="#" onclick="event.preventDefault(); showPage('departure')" class="links-card">
+        <span class="links-card-icon">🚆</span>
+        <div class="links-card-text">
+          <span class="links-card-title">Avgång/Ankomst</span>
+          <span class="links-card-desc">Tidtabeller för avgångar och ankomster</span>
+        </div>
+        <span class="links-card-arrow">›</span>
+      </a>
+      <a href="#" onclick="event.preventDefault(); showPage('disruptions')" class="links-card">
+        <span class="links-card-icon">⚠️</span>
+        <div class="links-card-text">
+          <span class="links-card-title">Trafikstörningar</span>
+          <span class="links-card-desc">Aktuella störningar i trafiken</span>
         </div>
         <span class="links-card-arrow">›</span>
       </a>
