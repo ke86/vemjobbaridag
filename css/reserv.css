@@ -1,0 +1,279 @@
+/* ============================================
+   reserv.css — Reservlista page styles
+   ============================================ */
+
+.reserv-page {
+  padding: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---- Container ---- */
+#reservContainer {
+  padding: 12px 14px 80px;
+  min-height: 100%;
+}
+
+/* ---- Controls bar ---- */
+.reserv-controls {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-primary);
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.08));
+  margin: -12px -14px 14px;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+/* ---- Idag / Imorgon toggle ---- */
+.reserv-day-toggle {
+  display: flex;
+  gap: 0;
+  margin-bottom: 10px;
+  background: var(--bg-secondary, rgba(255,255,255,0.05));
+  border-radius: 10px;
+  padding: 3px;
+  width: fit-content;
+}
+
+.reserv-day-btn {
+  flex: 1;
+  padding: 7px 22px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary, rgba(255,255,255,0.5));
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+
+.reserv-day-btn.active {
+  background: var(--accent-blue, #2563eb);
+  color: #fff;
+  box-shadow: 0 1px 4px rgba(37,99,235,0.25);
+}
+
+/* ---- Filter row ---- */
+.reserv-filter-row {
+  display: flex;
+  gap: 8px;
+}
+
+.reserv-select {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color, rgba(255,255,255,0.12));
+  border-radius: 8px;
+  background: var(--bg-secondary, rgba(255,255,255,0.06));
+  color: var(--text-primary, #fff);
+  font-size: 0.84rem;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.4)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+.reserv-select:focus {
+  outline: none;
+  border-color: var(--accent-blue, #2563eb);
+}
+
+/* ---- Person list ---- */
+.reserv-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- Person card ---- */
+.reserv-card {
+  background: var(--bg-card, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+
+.reserv-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--border-color, rgba(255,255,255,0.08));
+  border-radius: 3px 0 0 3px;
+}
+
+.reserv-card:active {
+  transform: scale(0.985);
+  background: var(--bg-card-hover, rgba(255,255,255,0.08));
+}
+
+/* Role accent stripes */
+.reserv-card.pos-role-lok::before {
+  background: #ea580c;
+}
+.reserv-card.pos-role-tv::before {
+  background: #2563eb;
+}
+
+.reserv-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.reserv-card-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary, #fff);
+  flex: 1;
+}
+
+.reserv-card-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reserv-card-ort {
+  font-size: 0.82rem;
+  color: var(--text-secondary, rgba(255,255,255,0.55));
+}
+
+.reserv-card-time {
+  font-size: 0.82rem;
+  color: var(--text-secondary, rgba(255,255,255,0.55));
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Role/badge chips ---- */
+.reserv-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reserv-badge-lkf {
+  background: rgba(234, 88, 12, 0.18);
+  color: #fb923c;
+}
+
+.reserv-badge-tv {
+  background: rgba(37, 99, 235, 0.18);
+  color: #60a5fa;
+}
+
+.reserv-badge-default {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-secondary, rgba(255,255,255,0.6));
+}
+
+/* ---- Role badge in dagvy person bar ---- */
+.reserv-dagvy-role-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.reserv-dagvy-badge-lkf {
+  background: rgba(234, 88, 12, 0.18);
+  color: #fb923c;
+}
+
+.reserv-dagvy-badge-tv {
+  background: rgba(37, 99, 235, 0.18);
+  color: #60a5fa;
+}
+
+/* ---- Loading spinner ---- */
+.reserv-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 14px;
+  color: var(--text-secondary, rgba(255,255,255,0.5));
+  font-size: 0.9rem;
+}
+
+.reserv-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border-color, rgba(255,255,255,0.12));
+  border-top-color: var(--accent-blue, #2563eb);
+  border-radius: 50%;
+  animation: reserv-spin 0.7s linear infinite;
+}
+
+@keyframes reserv-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Empty state ---- */
+.reserv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 10px;
+  color: var(--text-secondary, rgba(255,255,255,0.4));
+  text-align: center;
+}
+
+.reserv-empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.reserv-empty p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+/* ---- Scraped-at footer ---- */
+.reserv-scraped-at {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary, rgba(255,255,255,0.3));
+  margin-top: 20px;
+  padding-bottom: 8px;
+}
+
+/* ---- Dark mode adjustments ---- */
+html.dark .reserv-select {
+  background-color: rgba(255,255,255,0.05);
+}
+
+html.dark .reserv-card {
+  background: rgba(255,255,255,0.03);
+}
+
+html.dark .reserv-day-toggle {
+  background: rgba(255,255,255,0.06);
+}

@@ -559,6 +559,87 @@ async function showDagvyPopup(employeeId) {
 }
 
 /**
+ * Show reserv dagvy popup from reservdagvy Firebase data.
+ * @param {Object} person  - person object from reservdagvy (has name, turnr, start, end, segments, locName, role)
+ * @param {string} dateStr - "YYYY-MM-DD" for the selected day
+ */
+function showReservDagvyPopup(person, dateStr) {
+  if (!person) return;
+
+  dagvyActive = true;
+  dagvyPreviousTitle = headerTitle.textContent;
+
+  var dateObj = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+  var weekday = getSwedishWeekday(dateObj);
+  var dayNum = dateObj.getDate();
+  var monthNum = dateObj.getMonth() + 1;
+  headerTitle.textContent = weekday + ' ' + dayNum + '/' + monthNum;
+
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+
+  var dagvyPage = document.getElementById('dagvyPage');
+  if (!dagvyPage) {
+    dagvyPage = document.createElement('main');
+    dagvyPage.className = 'dagvy-page page';
+    dagvyPage.id = 'dagvyPage';
+    document.querySelector('.main-content').parentNode.insertBefore(dagvyPage, document.querySelector('.main-content').nextSibling);
+  }
+
+  var savedMode = dagvyReadCookie(DAGVY_MODE_COOKIE);
+  dagvySimpleMode = savedMode === 'enkel';
+  dagvyCrewFilter = false;
+
+  // Construct dayData compatible with buildDagvyContent
+  var dayData = {
+    date: dateStr,
+    turnr: person.turnr || '',
+    start: person.start || '',
+    end: person.end || '',
+    segments: person.segments || [],
+    crews: [],
+    notFound: person.notFound || false
+  };
+  dagvyCurrentData = dayData;
+  dagvyCurrentName = person.name;
+
+  var modeSwCls = dagvySimpleMode ? 'enkel-active' : 'allt-active';
+  var enkelActive = dagvySimpleMode ? ' active' : '';
+  var alltActive = dagvySimpleMode ? '' : ' active';
+
+  var roleBadge = person.badge ? '<span class="reserv-dagvy-role-badge reserv-dagvy-badge-' + (person.badgeColor || '').toLowerCase() + '">' + person.badge + '</span>' : '';
+  var ortText = person.locName ? ' &middot; ' + person.locName : '';
+
+  dagvyPage.classList.add('active');
+  dagvyPage.innerHTML =
+    '<div class="dagvy-person-bar">' +
+      '<div class="dagvy-person-info">' +
+        '<h2 class="dagvy-person-name">' + person.name + '</h2>' +
+        '<div class="dagvy-person-turn">' +
+          roleBadge +
+          'Tur <strong>' + (person.turnr || '–') + '</strong> &middot; ' + (person.start || '–') + ' – ' + (person.end || '–') + ortText +
+        '</div>' +
+      '</div>' +
+      '<div class="dagvy-bar-actions">' +
+        '<div class="dagvy-toggles-stack">' +
+          '<div class="dagvy-mode-toggle" id="dagvyModeToggle" onclick="toggleDagvyMode()">' +
+            '<span class="dagvy-mode-label dagvy-mode-enkel' + enkelActive + '">Enkel</span>' +
+            '<div class="dagvy-mode-switch ' + modeSwCls + '">' +
+              '<div class="dagvy-mode-thumb"></div>' +
+            '</div>' +
+            '<span class="dagvy-mode-label dagvy-mode-allt' + alltActive + '">Allt</span>' +
+          '</div>' +
+        '</div>' +
+        '<button class="dagvy-close-btn" onclick="closeDagvy()">&#x2715;</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="dagvy-content" id="dagvyContent">' +
+      buildDagvyContent(dayData, person.name, dagvySimpleMode) +
+    '</div>';
+
+  dagvyScrollToCurrent();
+}
+
+/**
  * Look up start-end time for a turn number from TIL_TURN_TIMES / TIL_SHIFT_TIMES.
  * Returns "HH:MM-HH:MM" string or null if not found.
  */

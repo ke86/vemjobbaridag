@@ -1468,6 +1468,50 @@ async function saveScheduleToFirebase(dateStr, shifts) {
   }
 }
 
+// ==========================================
+// RESERV DAGVY — fetch from Firebase
+// ==========================================
+
+var _reservDagvyCache = null;
+var _reservDagvyCacheTs = 0;
+var _reservDagvyCacheTTL = 30 * 60 * 1000; // 30 min
+
+/**
+ * Fetch reservdagvy document from Firebase (reservdagvy collection).
+ * Returns the most recent document by scrapedAt, or null if unavailable.
+ */
+async function fetchReservDagvyFromFirebase() {
+  if (_reservDagvyCache && (Date.now() - _reservDagvyCacheTs) < _reservDagvyCacheTTL) {
+    return _reservDagvyCache;
+  }
+  try {
+    var token = await firebase.auth().currentUser.getIdToken();
+    var url = 'https://firestore.googleapis.com/v1/projects/' + firebaseConfig.projectId +
+      '/databases/(default)/documents/reservdagvy?pageSize=10';
+    var resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var json = await resp.json();
+    if (!json.documents || json.documents.length === 0) return null;
+
+    var best = null;
+    for (var i = 0; i < json.documents.length; i++) {
+      var data = _parseFirestoreFields(json.documents[i].fields || {});
+      if (!best || (data.scrapedAt && data.scrapedAt > best.scrapedAt)) {
+        best = data;
+      }
+    }
+
+    _reservDagvyCache = best;
+    _reservDagvyCacheTs = Date.now();
+    return best;
+  } catch (err) {
+    console.error('[RESERV-DAGVY] Fetch error:', err);
+    return null;
+  }
+}
+
+// ==========================================
+
 /**
  * Save dagvy data to Firebase
  * Takes parsed JSON with structure: { "Employee Name": { scrapedAt, days: [...] }, ... }

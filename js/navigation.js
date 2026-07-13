@@ -111,6 +111,9 @@ function showPage(pageId) {
   if (pageId !== 'positions') {
     if (typeof onPositionsPageHide === 'function') onPositionsPageHide();
   }
+  if (pageId !== 'reserv') {
+    if (typeof onReservPageHide === 'function') onReservPageHide();
+  }
   if (pageId !== 'disruptions') {
     if (typeof onDisruptionsPageHide === 'function') onDisruptionsPageHide();
   }
@@ -135,6 +138,10 @@ function showPage(pageId) {
     document.getElementById('positionsPage').classList.add('active');
     headerTitle.textContent = 'Positionslista';
     if (typeof onPositionsPageShow === 'function') onPositionsPageShow();
+  } else if (pageId === 'reserv') {
+    document.getElementById('reservPage').classList.add('active');
+    headerTitle.textContent = 'Reserver?';
+    if (typeof onReservPageShow === 'function') onReservPageShow();
   } else if (pageId === 'monthly') {
     monthlyPage.classList.add('active');
     headerTitle.textContent = 'Schema';

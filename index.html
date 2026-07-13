@@ -44,6 +44,7 @@
   <link rel="stylesheet" href="css/documents.css">
   <link rel="stylesheet" href="css/disruptions.css">
   <link rel="stylesheet" href="css/positions.css">
+  <link rel="stylesheet" href="css/reserv.css">
   <link rel="stylesheet" href="css/parkering.css">
   <link rel="stylesheet" href="css/notes.css">
   <link rel="stylesheet" href="css/overtime.css">
@@ -94,6 +95,7 @@
     </div>
     <ul class="sidebar-menu">
       <li><a href="#" data-page="schedule" id="menuTodayLink"><span class="icon">🏠</span> Vem jobbar idag?</a></li>
+      <li><a href="#" data-page="reserv"><span class="icon">🛡️</span> Reserver?</a></li>
       <li><a href="#" data-page="positions"><span class="icon">📍</span> Positionslista</a></li>
       <li><a href="#" data-page="monthly"><span class="icon">🗓️</span> Schema</a></li>
       <li><a href="#" data-page="la"><span class="icon">📋</span> Dagens LA</a></li>
@@ -166,6 +168,16 @@
       <!-- Cards will be rendered here -->
     </div>
     <div class="dagvy-timestamp" id="dagvyTimestamp"></div>
+  </main>
+
+  <!-- Reserv Page -->
+  <main class="reserv-page page" id="reservPage">
+    <div id="reservContainer">
+      <div class="reserv-empty">
+        <div class="reserv-empty-icon">🛡️</div>
+        <p>Reserver</p>
+      </div>
+    </div>
   </main>
 
   <!-- Positions Page -->
@@ -1555,6 +1567,7 @@
   <script src="js/documents.js"></script>
   <script src="js/disruptions.js"></script>
   <script src="js/positions.js"></script>
+  <script src="js/reserv.js"></script>
   <script src="js/parkering.js"></script>
   <script src="js/notes.js"></script>
   <script src="js/overtime.js"></script>
