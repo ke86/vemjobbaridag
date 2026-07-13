@@ -89,7 +89,7 @@ function renderReserv() {
   // Apply ort filter
   if (_reservFilterOrt !== 'alla') {
     persons = persons.filter(function(p) {
-      return (p.locName || '') === _reservFilterOrt;
+      return _resolveOrt(p) === _reservFilterOrt;
     });
   }
 
@@ -165,8 +165,9 @@ function _buildReservCard(person, dateStr) {
     badgeHtml = '<span class="reserv-badge ' + badgeColorClass + '">' + _esc(person.badge) + '</span>';
   }
 
-  var ortHtml = person.locName
-    ? '<span class="reserv-card-ort">' + _esc(person.locName) + '</span>'
+  var ort = _resolveOrt(person);
+  var ortHtml = ort
+    ? '<span class="reserv-card-ort">' + _esc(ort) + '</span>'
     : '';
 
   var timeHtml = (person.start && person.end)
@@ -231,6 +232,23 @@ function _getPersonsForDay(dateStr) {
   }
   if (!dayObj || !Array.isArray(dayObj.persons)) return [];
   return dayObj.persons.filter(function(p) { return !p.notFound; });
+}
+
+var _STATION_ORT = {
+  'HDort': 'Halmstad',
+  'MCort': 'Malmö',
+  'CKort': 'Karlskrona',
+  'HBort': 'Helsingborg',
+  'KACort': 'Kalmar'
+};
+
+function _resolveOrt(person) {
+  if (person.locName) return person.locName;
+  var firstSeg = person.segments && person.segments[0];
+  if (firstSeg && firstSeg.fromStation) {
+    return _STATION_ORT[firstSeg.fromStation] || '';
+  }
+  return '';
 }
 
 function _getTodayStr() {

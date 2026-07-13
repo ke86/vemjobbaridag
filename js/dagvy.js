@@ -20,6 +20,9 @@ let dagvyCurrentName = '';
 // Latest known dagvy scrapedAt timestamp
 let dagvyLatestScrapedAt = null;
 
+// Page to return to when closing dagvy ('schedule' | 'reserv')
+let dagvyReturnPage = 'schedule';
+
 // ── Changelog — persistent change history ──
 var _dagvyChangelog = [];
 var _dagvyChangelogLoaded = false;
@@ -355,6 +358,7 @@ async function showDagvyPopup(employeeId) {
 
   // Save current header title & update to weekday + date
   dagvyPreviousTitle = headerTitle.textContent;
+  dagvyReturnPage = 'schedule';
   const weekday = getSwedishWeekday(currentDate);
   const dayNum = currentDate.getDate();
   const monthNum = currentDate.getMonth() + 1;
@@ -568,6 +572,7 @@ function showReservDagvyPopup(person, dateStr) {
 
   dagvyActive = true;
   dagvyPreviousTitle = headerTitle.textContent;
+  dagvyReturnPage = 'reserv';
 
   var dateObj = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
   var weekday = getSwedishWeekday(dateObj);
@@ -607,7 +612,8 @@ function showReservDagvyPopup(person, dateStr) {
   var alltActive = dagvySimpleMode ? '' : ' active';
 
   var roleBadge = person.badge ? '<span class="reserv-dagvy-role-badge reserv-dagvy-badge-' + (person.badgeColor || '').toLowerCase() + '">' + person.badge + '</span>' : '';
-  var ortText = person.locName ? ' &middot; ' + person.locName : '';
+  var resolvedOrt = (typeof _resolveOrt === 'function') ? _resolveOrt(person) : (person.locName || '');
+  var ortText = resolvedOrt ? ' &middot; ' + resolvedOrt : '';
 
   dagvyPage.classList.add('active');
   dagvyPage.innerHTML =
@@ -1464,10 +1470,15 @@ function closeDagvy() {
   }
 
   // Restore header title
-  headerTitle.textContent = 'Vem jobbar idag?';
+  headerTitle.textContent = dagvyPreviousTitle || 'Vem jobbar idag?';
 
-  // Re-show schedule page
-  schedulePage.classList.add('active');
+  // Re-show the page that opened dagvy
+  if (dagvyReturnPage === 'reserv') {
+    var rp = document.getElementById('reservPage');
+    if (rp) rp.classList.add('active');
+  } else {
+    schedulePage.classList.add('active');
+  }
 }
 
 // =============================================
