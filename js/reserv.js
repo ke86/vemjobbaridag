@@ -13,6 +13,7 @@ var _reservData = null;          // full reservdagvy document
 var _reservSelectedDay = 'idag'; // 'idag' | 'imorgon'
 var _reservFilterRoll = 'alla';  // 'alla' | 'Lokförare' | 'Tågvärd'
 var _reservFilterOrt = 'alla';   // 'alla' | specific city
+var _posOrtMap = null;           // { normalizedName: ort } built from all pos days
 
 // =============================================
 // PAGE SHOW / HIDE
@@ -300,21 +301,41 @@ function _resolveOrt(person) {
     var mapped = _STATION_ORT[firstSeg.fromStation.toLowerCase()];
     if (mapped) return mapped;
   }
-  // Fallback: look up person by name in positions data
-  if (typeof _posCache !== 'undefined' && _posCache && _posCache.data && _posCache.data.dagar) {
-    var today = _getTodayStr();
-    var dayData = _posCache.data.dagar[today];
-    if (Array.isArray(dayData)) {
-      var nameNorm = (person.name || '').toLowerCase().trim();
-      for (var i = 0; i < dayData.length; i++) {
-        var pos = dayData[i];
-        if ((pos.namn || '').toLowerCase().trim() === nameNorm && pos.ort) {
-          return pos.ort;
-        }
+  // Fallback: search all days in positions cache for this person's ort
+  var map = _getPosOrtMap();
+  if (map) {
+    var nameNorm = (person.name || '').toLowerCase().trim();
+    if (map[nameNorm]) return map[nameNorm];
+  }
+  return '';
+}
+
+function _getPosOrtMap() {
+  if (typeof _posCache === 'undefined' || !_posCache || !_posCache.data || !_posCache.data.dagar) {
+    return null;
+  }
+  // Rebuild map whenever positions cache timestamp changes
+  var cacheTs = _posCache.ts || 0;
+  if (_posOrtMap && _posOrtMap._ts === cacheTs) return _posOrtMap;
+
+  var map = { _ts: cacheTs };
+  var dagar = _posCache.data.dagar;
+  var dates = Object.keys(dagar);
+  for (var d = 0; d < dates.length; d++) {
+    var dayData = dagar[dates[d]];
+    if (!Array.isArray(dayData)) continue;
+    for (var i = 0; i < dayData.length; i++) {
+      var pos = dayData[i];
+      var ort = (pos.ort || '').trim();
+      if (!ort) continue;
+      var key = (pos.namn || '').toLowerCase().trim();
+      if (key && !map[key]) {
+        map[key] = ort;
       }
     }
   }
-  return '';
+  _posOrtMap = map;
+  return _posOrtMap;
 }
 
 function _isWorkingNow(person) {
