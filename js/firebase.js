@@ -1618,20 +1618,29 @@ async function deleteEmployeeFromFirebase(employeeId) {
     throw new Error('No employeeId provided');
   }
 
-  // Get all schedule documents and update them
-  const schedulesSnapshot = await db.collection('schedules').get();
-
-  for (const doc of schedulesSnapshot.docs) {
-    const shifts = doc.data().shifts || [];
+  // Use in-memory employeesData — no Firestore read needed.
+  // The caller (ui-upload.js) already removed the employee from employeesData before calling this.
+  // We just need to write back dates that still have other employees' shifts.
+  const writes = [];
+  for (const [dateStr, shifts] of Object.entries(employeesData)) {
     const filteredShifts = shifts.filter(s => s.employeeId !== employeeId);
-
     if (filteredShifts.length !== shifts.length) {
-      if (filteredShifts.length > 0) {
-        await db.collection('schedules').doc(doc.id).set({ shifts: filteredShifts });
+      writes.push({ id: dateStr, shifts: filteredShifts });
+    }
+  }
+
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < writes.length; i += BATCH_SIZE) {
+    const batch = db.batch();
+    for (const { id, shifts } of writes.slice(i, i + BATCH_SIZE)) {
+      const docRef = db.collection('schedules').doc(id);
+      if (shifts.length > 0) {
+        batch.set(docRef, { shifts });
       } else {
-        await db.collection('schedules').doc(doc.id).delete();
+        batch.delete(docRef);
       }
     }
+    await commitBatchWithRetry(batch);
   }
 
   // Delete the employee document
@@ -1724,52 +1733,14 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts, o
     });
   }
 
-  // 3. First, read all existing data for these dates - SEQUENTIALLY to avoid rate limits
+  // 3. Use in-memory employeesData instead of reading each date from Firestore.
+  //    employeesData is always kept in sync with Firestore after every fetch/edit.
   const dateKeys = Object.keys(shiftsByDate);
   const totalDates = dateKeys.length;
-  console.log(`Updating ${totalDates} dates...`);
+  console.log(`Updating ${totalDates} dates from memory cache...`);
 
-  // Read existing data ONE BY ONE with delays (Firebase Spark has strict per-second limits)
-  const existingData = {};
-  const READ_BATCH_SIZE = 3; // Very small batches for reads
-
-  for (let i = 0; i < dateKeys.length; i += READ_BATCH_SIZE) {
-    const batchKeys = dateKeys.slice(i, i + READ_BATCH_SIZE);
-
-    // Read sequentially within each small batch
-    for (const dateStr of batchKeys) {
-      try {
-        const doc = await db.collection('schedules').doc(dateStr).get();
-        existingData[dateStr] = doc.exists ? (doc.data().shifts || []) : [];
-      } catch (error) {
-        if (error.code === 'resource-exhausted' || error.message?.includes('429')) {
-          // Rate limited on read - wait and retry
-          console.log('Rate limit on read, waiting 2s...');
-          await delay(2000);
-          const doc = await db.collection('schedules').doc(dateStr).get();
-          existingData[dateStr] = doc.exists ? (doc.data().shifts || []) : [];
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    // Report read progress
-    if (onProgress && typeof onProgress === 'function') {
-      const readProgress = Math.min(i + READ_BATCH_SIZE, dateKeys.length);
-      onProgress(Math.floor(readProgress * 0.3), totalDates); // 0-30% for reads
-    }
-
-    // Longer delay between read batches
-    if (i + READ_BATCH_SIZE < dateKeys.length) {
-      await delay(500);
-    }
-  }
-
-  console.log('All existing data read, starting writes...');
-
-  // 4. Prepare all updates and write in VERY small batches with long delays
-  const WRITE_BATCH_SIZE = 5; // Much smaller batches
+  // 4. Write in small batches with delays
+  const WRITE_BATCH_SIZE = 5;
   let processed = 0;
 
   for (let i = 0; i < dateKeys.length; i += WRITE_BATCH_SIZE) {
@@ -1778,32 +1749,29 @@ async function saveFridagShiftsToFirebase(employeeId, keyId, startRow, shifts, o
 
     for (const dateStr of batchKeys) {
       const docRef = db.collection('schedules').doc(dateStr);
-      let existingShifts = existingData[dateStr] || [];
 
-      // Remove any existing FP/FPV for this employee on this date
-      existingShifts = existingShifts.filter(
+      // Use memory cache — remove existing FP/FPV for this employee, then add new
+      let existingShifts = (employeesData[dateStr] || []).filter(
         s => !(s.employeeId === employeeId && (s.badge === 'fp' || s.badge === 'fpv'))
       );
 
-      // Add new shifts
       const updatedShifts = [...existingShifts, ...shiftsByDate[dateStr]];
       batch.set(docRef, { shifts: updatedShifts });
+
+      // Keep memory cache in sync
+      employeesData[dateStr] = updatedShifts;
     }
 
-    // Commit with retry logic for rate limits
     await commitBatchWithRetry(batch);
 
     processed += batchKeys.length;
 
-    // Call progress callback if provided (30-100% for writes)
     if (onProgress && typeof onProgress === 'function') {
-      const writeProgress = Math.floor(30 + (processed / totalDates) * 70);
-      onProgress(writeProgress, 100);
+      onProgress(processed, totalDates);
     }
 
     console.log(`Processed ${processed}/${totalDates} dates...`);
 
-    // Long delay between batches to stay well under quota (1 second)
     if (i + WRITE_BATCH_SIZE < dateKeys.length) {
       await delay(1000);
     }
@@ -1829,35 +1797,15 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
     fridagsrad: firebase.firestore.FieldValue.delete()
   });
 
-  // Small delay after employee update
   await delay(300);
 
-  // 2. Get all schedules - this might hit rate limits on large datasets
-  let schedulesSnapshot;
-  try {
-    schedulesSnapshot = await db.collection('schedules').get();
-  } catch (error) {
-    if (error.code === 'resource-exhausted' || error.message?.includes('429')) {
-      console.log('Rate limit on initial read, waiting 3s...');
-      await delay(3000);
-      schedulesSnapshot = await db.collection('schedules').get();
-    } else {
-      throw error;
-    }
-  }
-
-  const docs = schedulesSnapshot.docs;
-  const totalDocs = docs.length;
-
-  // Process and collect updates first
+  // 2. Use in-memory employeesData — no Firestore read needed.
+  //    Find all dates where this employee has FP/FPV with time '-' (generated by fridagsnyckel).
   const updates = [];
   const deletes = [];
   let removedCount = 0;
 
-  for (const doc of docs) {
-    const shifts = doc.data().shifts || [];
-
-    // Filter out FP/FPV shifts for this employee that have time '-' (generated by fridagsnyckel)
+  for (const [dateStr, shifts] of Object.entries(employeesData)) {
     const filteredShifts = shifts.filter(s => {
       if (s.employeeId !== employeeId) return true;
       if (s.badge !== 'fp' && s.badge !== 'fpv') return true;
@@ -1870,14 +1818,14 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
 
     if (filteredShifts.length !== shifts.length) {
       if (filteredShifts.length > 0) {
-        updates.push({ id: doc.id, shifts: filteredShifts });
+        updates.push({ id: dateStr, shifts: filteredShifts });
       } else {
-        deletes.push(doc.id);
+        deletes.push(dateStr);
       }
     }
   }
 
-  // Write updates in VERY small batches with long delays
+  // 3. Write changes in small batches
   const BATCH_SIZE = 5;
   const allChanges = [...updates.map(u => ({ type: 'update', ...u })), ...deletes.map(id => ({ type: 'delete', id }))];
   const totalChanges = allChanges.length;
@@ -1898,7 +1846,6 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
       }
     }
 
-    // Commit with retry logic
     await commitBatchWithRetry(batch);
 
     processed += batchItems.length;
@@ -1906,13 +1853,11 @@ async function removeFridagShiftsFromFirebase(employeeId, onProgress) {
       onProgress(processed, totalChanges > 0 ? totalChanges : 1);
     }
 
-    // Long delay between batches (1 second)
     if (i + BATCH_SIZE < allChanges.length) {
       await delay(1000);
     }
   }
 
-  // If no changes, still call progress to complete
   if (totalChanges === 0 && onProgress) {
     onProgress(1, 1);
   }
