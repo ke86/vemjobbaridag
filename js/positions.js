@@ -89,6 +89,8 @@ function fetchPositions() {
       renderPositions();
       // Update parking menu indicator when positions data arrives
       if (typeof updateParkeringMenuIndicator === 'function') updateParkeringMenuIndicator();
+      // Update reserv menu badges when positions data arrives
+      if (typeof updateReservMenuBadges === 'function') updateReservMenuBadges();
       // Fetch available history dates (adds past dates to date picker)
       fetchPositionHistoryDates();
       // Check for disappeared persons/shifts (compare with baseline)

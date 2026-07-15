@@ -1,15 +1,17 @@
 /**
  * reserv.js - Reservlista page
- * Shows reserve workers from reservdagvy Firebase collection.
- * Filtered by Idag/Imorgon, Roll, and Ort.
+ * Shows reserve workers from positions data (always current).
+ * Dagvy details (segments) come from reservdagvy Firebase collection,
+ * which is populated via Settings -> Data -> Hämta reservdata.
  */
 
-/* global fetchReservDagvyFromFirebase, showReservDagvyPopup, _posCache */
+/* global fetchReservDagvyFromFirebase, showReservDagvyPopup, _posCache, classifyPosFlags, getPosTime, fetchPositions */
 
 // =============================================
 // STATE
 // =============================================
-var _reservData = null;          // full reservdagvy document
+var _reservData = null;          // reservdagvy document (for dagvy popup segments)
+var _reservDataLoaded = false;   // whether reservdagvy fetch has been attempted
 var _reservSelectedDay = 'idag'; // 'idag' | 'imorgon'
 var _reservFilterRoll = 'alla';  // 'alla' | 'Lokförare' | 'Tågvärd'
 var _reservFilterOrt = 'alla';   // 'alla' | specific city
@@ -20,11 +22,7 @@ var _posOrtMap = null;           // { normalizedName: ort } built from all pos d
 // =============================================
 function onReservPageShow() {
   window._ptrDisabled = true;
-  if (!_reservData) {
-    fetchAndRenderReserv();
-  } else {
-    renderReserv();
-  }
+  fetchAndRenderReserv();
 }
 
 function onReservPageHide() {
@@ -40,22 +38,42 @@ async function fetchAndRenderReserv() {
     container.innerHTML =
       '<div class="reserv-loading">' +
         '<div class="reserv-spinner"></div>' +
-        '<div>Hämtar reservdata...</div>' +
+        '<div>Hämtar reserver...</div>' +
       '</div>';
   }
 
-  try {
-    var data = await fetchReservDagvyFromFirebase();
-    if (!data || !data.days || !Array.isArray(data.days)) {
-      _showReservError('Ingen reservdata tillgänglig');
-      return;
+  // Ensure positions data is loaded
+  if (typeof _posCache === 'undefined' || !_posCache || !_posCache.data || !_posCache.data.dagar) {
+    if (typeof fetchPositions === 'function') {
+      fetchPositions();
+      // Wait for positions to load (poll up to 15s)
+      var waited = 0;
+      while ((!_posCache || !_posCache.data) && waited < 15000) {
+        await new Promise(function(r) { setTimeout(r, 500); });
+        waited += 500;
+      }
     }
-    _reservData = data;
-    renderReserv();
-  } catch (err) {
-    console.error('[RESERV]', err);
-    _showReservError('Kunde inte hämta reservdata');
   }
+
+  if (!_posCache || !_posCache.data || !_posCache.data.dagar) {
+    _showReservError('Kunde inte hämta positionsdata');
+    return;
+  }
+
+  // Also fetch reservdagvy data in the background (for dagvy popup segments)
+  if (!_reservDataLoaded) {
+    try {
+      var data = await fetchReservDagvyFromFirebase();
+      if (data && data.days && Array.isArray(data.days)) {
+        _reservData = data;
+      }
+    } catch (err) {
+      console.error('[RESERV] reservdagvy fetch error:', err);
+    }
+    _reservDataLoaded = true;
+  }
+
+  renderReserv();
 }
 
 function _showReservError(msg) {
@@ -73,7 +91,12 @@ function _showReservError(msg) {
 // =============================================
 function renderReserv() {
   var container = document.getElementById('reservContainer');
-  if (!container || !_reservData) return;
+  if (!container) return;
+
+  if (!_posCache || !_posCache.data || !_posCache.data.dagar) {
+    _showReservError('Ingen positionsdata tillgänglig');
+    return;
+  }
 
   var today = _getTodayStr();
   var tomorrow = _getTomorrowStr();
@@ -81,20 +104,20 @@ function renderReserv() {
   var imorgon = _reservSelectedDay === 'imorgon';
   var selectedDateStr = idag ? today : tomorrow;
 
-  var allPersons = _getPersonsForDay(selectedDateStr);
+  var allPersons = _getReservPersonsFromPositions(selectedDateStr);
 
   // Apply ort filter first (for counting purposes too)
   var ortFiltered = allPersons;
   if (_reservFilterOrt !== 'alla') {
     ortFiltered = allPersons.filter(function(p) {
-      return _resolveOrt(p) === _reservFilterOrt;
+      return (p.ort || '').trim() === _reservFilterOrt;
     });
   }
 
   // Count by role after ort filter, before roll filter
   var lokCount = 0, tvCount = 0;
   for (var k = 0; k < ortFiltered.length; k++) {
-    var r = (ortFiltered[k].role || '').toLowerCase();
+    var r = (ortFiltered[k].roll || '').toLowerCase();
     if (r.indexOf('lokförare') !== -1) lokCount++;
     else if (r.indexOf('tågvärd') !== -1) tvCount++;
   }
@@ -103,13 +126,17 @@ function renderReserv() {
   var persons = ortFiltered;
   if (_reservFilterRoll !== 'alla') {
     persons = persons.filter(function(p) {
-      return (p.role || '').toLowerCase() === _reservFilterRoll.toLowerCase();
+      return (p.roll || '').toLowerCase() === _reservFilterRoll.toLowerCase();
     });
   }
 
   // Sort by start time
   persons = persons.slice().sort(function(a, b) {
-    return (a.start || '').localeCompare(b.start || '');
+    var ta = (a.start || '');
+    var tb = (b.start || '');
+    if (ta === '-') ta = '99:99';
+    if (tb === '-') tb = '99:99';
+    return ta.localeCompare(tb);
   });
 
   var html =
@@ -156,11 +183,13 @@ function renderReserv() {
     html += '</div>';
   }
 
-  // Scraped-at info
+  // Scraped-at info from reservdagvy (shows when dagvy data was last fetched)
   if (_reservData && _reservData.scrapedAt) {
     var scrapedDate = new Date(_reservData.scrapedAt);
     var scrapedStr = scrapedDate.toLocaleString('sv-SE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    html += '<div class="reserv-scraped-at">Hämtad ' + scrapedStr + '</div>';
+    html += '<div class="reserv-scraped-at">Dagvy hämtad ' + scrapedStr + '</div>';
+  } else {
+    html += '<div class="reserv-scraped-at">Ingen dagvy hämtad — använd Inställningar → Data → Hämta reservdata för dagvy</div>';
   }
 
   container.innerHTML = html;
@@ -174,31 +203,35 @@ function renderReserv() {
 // =============================================
 function _buildReservCard(person, dateStr) {
   var rollClass = '';
-  if ((person.role || '').toLowerCase().indexOf('lokförare') !== -1) rollClass = ' pos-role-lok';
-  else if ((person.role || '').toLowerCase().indexOf('tågvärd') !== -1) rollClass = ' pos-role-tv';
+  if ((person.roll || '').toLowerCase().indexOf('lokförare') !== -1) rollClass = ' pos-role-lok';
+  else if ((person.roll || '').toLowerCase().indexOf('tågvärd') !== -1) rollClass = ' pos-role-tv';
 
-  var activeClass = _isWorkingNow(person) ? ' reserv-card--active-now' : '';
+  var activeClass = _isWorkingNowPos(person) ? ' reserv-card--active-now' : '';
 
   var badgeHtml = '';
-  if (person.badge) {
-    var badgeColorClass = 'reserv-badge-' + (person.badgeColor || 'default').toLowerCase();
-    badgeHtml = '<span class="reserv-badge ' + badgeColorClass + '">' + _esc(person.badge) + '</span>';
+  var flags = (typeof classifyPosFlags === 'function') ? classifyPosFlags(person) : null;
+  if (flags && flags.tag) {
+    var badgeColorClass = 'reserv-badge-' + (flags.tagClass || 'pos-tag-res').replace('pos-tag-', '');
+    badgeHtml = '<span class="reserv-badge ' + badgeColorClass + '">' + _esc(flags.tag) + '</span>';
   }
 
-  var ort = _resolveOrt(person);
+  var ort = (person.ort || '').trim();
   var ortHtml = ort
     ? '<span class="reserv-card-ort">' + _esc(ort) + '</span>'
     : '';
 
-  var timeHtml = (person.start && person.end)
-    ? '<span class="reserv-card-time">' + _esc(person.start) + ' – ' + _esc(person.end) + '</span>'
+  var pTime = (typeof getPosTime === 'function') ? getPosTime(person) : { start: person.start, slut: person.slut };
+  var startStr = pTime.start && pTime.start !== '-' ? pTime.start : '';
+  var endStr = pTime.slut && pTime.slut !== '-' ? pTime.slut : '';
+  var timeHtml = (startStr && endStr)
+    ? '<span class="reserv-card-time">' + _esc(startStr) + ' – ' + _esc(endStr) + '</span>'
     : '';
 
   var personDataJson = JSON.stringify(person).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
 
   return '<div class="reserv-card' + rollClass + activeClass + '" onclick="openReservDagvy(this)" data-person=\'' + personDataJson + '\' data-date="' + _esc(dateStr) + '">' +
     '<div class="reserv-card-top">' +
-      '<span class="reserv-card-name">' + _esc(person.name) + '</span>' +
+      '<span class="reserv-card-name">' + _esc(person.namn || '') + '</span>' +
       badgeHtml +
     '</div>' +
     '<div class="reserv-card-bottom">' +
@@ -212,12 +245,11 @@ function _buildReservCard(person, dateStr) {
 // MENU BADGES
 // =============================================
 function updateReservMenuBadges() {
-  if (!_reservData) return;
   var today = _getTodayStr();
-  var todayPersons = _getPersonsForDay(today);
+  var todayPersons = _getReservPersonsFromPositions(today);
   var lokCount = 0, tvCount = 0;
   for (var i = 0; i < todayPersons.length; i++) {
-    var r = (todayPersons[i].role || '').toLowerCase();
+    var r = (todayPersons[i].roll || '').toLowerCase();
     if (r.indexOf('lokförare') !== -1) lokCount++;
     else if (r.indexOf('tågvärd') !== -1) tvCount++;
   }
@@ -256,8 +288,9 @@ function openReservDagvy(cardEl) {
   var dateStr = cardEl.getAttribute('data-date');
   if (!personJson) return;
   try {
-    var person = JSON.parse(personJson.replace(/&#39;/g, "'"));
-    showReservDagvyPopup(person, dateStr);
+    var posPerson = JSON.parse(personJson.replace(/&#39;/g, "'"));
+    var mergedPerson = _mergePosWithDagvy(posPerson, dateStr);
+    showReservDagvyPopup(mergedPerson, dateStr);
   } catch (e) {
     console.error('[RESERV] openReservDagvy parse error', e);
   }
@@ -266,105 +299,84 @@ function openReservDagvy(cardEl) {
 // =============================================
 // HELPERS
 // =============================================
-function _getPersonsForDay(dateStr) {
-  if (!_reservData || !_reservData.days) return [];
-  var dayObj = null;
-  for (var i = 0; i < _reservData.days.length; i++) {
-    if (_reservData.days[i].date === dateStr) {
-      dayObj = _reservData.days[i];
-      break;
+
+/**
+ * Get reserve persons from positions cache for a given date.
+ * Filters positions data using classifyPosFlags to find reserves.
+ */
+function _getReservPersonsFromPositions(dateStr) {
+  if (typeof _posCache === 'undefined' || !_posCache || !_posCache.data || !_posCache.data.dagar) return [];
+  var dayData = _posCache.data.dagar[dateStr];
+  if (!Array.isArray(dayData)) return [];
+
+  var result = [];
+  for (var i = 0; i < dayData.length; i++) {
+    var p = dayData[i];
+    if (typeof classifyPosFlags !== 'function') break;
+    var flags = classifyPosFlags(p);
+    if (flags.isRes) {
+      result.push(p);
     }
   }
-  if (!dayObj || !Array.isArray(dayObj.persons)) return [];
-  return dayObj.persons.filter(function(p) { return !p.notFound; });
+  return result;
 }
 
-var _STATION_ORT = {
-  'hdort': 'Halmstad',
-  'hd': 'Halmstad',
-  'mcort': 'Malmö',
-  'mc': 'Malmö',
-  'm': 'Malmö',
-  'ckort': 'Karlskrona',
-  'ck': 'Karlskrona',
-  'hbort': 'Helsingborg',
-  'hb': 'Helsingborg',
-  'kacort': 'Kalmar',
-  'kac': 'Kalmar',
-  'hm': 'Hässleholm'
-};
+/**
+ * Merge a positions-data person with reservdagvy segments.
+ * Person info (name, turnr, start, end, ort, role) comes from positions data.
+ * Segments (detailed dagvy) come from reservdagvy Firebase data.
+ * If reservdagvy data is missing, returns person with empty segments and a notFound flag.
+ */
+function _mergePosWithDagvy(posPerson, dateStr) {
+  var pTime = (typeof getPosTime === 'function') ? getPosTime(posPerson) : { start: posPerson.start, slut: posPerson.slut };
 
-function _resolveOrt(person) {
-  if (person.locName) return person.locName;
-  var firstSeg = person.segments && person.segments[0];
-  if (firstSeg && firstSeg.fromStation) {
-    var mapped = _STATION_ORT[firstSeg.fromStation.toLowerCase()];
-    if (mapped) return mapped;
-  }
-  // Fallback: search all days in positions cache for this person's ort
-  var map = _getPosOrtMap();
-  if (map) {
-    var nameNorm = (person.name || '').toLowerCase().trim();
-    if (map[nameNorm]) return map[nameNorm];
-  }
-  return '';
-}
+  var merged = {
+    name: posPerson.namn || '',
+    turnr: posPerson.turnr || '',
+    start: (pTime.start && pTime.start !== '-') ? pTime.start : '',
+    end: (pTime.slut && pTime.slut !== '-') ? pTime.slut : '',
+    locName: (posPerson.ort || '').trim(),
+    role: posPerson.roll || '',
+    segments: [],
+    notFound: true
+  };
 
-var _RESERV_ORT_MAP_KEY = 'reservOrtMap';
-var _RESERV_ORT_MAP_TTL = 48 * 60 * 60 * 1000; // 48h
-
-function _getPosOrtMap() {
-  if (typeof _posCache !== 'undefined' && _posCache && _posCache.data && _posCache.data.dagar) {
-    var cacheTs = _posCache.ts || 0;
-    if (_posOrtMap && _posOrtMap._ts === cacheTs) return _posOrtMap;
-
-    var map = { _ts: cacheTs };
-    var dagar = _posCache.data.dagar;
-    var dates = Object.keys(dagar);
-    for (var d = 0; d < dates.length; d++) {
-      var dayData = dagar[dates[d]];
-      if (!Array.isArray(dayData)) continue;
-      for (var i = 0; i < dayData.length; i++) {
-        var pos = dayData[i];
-        var ort = (pos.ort || '').trim();
-        if (!ort) continue;
-        var key = (pos.namn || '').toLowerCase().trim();
-        if (key && !map[key]) {
-          map[key] = ort;
+  // Try to find segments in reservdagvy data
+  if (_reservData && _reservData.days) {
+    var nameNorm = (posPerson.namn || '').toLowerCase().trim();
+    for (var i = 0; i < _reservData.days.length; i++) {
+      var day = _reservData.days[i];
+      if (day.date !== dateStr) continue;
+      if (!Array.isArray(day.persons)) continue;
+      for (var j = 0; j < day.persons.length; j++) {
+        var rp = day.persons[j];
+        if ((rp.name || '').toLowerCase().trim() === nameNorm) {
+          merged.segments = rp.segments || [];
+          merged.badge = rp.badge || '';
+          merged.badgeColor = rp.badgeColor || '';
+          merged.notFound = rp.notFound || false;
+          // Use reservdagvy times if available (more precise)
+          if (rp.start) merged.start = rp.start;
+          if (rp.end) merged.end = rp.end;
+          return merged;
         }
       }
     }
-    _posOrtMap = map;
-
-    try {
-      localStorage.setItem(_RESERV_ORT_MAP_KEY, JSON.stringify({ map: map, savedAt: Date.now() }));
-    } catch (e) { /* storage full */ }
-
-    return _posOrtMap;
   }
 
-  // No positions cache in memory — try localStorage fallback
-  if (_posOrtMap) return _posOrtMap;
-  try {
-    var raw = localStorage.getItem(_RESERV_ORT_MAP_KEY);
-    if (raw) {
-      var stored = JSON.parse(raw);
-      if (stored && stored.map && (Date.now() - (stored.savedAt || 0)) < _RESERV_ORT_MAP_TTL) {
-        _posOrtMap = stored.map;
-        return _posOrtMap;
-      }
-    }
-  } catch (e) { /* parse error */ }
-
-  return null;
+  return merged;
 }
 
-function _isWorkingNow(person) {
-  if (!person.start || !person.end) return false;
+/**
+ * Check if a positions-data person is currently working.
+ */
+function _isWorkingNowPos(person) {
+  var pTime = (typeof getPosTime === 'function') ? getPosTime(person) : { start: person.start, slut: person.slut };
+  if (!pTime.start || !pTime.slut || pTime.start === '-' || pTime.slut === '-') return false;
   var now = new Date();
   var hhmm = _pad(now.getHours()) + ':' + _pad(now.getMinutes());
-  var s = person.start.substring(0, 5);
-  var e = person.end.substring(0, 5);
+  var s = pTime.start.substring(0, 5);
+  var e = pTime.slut.substring(0, 5);
   if (s <= e) {
     return hhmm >= s && hhmm <= e;
   }

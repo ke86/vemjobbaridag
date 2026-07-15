@@ -615,6 +615,16 @@ function showReservDagvyPopup(person, dateStr) {
   var resolvedOrt = (typeof _resolveOrt === 'function') ? _resolveOrt(person) : (person.locName || '');
   var ortText = resolvedOrt ? ' &middot; ' + resolvedOrt : '';
 
+  var contentHtml = buildDagvyContent(dayData, person.name, dagvySimpleMode);
+  if (!contentHtml) {
+    contentHtml =
+      '<div class="dagvy-empty">' +
+        '<div class="dagvy-empty-icon">🛡️</div>' +
+        '<p class="dagvy-empty-title">Ingen dagvy tillgänglig</p>' +
+        '<p class="dagvy-empty-sub">Hämta reservdata via Inställningar → Data → Hämta reservdata</p>' +
+      '</div>';
+  }
+
   dagvyPage.classList.add('active');
   dagvyPage.innerHTML =
     '<div class="dagvy-person-bar">' +
@@ -639,7 +649,7 @@ function showReservDagvyPopup(person, dateStr) {
       '</div>' +
     '</div>' +
     '<div class="dagvy-content" id="dagvyContent">' +
-      buildDagvyContent(dayData, person.name, dagvySimpleMode) +
+      contentHtml +
     '</div>';
 
   dagvyScrollToCurrent();
